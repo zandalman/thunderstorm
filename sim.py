@@ -9,7 +9,7 @@ from scipy.integrate import cumtrapz as cumintegrate
 from scipy.interpolate import interp1d
 
 # custom modules
-from functions import mag
+from functions import mag, interp
 from helper import *
 import const
 
@@ -36,16 +36,15 @@ class Sim(object):
     do_Bturb: use a turbulent magnetic field
     do_iso:   use isotropic scattering
     seed:     random number generator seed
-    num:      number of interpolation points
 
     do_ion:   include ionization of background ions
     do_exc:   include excitation of background ions
     do_brem:  include Bremsstrahlung with background ions
     do_scat:  include elastic scattering with background ions
     '''
-    def __init__(self, ener=300000, rho=1e-16, m_i=const.m_e, q_i=const.e, do_iso=False, seed=None, num=int(1e12), do_ion=True, do_exc=True, do_brem=True, do_scat=True):
+    def __init__(self, ener=300000, rho=1e-16, m_i=const.m_e, q_i=const.e, do_iso=False, seed=None, do_ion=True, do_exc=True, do_brem=True, do_scat=True):
         
-        self.ener  = ener
+        self.ener_init = ener
         self.rho   = rho
         
         self.m_i  = m_i
@@ -64,25 +63,22 @@ class Sim(object):
         
         self.seed = seed
         self.rng  = np.random.default_rng(self.seed)
-        self.num = num
-
-        self.idx_event_list = []
-        self.coord_list     = []
-        self.time_list      = []
         
-        self.time  = 0
-        self.coord = np.zeros(3)
-        self.vhat  = self.rand_dir()
+        self.reset()
 
     def reset(self):
         ''' Reset the simulation. '''
-        self.idx_event_list = []
-        self.coord_list     = []
-        self.time_list      = []
-
+        self.ener = self.ener_init
         self.time  = 0
         self.coord = np.zeros(3)
         self.vhat  = self.rand_dir()  
+
+        self.ev_label_list = []
+        self.ev_cat_list   = []
+        self.ev_Z_list     = []
+        self.time_list     = []
+        self.coord_list    = []
+        self.ener_list     = []
 
     def add_Bturb(self, Bturb, q=5/3, fturb=1, Lmax=1e16):
         '''
@@ -143,46 +139,50 @@ class Sim(object):
         spec_data.name = elements.name[Z-1]
         spec_data.symbol = elements.symbol[Z-1]
         
-        spec_data.sig_ion_name_list = []
-        spec_data.sig_ion_func_list = []
+        spec_data.sig_ion_name_list   = []
+        spec_data.sig_ion_x_list      = []
+        spec_data.sig_ion_y_list      = []
+        spec_data.ener_bind_list      = []
+        spec_data.data_ener_loss_list = []
 
         for i, dtype_name in enumerate(data_EEDL.dtype_list):
 
             data = data_EEDL.data[Z-1, i]
-            if np.all(data) == None: continue
-
-            if dtype_name[:3] == 'sig':
-
-                ener, sig = data
-                sig = sig*ab/A # effective cross section
-                sig_func = interp1d(np.log(ener), np.log(sig), fill_value='extrapolate')
+            if type(data) == type(None): continue
             
-                if dtype_name == 'sig_ion' and len(dtype_name) > 7:
+            if dtype_name[:7] == 'sig_ion' and len(dtype_name) > 7:
 
+                    ener, sig, ener_bind = data
+                    sig = sig*ab/A # effective cross section
+                    
                     spec_data.sig_ion_name_list.append(dtype_name)
-                    spec_data.sig_ion_func_list.append(sig_func)
+                    spec_data.sig_ion_x_list.append(ener)
+                    spec_data.sig_ion_y_list.append(sig)
+                    spec_data.ener_bind_list.append(ener_bind)
                 
-                else:
+            elif dtype_name[:3] == 'sig':
 
-                    setattr(spec_data, '%s_func' % dtype_name, sig_func)
+                    ener, sig = data
+                    sig = sig*ab/A # effective cross section
+                    
+                    setattr(spec_data, '%s_x' % dtype_name, ener)
+                    setattr(spec_data, '%s_y' % dtype_name, sig)
 
             elif dtype_name == 'th_scat':
         
-                spec_data.cos_th_cdf = np.logspace(-9, 0, self.num)
-                cos_th_grid = np.zeros((len(data), self.num))
+                spec_data.data_th_scat = data
 
-                ener_list = []
-                for i, data_ener in enumerate(data):
-                    
-                    ener, cos_th, cos_th_pdf = data_ener
-                    ener_list.append(ener)
+            elif dtype_name[:8] == 'spec_ion' and len(dtype_name) > 7:
 
-                    cos_th_cdf     = cumintegrate(cos_th_pdf, cos_th, initial=0) / integrate(cos_th_pdf, cos_th)
-                    cos_th_func    = interp1d(cos_th_cdf, cos_th, fill_value='extrapolate')
-                    cos_th_grid[i] = cos_th_func(spec_data.cos_th_cdf)
+                spec_data.data_ener_loss_list.append(data)
 
-                ener_list = np.array(ener_list)
-                spec_data.cos_th_scat_func = interp1d(np.log(ener_list), cos_th_grid.T, fill_value='extrapolate')
+            elif dtype_name == 'spec_brem':
+
+                spec_data.ener_loss_brem_x, spec_data.ener_loss_brem_y = data
+
+            elif dtype_name == 'spec_exc':
+
+                spec_data.ener_loss_exc_x, spec_data.ener_loss_exc_y = data
 
         self.spec_list.append(spec_data)
     
@@ -223,59 +223,63 @@ class Sim(object):
 
                 for i, sig_ion_name in enumerate(spec_data.sig_ion_name_list):
                 
-                    sig_ion = np.exp(spec_data.sig_ion_func_list[i](np.log(self.ener)))
+                    if self.ener < spec_data.ener_bind_list[i]: continue
+                    ener_loss = self.calc_ener_loss(spec_data.data_ener_loss_list[i])
+                    sig_ion = interp(self.ener, spec_data.sig_ion_x_list[i], spec_data.sig_ion_y_list[i], logx=True, logy=True)
                     self.sig_list.append(sig_ion)
                     self.event_list.append(SimpleNamespace(
                         func = self.dep_ener,
-                        args = dict(),
-                        spec = spec_data.Z,
+                        args = dict(ener_loss=ener_loss),
+                        Z = spec_data.Z,
                         cat = 'ionization',
                         label = '%s ionization (%s)' % (spec_data.symbol, sig_ion_name[8:])
                     ))
 
             if self.do_exc:
 
-                sig_exc = np.exp(spec_data.sig_exc_func(np.log(self.ener)))
+                ener_loss_exc = interp(self.ener, spec_data.ener_loss_exc_x, spec_data.ener_loss_exc_y, logx=True, logy=True)
+                sig_exc = interp(self.ener, spec_data.sig_exc_x, spec_data.sig_exc_y, logx=True, logy=True)
                 self.sig_list.append(sig_exc)
                 self.event_list.append(SimpleNamespace(
                     func = self.dep_ener,
-                    args = dict(),
-                    spec = spec_data.Z,
+                    args = dict(ener_loss=ener_loss_exc),
+                    Z = spec_data.Z,
                     cat = 'excitation',
                     label = '%s excitation' % (spec_data.symbol)
                 ))
 
             if self.do_brem:
 
-                sig_brem = np.exp(spec_data.sig_brem_func(np.log(self.ener)))
+                ener_loss_brem = interp(self.ener, spec_data.ener_loss_brem_x, spec_data.ener_loss_brem_y, logx=True, logy=True)
+                sig_brem = interp(self.ener, spec_data.sig_brem_x, spec_data.sig_brem_y, logx=True, logy=True)
                 self.sig_list.append(sig_brem)
                 self.event_list.append(SimpleNamespace(
                     func = self.dep_ener,
-                    args = dict(),
-                    spec = spec_data.Z,
+                    args = dict(ener_loss=ener_loss_brem),
+                    Z = spec_data.Z,
                     cat = 'Bremsstrahlung',
                     label = '%s Bremsstrahlung' % (spec_data.symbol)
                 ))
 
             if self.do_scat:
 
-                cos_th_scat = spec_data.cos_th_scat_func(np.log(self.ener))
-                sig_scat_la = np.exp(spec_data.sig_scat_la_func(np.log(self.ener)))
+                cos_th_scat = self.calc_cos_th_scat(spec_data.data_th_scat)
+                sig_scat_la = interp(self.ener, spec_data.sig_scat_la_x, spec_data.sig_scat_la_y, logx=True, logy=True)
                 self.sig_list.append(sig_scat_la)
                 self.event_list.append(SimpleNamespace(
                     func = self.scat,
-                    args = dict(do_iso=self.do_iso, trig_th_scat=cos_th_scat, trig_th_scat_cdf=spec_data.cos_th_cdf),
-                    spec = spec_data.Z,
+                    args = dict(cos_th=cos_th_scat),
+                    Z = spec_data.Z,
                     cat = 'elastic scatter',
                     label = '%s elastic scatter (large angle)' % (spec_data.symbol)
                 ))
 
-                sig_scat_sa = np.exp(spec_data.sig_scat_func(np.log(self.ener))) - sig_scat_la
+                sig_scat_sa = interp(self.ener, spec_data.sig_scat_x, spec_data.sig_scat_y, logx=True, logy=True) - sig_scat_la
                 self.sig_list.append(sig_scat_sa)
                 self.event_list.append(SimpleNamespace(
                     func = self.dep_ener,
-                    args = dict(),
-                    spec = spec_data.Z,
+                    args = dict(ener_loss=0),
+                    Z = spec_data.Z,
                     cat = 'elastic scatter',
                     label = '%s elastic scatter (small angle)' % (spec_data.symbol)
                 ))
@@ -292,53 +296,90 @@ class Sim(object):
             self.event_list.append(SimpleNamespace(
                 func = self.scat,
                 args = args,
-                spec = -1,
+                Z = None,
                 cat = 'Bturb scatter',
                 label = 'Bturb scatter'
             ))
 
         self.sig_tot = np.sum(self.sig_list)
 
-    def dep_ener(self):
+    def calc_ener_loss(self, data):
+        '''
+        Compute the energy lost in an ionization interaction.
 
-        pass
+        Args
+        data: A list of tuples (ener, cos_th, cos_th_pdf)
+            ener:          energy [eV]
+            ener_loss:     energy lost [eV]
+            ener_loss_pdf: PDF of the energy lost
+        '''
+        xi = np.random.random() # compute a random number
 
-    def scat(self, do_iso, trig_th_scat=None, trig_th_scat_cdf=None, scat_dir=None, do_sin=False):
+        nener = len(data)
+        ener_list, ener_loss_list = np.zeros(nener), np.zeros(nener)
+
+        for i, data_ener in enumerate(data):
+
+            ener_list[i], ener_loss, ener_loss_pdf = data_ener
+            ener_loss_cdf = cumintegrate(ener_loss_pdf, ener_loss, initial=0) / integrate(ener_loss_pdf, ener_loss)
+            ener_loss_list[i] = interp(xi, ener_loss_cdf, ener_loss, logx=True, logy=True)
+
+        ener_loss = interp(self.ener, ener_list, ener_loss_list, logx=True, logy=True)
+        return ener_loss
+
+    def dep_ener(self, ener_loss):
+        ''' Deposit energy. '''
+        self.ener = self.ener - ener_loss
+
+    def calc_cos_th_scat(self, data):
+        '''
+        Compute the cosine of the scattering angle.
+
+        Args
+        data: A list of tuples (ener, cos_th, cos_th_pdf)
+            ener:       energy [eV]
+            cos_th:     cosine of the scattering angle
+            cos_th_pdf: PDF of the cosine of the scattering angle
+        '''
+        xi = self.rng.random() # compute a random number
+
+        nener = len(data)
+        ener_list, cos_th_list = np.zeros(nener), np.zeros(nener)
+        
+        for i, data_ener in enumerate(data):
+        
+            ener_list[i], cos_th, cos_th_pdf = data_ener
+            cos_th_cdf = cumintegrate(cos_th_pdf, cos_th, initial=0) / integrate(cos_th_pdf, cos_th)
+            cos_th_list[i] = interp(xi, cos_th_cdf, cos_th)
+
+        cos_th = interp(self.ener, ener_list, cos_th_list, logx=True)
+        cos_th = max(min(cos_th, 1), -1)
+        return cos_th
+    
+    def scat(self, cos_th=None, shat=None):
         '''
         Scatter the particle packet:
-            1. Sample the CDF of the scattering kernel to determine the scattering angle
-            2. Compute a unit vector perpendicular to the velocity
-            3. Rotate the velocity about the perpendicular vector by the scattering angle using the Rodrigues formula
-            4. Rotate the velocity about the original velocity by a random angle
+            1. Compute a unit vector perpendicular to the scattering direction
+            2. Rotate the velocity about the perpendicular vector by the scattering angle using the Rodrigues formula
+            3. Rotate the velocity about the scattering direction by a random angle using the Rodrigues formula
 
-        do_iso:           use isotropic scattering
-        trig_th_scat:     sin/cos of scattering angle
-        trig_th_scat_cdf: cumulative distribution function of the sin/cos of scattering angle
-        scat_dir:         unit vector representing the direction off which to scatter
-        do_sin:           use sine instead of cosine
+        cos_th: scattering angle
+        shat:   unit vector representing the direction off which to scatter
         '''
-        if do_iso:
-            
+        if cos_th == None:
             self.vhat = self.rand_dir()
-        
         else:
-            
-            if np.all(scat_dir) == None: scat_dir = self.vhat
+            if np.all(shat) == None: shat = self.vhat
 
-            phi_scat = 2.0*np.pi*self.rng.random()
-            if do_sin:
-                sin_th_scat = trig_th_scat[np.searchsorted(trig_th_scat_cdf, self.rng.random())]
-                cos_th_scat = np.sqrt(1-sin_th_scat**2)
-            else:
-                cos_th_scat = trig_th_scat[np.searchsorted(trig_th_scat_cdf, self.rng.random())]
-                sin_th_scat = np.sqrt(1-cos_th_scat**2)
+            phi = 2.0*np.pi*self.rng.random()
+            sin_th = np.sqrt(1-cos_th**2)
             
             vperp = np.zeros(3)
-            vperp[X], vperp[Y] = scat_dir[Y], -scat_dir[X]
-            vperp /= np.sqrt(scat_dir[X]**2 + scat_dir[Y]**2)
+            vperp[X], vperp[Y] = shat[Y], -shat[X]
+            vperp /= np.sqrt(shat[X]**2 + shat[Y]**2)
             
-            vhatnew = scat_dir * cos_th_scat      + np.cross(vperp, scat_dir)   * sin_th_scat      + vperp    * np.sum(vperp*scat_dir)   * (1-cos_th_scat)
-            vhatnew = vhatnew  * np.cos(phi_scat) + np.cross(scat_dir, vhatnew) * np.sin(phi_scat) + scat_dir * np.sum(scat_dir*vhatnew) * (1-np.cos(phi_scat))
+            vhatnew = shat * cos_th + np.cross(vperp, shat) * sin_th + vperp * np.sum(vperp*shat) * (1-cos_th)
+            vhatnew = vhatnew * np.cos(phi) + np.cross(shat, vhatnew) * np.sin(phi) + shat * np.sum(shat*vhatnew) * (1-np.cos(phi))
             self.vhat = vhatnew/mag(vhatnew)
     
     def move(self):
@@ -356,11 +397,15 @@ class Sim(object):
         xi = self.rng.random()
         sigfrac_cum = np.cumsum(self.sig_list)/self.sig_tot
         self.idx_event = np.searchsorted(sigfrac_cum, xi)
-        self.event_list[self.idx_event].func(**self.event_list[self.idx_event].args)
+        event = self.event_list[self.idx_event]
+        event.func(**self.event_list[self.idx_event].args)
 
-        self.idx_event_list.append(self.idx_event)
+        self.ev_label_list.append(event.label)
+        self.ev_cat_list.append(event.cat)
+        self.ev_Z_list.append(event.Z)
         self.coord_list.append([self.coord[X], self.coord[Y], self.coord[Z]])
         self.time_list.append(self.time)
+        self.ener_list.append(self.ener)
         
     def step(self):
         ''' Evolve the particle packet one step. '''
