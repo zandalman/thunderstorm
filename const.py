@@ -25,6 +25,7 @@ Myr = 1e6*yr  # megayear [s]
 Gyr = 1e9*yr  # gigayear [s]
 
 # physical constants
+alpha  = 0.00729735256 # fine structure constant
 a0     = 5.291772e-9   # Bohr radius [cm]
 c      = 2.9979246e+10 # speed of light [cm/s]
 h      = 6.6260702e-27 # plank constant [erg s]

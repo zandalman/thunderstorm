@@ -6,7 +6,6 @@ from types import SimpleNamespace
 import numpy as np
 from scipy.integrate import trapz as integrate
 from scipy.integrate import cumtrapz as cumintegrate
-from scipy.interpolate import interp1d
 
 # custom modules
 from functions import mag, interp
@@ -19,6 +18,124 @@ elements = SimpleNamespace(**np.load('elements.npz'))
 # beta particle data
 data_EEDL = SimpleNamespace(**np.load('EEDL.npz', allow_pickle=True))
 
+def calc_cos_th_scat(xi, ener, data):
+    '''
+    Compute the cosine of the scattering angle in an elastic scattering interaction.
+
+    Args
+    xi:   random number
+    ener: kinetic energy [eV]
+    data: a list of tuples (ener, cos_th, cos_th_pdf)
+        ener:       energy [eV]
+        cos_th:     cosine of the scattering angle
+        cos_th_pdf: PDF of the cosine of the scattering angle
+
+    Returns
+    cos_th: scattering angle
+    '''
+    nener = len(data)
+    ener_list, cos_th_list = np.zeros(nener), np.zeros(nener)
+    
+    for i, data_ener in enumerate(data):
+    
+        ener_list[i], cos_th, cos_th_pdf = data_ener
+        cos_th_cdf = cumintegrate(cos_th_pdf, cos_th, initial=0) / integrate(cos_th_pdf, cos_th)
+        cos_th_list[i] = interp(xi, cos_th_cdf, cos_th)
+
+    cos_th = interp(ener, ener_list, cos_th_list, logx=True)
+    cos_th = max(min(cos_th, 1), -1)
+    return cos_th
+
+def calc_ener_loss(xi, ener, data):
+    '''
+    Compute the energy lost in an ionization interaction.
+
+    Args
+    xi:   random number
+    ener: kinetic energy [eV]
+    data: a list of tuples (ener, cos_th, cos_th_pdf)
+        ener:          energy [eV]
+        ener_loss:     energy lost [eV]
+        ener_loss_pdf: PDF of the energy lost
+
+    Returns
+    ener_loss: energy lost [eV]
+    '''
+    nener = len(data)
+    ener_list, ener_loss_list = np.zeros(nener), np.zeros(nener)
+
+    for i, data_ener in enumerate(data):
+
+        ener_list[i], ener_loss, ener_loss_pdf = data_ener
+        ener_loss_cdf = cumintegrate(ener_loss_pdf, ener_loss, initial=0) / integrate(ener_loss_pdf, ener_loss)
+        ener_loss_list[i] = interp(xi, ener_loss_cdf, ener_loss, logx=True, logy=True)
+
+    ener_loss = interp(ener, ener_list, ener_loss_list, logx=True, logy=True)
+    return ener_loss
+
+def calc_moller(xi, ener, frac_lim=1e-3, num=1024):
+    ''' 
+    Compute the cross section, energy loss, and scattering angle in a Moller (electron-electron) scattering event.
+    
+    Args
+    xi:       random number
+    ener:     kinetic energy [eV]
+    frac_lim: relative kinetic energy loss below which we ignore Moller scattering
+    num:      number of points to sample the CDF
+
+    Returns
+    sig:       cross section [1/cm^2]
+    cos_th:    scattering angle
+    ener_loss: energy loss [eV]
+    '''        
+    sin_th_cm_lim = np.sqrt(1 - (1-2*frac_lim)**2)
+    sin_th_cm = np.logspace(np.log10(sin_th_cm_lim), 0, num)[::-1]
+
+    ener_tot_cm = np.sqrt(const.m_e*const.c**2/2 * (2*const.m_e*const.c**2 + ener*const.eV))
+    fac1 = (ener_tot_cm**2-const.m_e**2*const.c**4)**2
+    fac2 = (8*ener_tot_cm**4 - 4*const.m_e**2*const.c**4*ener_tot_cm**2 - const.m_e**4*const.c**8) / fac1
+    fac3 = 4*(2*ener_tot_cm**2 - const.m_e**2*const.c**4)**2 / fac1
+    fac4 = const.alpha**2*const.hbar**2*const.c**2/(4*ener_tot_cm**2)
+    sig_cdf = 4*np.pi*fac4*(1-sin_th_cm + fac2*(1-1/sin_th_cm) - fac3/3*(1-1/sin_th_cm**3) )
+    sig = sig_cdf[-1]
+    sig_cdf /= sig
+
+    sin_th_cm = interp(xi, sig_cdf, sin_th_cm, logx=True, logy=True)
+    cos_th_cm = np.sqrt(1-sin_th_cm**2)
+    ener_loss = ener/2*(1-cos_th_cm)
+    cos_th = np.sqrt((2*const.m_e*const.c**2+ener*const.eV)*(1+cos_th_cm)/(4*const.m_e*const.c**2+ener*const.eV*(1+cos_th_cm)))
+
+    return sig, cos_th, ener_loss
+
+def calc_sig_Bturb(Bmag_turb, ener, rho, m_i, q_i, q=5/3, fturb=1, Lmax=1e16):
+    ''' 
+    Compute the effective cross section of the particle to a turbulent magnetic field. 
+    
+    Args
+    Bmag_turb: turbulent magnetic field amplitude [G]
+    ener:      kinetic energy [eV]
+    rho:       density [g/cm^3]
+    m_i:       particle mass [g]
+    q_i:       particle charge [esu]
+    q:         power law exponent of magnetic turbulence spectrum
+    fturb:     ratio of turbulent to magnetic energy
+    Lmax:      largest scale of magnetic turbulence [cm]
+
+    Returns
+    sig_Bturb: effective cross section [1/cm^2]
+    '''
+    gam = 1 + ener*const.eV/(m_i*const.c**2)
+    beta = np.sqrt(1 - 1/gam**2)
+    beta_A = Bmag_turb / np.sqrt(4*np.pi*rho*const.c**2) # Alfven speed relative to the speed of light
+    func_beta_A = (1-(beta_A/beta)**(2-q))/(2-q) - (1-(beta_A/beta)**(4-q))/(4-q)
+    
+    Om = q_i*Bmag_turb/(m_i*const.c) # particle gyro-frequency
+    kmin = const.c/(Om*Lmax)     # minimum wavenumber of magnetic turbulence spectrum
+    lam_Bturb = const.c*beta**(2-q)*gam**(2-q)*func_beta_A * 2/(np.pi*(q-1)*fturb*const.c*kmin) * (const.c*kmin/Om)**(2-q)
+    sig_Bturb = 1/(lam_Bturb*rho*const.N_A)
+
+    return sig_Bturb
+
 class Sim(object):
     '''
     Monte Carlo charged particle transport simulation.
@@ -29,36 +146,37 @@ class Sim(object):
     elem: background element
     rho:  background density [g/cm^3]
 
-    m_i:   particle mass [g]
-    q_i:   particle charge [esu]
-    
-    do_Bco:   use a coherent magnetic field
-    do_Bturb: use a turbulent magnetic field
-    do_iso:   use isotropic scattering
-    seed:     random number generator seed
+    m_i: particle mass [g]
+    q_i: particle charge [esu]
 
-    do_ion:   include ionization of background ions
-    do_exc:   include excitation of background ions
-    do_brem:  include Bremsstrahlung with background ions
-    do_scat:  include elastic scattering with background ions
+    do_iso:    use isotropic scattering
+    do_ion:    include ionization of background ions
+    do_exc:    include excitation of background ions
+    do_brem:   include Bremsstrahlung with background ions
+    do_scat:   include elastic scattering with background ions
+    do_moller: include moller scattering with background electrons
+
+    seed: random number generator seed
     '''
-    def __init__(self, ener=300000, rho=1e-16, m_i=const.m_e, q_i=const.e, do_iso=False, seed=None, do_ion=True, do_exc=True, do_brem=True, do_scat=True):
+    def __init__(self, ener=300000, rho=1e-16, m_i=const.m_e, q_i=const.e, do_iso=False, seed=None, do_ion=True, do_exc=True, do_brem=True, do_scat=True, do_moller=True):
         
         self.ener_init = ener
-        self.rho   = rho
+        self.rho       = rho
         
         self.m_i  = m_i
         self.q_i  = q_i
 
-        self.do_Bco_1  = False
-        self.do_Bco_2 = False
-        self.do_Bturb = False
-        self.do_iso   = do_iso
+        self.do_Bfield = False
+        self.Bmag_co   = 0.
+        self.Bhat_co   = np.array([0., 0., 0.])
+        self.Bmag_turb = 0.
+        self.do_iso    = do_iso
 
-        self.do_ion  = do_ion
-        self.do_exc  = do_exc
-        self.do_brem = do_brem
-        self.do_scat = do_scat
+        self.do_ion    = do_ion
+        self.do_exc    = do_exc
+        self.do_brem   = do_brem
+        self.do_scat   = do_scat
+        self.do_moller = do_moller
         self.spec_list = []
         
         self.seed = seed
@@ -80,7 +198,7 @@ class Sim(object):
         self.coord_list    = []
         self.ener_list     = []
 
-    def add_Bturb(self, Bturb, q=5/3, fturb=1, Lmax=1e16):
+    def add_Bturb(self, Bmag, q=5/3, fturb=1, Lmax=1e16):
         '''
         Add a turbulent magnetic field.
 
@@ -89,43 +207,36 @@ class Sim(object):
         fturb: ratio of turbulent to magnetic energy
         Lmax:  largest scale of magnetic turbulence [cm]
         '''
-        self.Bturb = Bturb
-        self.q     = q
-        self.fturb = fturb
-        self.Lmax  = Lmax
-        self.do_Bturb = True
+        self.do_Bfield   = True
+        self.Bmag_turb   = Bmag
+        self.Bturb_param = dict(q=q, fturb=fturb, Lmax=Lmax)
+        self.new_Bturb()
     
-    def add_Bco(self, Bmag, Bhat, method=1):
+    def add_Bco(self, Bmag, Bhat):
         ''' 
         Add a coherent magnetic field. 
         
         Args
         Bmag: coherent magnetic field amplitude [G]
         Bhat: coherent magnetic field direction
-        method:
-            1. transport the particle in the direction of the coherent magnetic field 
-            2. use the coherent magnetic field to add anisotropy to the turbulent field scattering
         '''
-        self.Bmag = Bmag
-        self.Bhat = Bhat
-        if method == 1:
-            self.do_Bco_1 = True
-        else:
-            assert self.do_Bturb == True, "Error: method 2 requires a turbulent magnetic field, but no such field was found"
-            self.do_Bco_2 = True
+        self.do_Bfield = True
+        self.Bmag_co   = Bmag
+        self.Bhat_co   = Bhat
+        self.new_Bturb()
 
-            chi = self.Bmag/self.Bturb
-            self.sin_be = np.linspace(-1, 1, 1024)
-            cos_be = np.sqrt(1 - self.sin_be**2)
-            self.sin_be_cdf = np.zeros_like(self.sin_be)
+    def add_elec(self, x_e):
+        '''
+        Add electrons to the background plasma.
 
-            cond = np.abs(self.sin_be) < 1/max(chi, 1)
-            cos_al_p = -chi*self.sin_be[cond]**2 + cos_be[cond] * np.sqrt(1 - chi**2 * self.sin_be[cond]**2)
-            cos_al_m = -chi*self.sin_be[cond]**2 - cos_be[cond] * np.sqrt(1 - chi**2 * self.sin_be[cond]**2)
-
-            self.sin_be_cdf[cond] = 1/2 * (1 + np.sign(self.sin_be)[cond] * (1 + 1/2 * (cos_al_m - cos_al_p)))
-            self.sin_be_cdf[~cond] = 1/2 * (1 + np.sign(self.sin_be)[~cond])
-
+        Args
+        x_e: elecron fraction
+        '''
+        n_ion = 0
+        for spec_data in self.spec_list:
+            n_ion += self.rho*const.N_A*spec_data.ab/spec_data.A
+        self.n_e = x_e*n_ion / (1-x_e)
+    
     def add_spec(self, Z, A, ab):
         ''' 
         Add a species to the background plasma. 
@@ -172,7 +283,7 @@ class Sim(object):
         
                 spec_data.data_th_scat = data
 
-            elif dtype_name[:8] == 'spec_ion' and len(dtype_name) > 7:
+            elif dtype_name[:8] == 'spec_ion':
 
                 spec_data.data_ener_loss_list.append(data)
 
@@ -185,18 +296,6 @@ class Sim(object):
                 spec_data.ener_loss_exc_x, spec_data.ener_loss_exc_y = data
 
         self.spec_list.append(spec_data)
-    
-    def calc_sig_Bturb(self):
-        ''' Compute the effective cross section of the particle to a turbulent magnetic field. '''
-        beta = self.vmag/const.c
-        beta_A = self.Bturb / np.sqrt(4*np.pi*self.rho*const.c**2) # Alfven speed relative to the speed of light
-        func_beta_A = (1-(beta_A/beta)**(2-self.q))/(2-self.q) - (1-(beta_A/beta)**(4-self.q))/(4-self.q)
-        
-        Om = self.q_i*self.Bturb/(self.m_i*const.c) # particle gyro-frequency
-        kmin = const.c/(Om*self.Lmax) # minimum wavenumber of the magnetic turbulence spectrum
-        
-        lam_Bturb = const.c*beta**(2-self.q)*self.gam**(2-self.q)*func_beta_A * 2/(np.pi*(self.q-1)*self.fturb*const.c*kmin) * (const.c*kmin/Om)**(2-self.q)
-        self.sig_Bturb = 1/(lam_Bturb*self.rho*const.N_A)
 
     def rand_dir(self):
         ''' Compute a direction by uniformally sampling the sphere. '''
@@ -224,7 +323,7 @@ class Sim(object):
                 for i, sig_ion_name in enumerate(spec_data.sig_ion_name_list):
                 
                     if self.ener < spec_data.ener_bind_list[i]: continue
-                    ener_loss = self.calc_ener_loss(spec_data.data_ener_loss_list[i])
+                    ener_loss = calc_ener_loss(self.rng.random(), self.ener, spec_data.data_ener_loss_list[i])
                     sig_ion = interp(self.ener, spec_data.sig_ion_x_list[i], spec_data.sig_ion_y_list[i], logx=True, logy=True)
                     self.sig_list.append(sig_ion)
                     self.event_list.append(SimpleNamespace(
@@ -263,7 +362,7 @@ class Sim(object):
 
             if self.do_scat:
 
-                cos_th_scat = self.calc_cos_th_scat(spec_data.data_th_scat)
+                cos_th_scat = calc_cos_th_scat(self.rng.random(), self.ener, spec_data.data_th_scat)
                 sig_scat_la = interp(self.ener, spec_data.sig_scat_la_x, spec_data.sig_scat_la_y, logx=True, logy=True)
                 self.sig_list.append(sig_scat_la)
                 self.event_list.append(SimpleNamespace(
@@ -284,18 +383,26 @@ class Sim(object):
                     label = '%s elastic scatter (small angle)' % (spec_data.symbol)
                 ))
 
-        if self.do_Bturb:
-            
-            self.calc_sig_Bturb()
-            self.sig_list.append(self.sig_Bturb)
-            if self.do_Bco_2:
-                args = dict(do_iso=False, trig_th_scat=self.sin_be, trig_th_scat_cdf=self.sin_be_cdf, scat_dir=self.Bhat, do_sin=True)
-            else:
-                args = dict(do_iso=True)
-            
+        if self.do_moller:
+
+            sig_moller, cos_th_scat, ener_loss = calc_moller(self.rng.random(), self.ener)
+            sig_moller *= self.n_e/(self.rho*const.N_A) # effective cross section
+            self.sig_list.append(sig_moller)
             self.event_list.append(SimpleNamespace(
-                func = self.scat,
-                args = args,
+                func = [self.scat, self.dep_ener],
+                args = [dict(cos_th=cos_th_scat), dict(ener_loss=ener_loss)],
+                Z = None,
+                cat = 'Moller scatter',
+                label = 'Moller scatter'
+            ))
+
+        if self.Bmag_turb>0.:
+            
+            sig_Bturb = calc_sig_Bturb(self.Bmag_turb, self.ener, self.rho, self.m_i, self.q_i, **self.Bturb_param)
+            self.sig_list.append(sig_Bturb)
+            self.event_list.append(SimpleNamespace(
+                func = self.new_Bturb,
+                args = dict(),
                 Z = None,
                 cat = 'Bturb scatter',
                 label = 'Bturb scatter'
@@ -303,58 +410,15 @@ class Sim(object):
 
         self.sig_tot = np.sum(self.sig_list)
 
-    def calc_ener_loss(self, data):
-        '''
-        Compute the energy lost in an ionization interaction.
-
-        Args
-        data: A list of tuples (ener, cos_th, cos_th_pdf)
-            ener:          energy [eV]
-            ener_loss:     energy lost [eV]
-            ener_loss_pdf: PDF of the energy lost
-        '''
-        xi = np.random.random() # compute a random number
-
-        nener = len(data)
-        ener_list, ener_loss_list = np.zeros(nener), np.zeros(nener)
-
-        for i, data_ener in enumerate(data):
-
-            ener_list[i], ener_loss, ener_loss_pdf = data_ener
-            ener_loss_cdf = cumintegrate(ener_loss_pdf, ener_loss, initial=0) / integrate(ener_loss_pdf, ener_loss)
-            ener_loss_list[i] = interp(xi, ener_loss_cdf, ener_loss, logx=True, logy=True)
-
-        ener_loss = interp(self.ener, ener_list, ener_loss_list, logx=True, logy=True)
-        return ener_loss
-
+    def new_Bturb(self):
+        ''' Resample the direction of the turbulent magnetic field. '''
+        Bvec = self.rand_dir()*self.Bmag_turb + self.Bhat_co*self.Bmag_co
+        self.Bmag = mag(Bvec)
+        self.Bhat = Bvec/self.Bmag
+    
     def dep_ener(self, ener_loss):
         ''' Deposit energy. '''
         self.ener = self.ener - ener_loss
-
-    def calc_cos_th_scat(self, data):
-        '''
-        Compute the cosine of the scattering angle.
-
-        Args
-        data: A list of tuples (ener, cos_th, cos_th_pdf)
-            ener:       energy [eV]
-            cos_th:     cosine of the scattering angle
-            cos_th_pdf: PDF of the cosine of the scattering angle
-        '''
-        xi = self.rng.random() # compute a random number
-
-        nener = len(data)
-        ener_list, cos_th_list = np.zeros(nener), np.zeros(nener)
-        
-        for i, data_ener in enumerate(data):
-        
-            ener_list[i], cos_th, cos_th_pdf = data_ener
-            cos_th_cdf = cumintegrate(cos_th_pdf, cos_th, initial=0) / integrate(cos_th_pdf, cos_th)
-            cos_th_list[i] = interp(xi, cos_th_cdf, cos_th)
-
-        cos_th = interp(self.ener, ener_list, cos_th_list, logx=True)
-        cos_th = max(min(cos_th, 1), -1)
-        return cos_th
     
     def scat(self, cos_th=None, shat=None):
         '''
@@ -378,8 +442,8 @@ class Sim(object):
             vperp[X], vperp[Y] = shat[Y], -shat[X]
             vperp /= np.sqrt(shat[X]**2 + shat[Y]**2)
             
-            vhatnew = shat * cos_th + np.cross(vperp, shat) * sin_th + vperp * np.sum(vperp*shat) * (1-cos_th)
-            vhatnew = vhatnew * np.cos(phi) + np.cross(shat, vhatnew) * np.sin(phi) + shat * np.sum(shat*vhatnew) * (1-np.cos(phi))
+            vhatnew = shat*cos_th + np.cross(vperp, shat)*sin_th + vperp*np.sum(vperp*shat)*(1-cos_th)
+            vhatnew = vhatnew*np.cos(phi) + np.cross(shat, vhatnew)*np.sin(phi) + shat*np.sum(shat*vhatnew)*(1-np.cos(phi))
             self.vhat = vhatnew/mag(vhatnew)
     
     def move(self):
@@ -387,8 +451,11 @@ class Sim(object):
         dis = -np.log(1.0-self.rng.random()) / (self.rho*const.N_A*self.sig_tot) # sample distance to collision by inversion technique
         self.time += dis/self.vmag
 
-        if self.do_Bco_1:
+        if self.do_Bfield:
             self.coord += dis*np.sum(self.vhat*self.Bhat)*self.Bhat
+            phi = 2.0*np.pi*self.rng.random()
+            vhatnew = self.vhat*np.cos(phi) + np.cross(self.Bhat, self.vhat)*np.sin(phi) + self.Bhat*np.sum(self.Bhat*self.vhat)*(1-np.cos(phi))
+            self.vhat = vhatnew/mag(vhatnew)
         else:
             self.coord += dis*self.vhat
 
@@ -398,7 +465,10 @@ class Sim(object):
         sigfrac_cum = np.cumsum(self.sig_list)/self.sig_tot
         self.idx_event = np.searchsorted(sigfrac_cum, xi)
         event = self.event_list[self.idx_event]
-        event.func(**self.event_list[self.idx_event].args)
+        if type(event.func) == list:
+            for func, args in zip(event.func, event.args):
+                func(**args)
+        else: event.func(**event.args)
 
         self.ev_label_list.append(event.label)
         self.ev_cat_list.append(event.cat)
@@ -422,8 +492,4 @@ class Sim(object):
     def vmag(self):
         ''' Particle velocity magnitide '''
         return np.sqrt(1 - 1/self.gam**2)*const.c  
-    
-    @property
-    def n(self):
-        ''' Total number density '''
 
