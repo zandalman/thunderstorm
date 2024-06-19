@@ -42,8 +42,7 @@ def calc_cos_th_scat(xi, ener, data):
         cos_th_cdf = cumintegrate(cos_th_pdf, cos_th, initial=0) / integrate(cos_th_pdf, cos_th)
         cos_th_list[i] = interp(xi, cos_th_cdf, cos_th)
 
-    cos_th = interp(ener, ener_list, cos_th_list, logx=True)
-    cos_th = max(min(cos_th, 1), -1)
+    cos_th = interp(ener, ener_list, cos_th_list, llim=-1, ulim=1)
     return cos_th
 
 def calc_ener_loss(xi, ener, data):
@@ -68,9 +67,9 @@ def calc_ener_loss(xi, ener, data):
 
         ener_list[i], ener_loss, ener_loss_pdf = data_ener
         ener_loss_cdf = cumintegrate(ener_loss_pdf, ener_loss, initial=0) / integrate(ener_loss_pdf, ener_loss)
-        ener_loss_list[i] = interp(xi, ener_loss_cdf, ener_loss, logx=True, logy=True)
+        ener_loss_list[i] = interp(xi, ener_loss_cdf, ener_loss)
 
-    ener_loss = interp(ener, ener_list, ener_loss_list, logx=True, logy=True)
+    ener_loss = interp(ener, ener_list, ener_loss_list)
     return ener_loss
 
 def calc_moller(xi, ener, frac_lim=1e-3, num=1024):
@@ -100,37 +99,37 @@ def calc_moller(xi, ener, frac_lim=1e-3, num=1024):
     sig = sig_cdf[-1]
     sig_cdf /= sig
 
-    sin_th_cm = interp(xi, sig_cdf, sin_th_cm, logx=True, logy=True)
+    sin_th_cm = interp(xi, sig_cdf, sin_th_cm)
     cos_th_cm = np.sqrt(1-sin_th_cm**2)
     ener_loss = ener/2*(1-cos_th_cm)
     cos_th = np.sqrt((2*const.m_e*const.c**2+ener*const.eV)*(1+cos_th_cm)/(4*const.m_e*const.c**2+ener*const.eV*(1+cos_th_cm)))
 
     return sig, cos_th, ener_loss
 
-def calc_sig_Bturb(Bmag_turb, ener, rho, m_i, q_i, q=5/3, fturb=1, Lmax=1e16):
+def calc_sig_Bturb(Bmag, fturb, ener, rho, m_i, q_i, q=5/3, Lmax=1e16):
     ''' 
     Compute the effective cross section of the particle to a turbulent magnetic field. 
     
     Args
-    Bmag_turb: turbulent magnetic field amplitude [G]
-    ener:      kinetic energy [eV]
-    rho:       density [g/cm^3]
-    m_i:       particle mass [g]
-    q_i:       particle charge [esu]
-    q:         power law exponent of magnetic turbulence spectrum
-    fturb:     ratio of turbulent to magnetic energy
-    Lmax:      largest scale of magnetic turbulence [cm]
+    Bmag:  total magnetic field amplitude [G]
+    fturb: ratio of turbulent to total magnetic energy
+    ener:  kinetic energy [eV]
+    rho:   density [g/cm^3]
+    m_i:   particle mass [g]
+    q_i:   particle charge [esu]
+    q:     power law exponent of magnetic turbulence spectrum
+    Lmax:  largest scale of magnetic turbulence [cm]
 
     Returns
     sig_Bturb: effective cross section [1/cm^2]
     '''
     gam = 1 + ener*const.eV/(m_i*const.c**2)
     beta = np.sqrt(1 - 1/gam**2)
-    beta_A = Bmag_turb / np.sqrt(4*np.pi*rho*const.c**2) # Alfven speed relative to the speed of light
+    beta_A = Bmag / np.sqrt(4*np.pi*rho*const.c**2) # Alfven speed relative to the speed of light
     func_beta_A = (1-(beta_A/beta)**(2-q))/(2-q) - (1-(beta_A/beta)**(4-q))/(4-q)
     
-    Om = q_i*Bmag_turb/(m_i*const.c) # particle gyro-frequency
-    kmin = const.c/(Om*Lmax)     # minimum wavenumber of magnetic turbulence spectrum
+    Om = q_i*Bmag/(m_i*const.c) # particle gyro-frequency
+    kmin = const.c/(Om*Lmax)    # minimum wavenumber of magnetic turbulence spectrum
     lam_Bturb = const.c*beta**(2-q)*gam**(2-q)*func_beta_A * 2/(np.pi*(q-1)*fturb*const.c*kmin) * (const.c*kmin/Om)**(2-q)
     sig_Bturb = 1/(lam_Bturb*rho*const.N_A)
 
@@ -158,7 +157,7 @@ class Sim(object):
 
     seed: random number generator seed
     '''
-    def __init__(self, ener=300000, rho=1e-16, m_i=const.m_e, q_i=const.e, do_iso=False, seed=None, do_ion=True, do_exc=True, do_brem=True, do_scat=True, do_moller=True):
+    def __init__(self, ener=300000, rho=1e-16, m_i=const.m_e, q_i=const.e, do_iso=False, seed=None, do_ion=True, do_exc=True, do_brem=True, do_scat=True, do_moller=True, do_sync=True):
         
         self.ener_init = ener
         self.rho       = rho
@@ -177,6 +176,7 @@ class Sim(object):
         self.do_brem   = do_brem
         self.do_scat   = do_scat
         self.do_moller = do_moller
+        self.do_sync   = do_sync
         self.spec_list = []
         
         self.seed = seed
@@ -184,32 +184,27 @@ class Sim(object):
         
         self.reset()
 
-    def reset(self):
+    def reset(self, ener=None):
         ''' Reset the simulation. '''
-        self.ener = self.ener_init
+        self.ener_init = self.ener_init if ener == None else ener
+        self.ener = self.ener_init if ener == None else ener
         self.time  = 0
         self.coord = np.zeros(3)
         self.vhat  = self.rand_dir()  
+        self.ev_list = []
 
-        self.ev_label_list = []
-        self.ev_cat_list   = []
-        self.ev_Z_list     = []
-        self.time_list     = []
-        self.coord_list    = []
-        self.ener_list     = []
-
-    def add_Bturb(self, Bmag, q=5/3, fturb=1, Lmax=1e16):
+    def add_Bturb(self, Bmag, q=5/3, Lmax=1e16):
         '''
         Add a turbulent magnetic field.
 
         Bturb: turbulent magnetic field amplitude [G]
         q:     power law exponent of magnetic turbulence spectrum
-        fturb: ratio of turbulent to magnetic energy
         Lmax:  largest scale of magnetic turbulence [cm]
         '''
-        self.do_Bfield   = True
-        self.Bmag_turb   = Bmag
-        self.Bturb_param = dict(q=q, fturb=fturb, Lmax=Lmax)
+        self.do_Bfield = True
+        self.Bmag_turb = Bmag
+        self.q         = q
+        self.Lmax      = Lmax
         self.new_Bturb()
     
     def add_Bco(self, Bmag, Bhat):
@@ -234,7 +229,7 @@ class Sim(object):
         '''
         n_ion = 0
         for spec_data in self.spec_list:
-            n_ion += self.rho*const.N_A*spec_data.ab/spec_data.A
+            n_ion += self.rho*const.N_A*spec_data.ab
         self.n_e = x_e*n_ion / (1-x_e)
     
     def add_spec(self, Z, A, ab):
@@ -264,7 +259,7 @@ class Sim(object):
             if dtype_name[:7] == 'sig_ion' and len(dtype_name) > 7:
 
                     ener, sig, ener_bind = data
-                    sig = sig*ab/A # effective cross section
+                    sig = sig*ab # effective cross section
                     
                     spec_data.sig_ion_name_list.append(dtype_name)
                     spec_data.sig_ion_x_list.append(ener)
@@ -274,7 +269,7 @@ class Sim(object):
             elif dtype_name[:3] == 'sig':
 
                     ener, sig = data
-                    sig = sig*ab/A # effective cross section
+                    sig = sig*ab # effective cross section
                     
                     setattr(spec_data, '%s_x' % dtype_name, ener)
                     setattr(spec_data, '%s_y' % dtype_name, sig)
@@ -323,64 +318,69 @@ class Sim(object):
                 for i, sig_ion_name in enumerate(spec_data.sig_ion_name_list):
                 
                     if self.ener < spec_data.ener_bind_list[i]: continue
-                    ener_loss = calc_ener_loss(self.rng.random(), self.ener, spec_data.data_ener_loss_list[i])
-                    sig_ion = interp(self.ener, spec_data.sig_ion_x_list[i], spec_data.sig_ion_y_list[i], logx=True, logy=True)
+                    ener_loss_ion = calc_ener_loss(self.rng.random(), self.ener, spec_data.data_ener_loss_list[i])
+                    sig_ion = interp(self.ener, spec_data.sig_ion_x_list[i], spec_data.sig_ion_y_list[i])
                     self.sig_list.append(sig_ion)
                     self.event_list.append(SimpleNamespace(
                         func = self.dep_ener,
-                        args = dict(ener_loss=ener_loss),
+                        args = dict(ener_loss=ener_loss_ion),
                         Z = spec_data.Z,
                         cat = 'ionization',
-                        label = '%s ionization (%s)' % (spec_data.symbol, sig_ion_name[8:])
+                        label = '%s ionization (%s)' % (spec_data.symbol, sig_ion_name[8:]),
+                        data = [ener_loss_ion, ener_loss_ion-spec_data.ener_bind_list[i]]
                     ))
 
             if self.do_exc:
-
-                ener_loss_exc = interp(self.ener, spec_data.ener_loss_exc_x, spec_data.ener_loss_exc_y, logx=True, logy=True)
-                sig_exc = interp(self.ener, spec_data.sig_exc_x, spec_data.sig_exc_y, logx=True, logy=True)
+                
+                ener_loss_exc = interp(self.ener, spec_data.ener_loss_exc_x, spec_data.ener_loss_exc_y)
+                sig_exc = interp(self.ener, spec_data.sig_exc_x, spec_data.sig_exc_y)
                 self.sig_list.append(sig_exc)
                 self.event_list.append(SimpleNamespace(
                     func = self.dep_ener,
                     args = dict(ener_loss=ener_loss_exc),
                     Z = spec_data.Z,
                     cat = 'excitation',
-                    label = '%s excitation' % (spec_data.symbol)
+                    label = '%s excitation' % (spec_data.symbol),
+                    data = [ener_loss_exc, 0]
                 ))
 
             if self.do_brem:
 
-                ener_loss_brem = interp(self.ener, spec_data.ener_loss_brem_x, spec_data.ener_loss_brem_y, logx=True, logy=True)
-                sig_brem = interp(self.ener, spec_data.sig_brem_x, spec_data.sig_brem_y, logx=True, logy=True)
+                ener_loss_brem = interp(self.ener, spec_data.ener_loss_brem_x, spec_data.ener_loss_brem_y)
+                sig_brem = interp(self.ener, spec_data.sig_brem_x, spec_data.sig_brem_y)
                 self.sig_list.append(sig_brem)
                 self.event_list.append(SimpleNamespace(
                     func = self.dep_ener,
                     args = dict(ener_loss=ener_loss_brem),
                     Z = spec_data.Z,
                     cat = 'Bremsstrahlung',
-                    label = '%s Bremsstrahlung' % (spec_data.symbol)
+                    label = '%s Bremsstrahlung' % (spec_data.symbol),
+                    data = [ener_loss_brem, 0]
                 ))
 
             if self.do_scat:
 
                 cos_th_scat = calc_cos_th_scat(self.rng.random(), self.ener, spec_data.data_th_scat)
-                sig_scat_la = interp(self.ener, spec_data.sig_scat_la_x, spec_data.sig_scat_la_y, logx=True, logy=True)
+                sig_scat_la = interp(self.ener, spec_data.sig_scat_la_x, spec_data.sig_scat_la_y)
                 self.sig_list.append(sig_scat_la)
                 self.event_list.append(SimpleNamespace(
                     func = self.scat,
                     args = dict(cos_th=cos_th_scat),
                     Z = spec_data.Z,
                     cat = 'elastic scatter',
-                    label = '%s elastic scatter (large angle)' % (spec_data.symbol)
+                    label = '%s elastic scatter (large angle)' % (spec_data.symbol),
+                    data = [cos_th_scat, 0]
                 ))
 
-                sig_scat_sa = interp(self.ener, spec_data.sig_scat_x, spec_data.sig_scat_y, logx=True, logy=True) - sig_scat_la
+                sig_scat_sa = interp(self.ener, spec_data.sig_scat_x, spec_data.sig_scat_y) - sig_scat_la
                 self.sig_list.append(sig_scat_sa)
                 self.event_list.append(SimpleNamespace(
                     func = self.dep_ener,
                     args = dict(ener_loss=0),
                     Z = spec_data.Z,
                     cat = 'elastic scatter',
-                    label = '%s elastic scatter (small angle)' % (spec_data.symbol)
+                    label = '%s elastic scatter (small angle)' % (spec_data.symbol),
+                    data = [0, 0]
                 ))
 
         if self.do_moller:
@@ -393,19 +393,22 @@ class Sim(object):
                 args = [dict(cos_th=cos_th_scat), dict(ener_loss=ener_loss)],
                 Z = None,
                 cat = 'Moller scatter',
-                label = 'Moller scatter'
+                label = 'Moller scatter',
+                data = [cos_th_scat, ener_loss]
             ))
 
         if self.Bmag_turb>0.:
             
-            sig_Bturb = calc_sig_Bturb(self.Bmag_turb, self.ener, self.rho, self.m_i, self.q_i, **self.Bturb_param)
+            fturb = (self.Bmag_turb/self.Bmag)**2
+            sig_Bturb = calc_sig_Bturb(self.Bmag, fturb, self.ener, self.rho, self.m_i, self.q_i, q=self.q, Lmax=self.Lmax)
             self.sig_list.append(sig_Bturb)
             self.event_list.append(SimpleNamespace(
                 func = self.new_Bturb,
                 args = dict(),
                 Z = None,
                 cat = 'Bturb scatter',
-                label = 'Bturb scatter'
+                label = 'Bturb scatter',
+                data = [0, 0]
             ))
 
         self.sig_tot = np.sum(self.sig_list)
@@ -452,11 +455,20 @@ class Sim(object):
         self.time += dis/self.vmag
 
         if self.do_Bfield:
+            
             self.coord += dis*np.sum(self.vhat*self.Bhat)*self.Bhat
             phi = 2.0*np.pi*self.rng.random()
             vhatnew = self.vhat*np.cos(phi) + np.cross(self.Bhat, self.vhat)*np.sin(phi) + self.Bhat*np.sum(self.Bhat*self.vhat)*(1-np.cos(phi))
             self.vhat = vhatnew/mag(vhatnew)
+
+            if self.do_sync:
+                sin_alpha = np.sqrt(1 - np.sum(self.vhat*self.Bhat)**2)
+                beta = self.vmag/const.c
+                ener_loss = 2/3 * self.q_i**4*self.gam**2*beta**2*self.Bmag**2*sin_alpha**2 / (self.m_i**2*const.c**5) * dis/self.vmag
+                self.dep_ener(ener_loss)
+
         else:
+
             self.coord += dis*self.vhat
 
     def interaction(self):
@@ -470,12 +482,7 @@ class Sim(object):
                 func(**args)
         else: event.func(**event.args)
 
-        self.ev_label_list.append(event.label)
-        self.ev_cat_list.append(event.cat)
-        self.ev_Z_list.append(event.Z)
-        self.coord_list.append([self.coord[X], self.coord[Y], self.coord[Z]])
-        self.time_list.append(self.time)
-        self.ener_list.append(self.ener)
+        self.ev_list.append(SimpleNamespace(label=event.label, cat=event.cat, Z=event.Z, time=self.time, x=self.coord[X], y=self.coord[Y], z=self.coord[Z], ener=self.ener, data1=event.data[0], data2=event.data[1]))
         
     def step(self):
         ''' Evolve the particle packet one step. '''
