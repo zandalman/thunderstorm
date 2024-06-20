@@ -55,7 +55,7 @@ if __name__ == "__main__":
     npac_loc, npac_glob = 0, 0
 
     # read abundances and beta decay spectra from r-process simulations
-    data_rproc = np.load(os.path.join('..', 'rprocess', '%s.npz' % rproc), allow_pickle=True)
+    data_rproc = np.load(os.path.join('%s.npz' % rproc), allow_pickle=True)
     data_rproc = SimpleNamespace(**data_rproc)
     idx_rproc = np.searchsorted(data_rproc.time, time)
     spec_beta_cdf = cumintegrate(data_rproc.beta_spec[idx_rproc], data_rproc.ener, initial=0)/integrate(data_rproc.beta_spec[idx_rproc], data_rproc.ener)
@@ -63,18 +63,6 @@ if __name__ == "__main__":
     if rank == 0:
         if time < data_rproc.time[0]:  print('Warning: time below minimum value in r-process simulations')
         if time > data_rproc.time[-1]: print('Warning: time above maximum value in r-process simulations')
-
-    # read density and temperature from KNe simulations
-    data_KNe = np.load(os.path.join('..', 'KNexplosions', 'runhr%d.npz' % args.run))
-    data_KNe = SimpleNamespace(**data_KNe)
-    idx_KNe = np.searchsorted(data_KNe.time, time)
-
-    if rank == 0:
-        if time < data_KNe.time[0]:  print('Warning: time below minimum time in KNe simulations')
-        if time > data_KNe.time[-1]: print('Warning: time above maximum time in KNe simulations')
-
-    rho = data_KNe.rho_shock[idx_KNe]
-    temp = data_KNe.temp_shock[idx_KNe]
 
     if rank == 0:
         append(args.outfile, 'npac: %d\n' % args.npac)
