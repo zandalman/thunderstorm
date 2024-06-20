@@ -121,7 +121,7 @@ def calc_sig_Bturb(Bmag, fturb, ener, rho, m_i, q_i, q=5/3, Lmax=1e16):
     Lmax:  largest scale of magnetic turbulence [cm]
 
     Returns
-    sig_Bturb: effective cross section [1/cm^2]
+    sig_Bturb: effective cross section [cm^2]
     '''
     gam = 1 + ener*const.eV/(m_i*const.c**2)
     beta = np.sqrt(1 - 1/gam**2)
