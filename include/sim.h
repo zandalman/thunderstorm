@@ -27,6 +27,7 @@ struct Sim {
   std::vector<Event> event_list; // A vector of event objects.
 
   Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double Bmag_co_, double Bmag_turb_, double q_, double Lmax_);
+  void reset(Part part);
   double calcSigTot();
   void move(double sig_tot, Event &event);
   int choseElem();

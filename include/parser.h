@@ -38,15 +38,15 @@ struct SpecData {
   Vector1d1d spec_brem_data;         // The Bremsstrahlung energy loss data.
   Vector1d1d spec_exc_data;          // The excitation energy loss data.
   Vector1d2d2dVector spec_ion_data;  // The ionization energy loss data.
-  
+
   SpecData() = default;
   SpecData(int Zelem_, std::string symbol_);
 };
 typedef std::vector<SpecData> EEDLData;
 
 std::string trim(const std::string &str);
-int parseConfig(const std::string &filename, Config &config);
-int parseAb(const std::string &filename, double time, Vector1d &ab);
-int parseEEDL(const std::string &filename, EEDLData &eedl_data);
+void parseConfig(const std::string &filename, Config &config);
+void parseAb(const std::string &filename, double time, Vector1d &ab);
+void parseEEDL(const std::string &filename, EEDLData &eedl_data);
 
 #endif

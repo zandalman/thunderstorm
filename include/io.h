@@ -24,6 +24,6 @@ struct Event {
 };
 
 void clearOutfile(const std::string& outfile);
-int writeEvent(std::string outfile, std::vector<Event> event_list);
+void writeEvent(std::string outfile, std::vector<Event> event_list);
 
 #endif

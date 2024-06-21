@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <mpi.h>
 
 // headers
 #include "io.h"
@@ -37,24 +38,21 @@ void clearOutfile(const std::string& outfile) {
  * 
  * @param outfile    The outfile name.
  * @param event_list A vector of events.
- * 
- * @return 0 if success, 1 if failure.
 */
-int writeEvent(std::string outfile, std::vector<Event> event_list) {
+void writeEvent(std::string outfile, std::vector<Event> event_list) {
   std::ofstream file(outfile, std::ios::out | std::ios::binary | std::ios::app);
 
   if ( !file ) {
     std::cerr << "Failed to open file for writing." << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   file.write(reinterpret_cast<const char*>(event_list.data()), event_list.size() * sizeof(Event));
 
   if ( !file.good() ) {
     std::cerr << "Error writing to file." << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
   
   file.close();
-  return 0;
 }

@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <mpi.h>
 
 // headers
 #include "json.h"
@@ -38,9 +39,8 @@ std::string trim(const std::string &str) {
  * 
  * @param filename The configuration file name.
  * @param config   The structure to store the parsed data.
- * @return 0 if success, 1 if failure.
 */
-int parseConfig(const std::string &filename, Config &config) {
+void parseConfig(const std::string &filename, Config &config) {
   std::ifstream file(filename);
   std::string line;
   std::string section;
@@ -48,7 +48,7 @@ int parseConfig(const std::string &filename, Config &config) {
   // return 1 on error
   if (!file) {
     std::cerr << "Error: Failed to open file " << filename << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   while (std::getline(file, line)) {
@@ -69,7 +69,6 @@ int parseConfig(const std::string &filename, Config &config) {
   }
 
   file.close();
-  return 0;
 };
 
 /**
@@ -80,13 +79,13 @@ int parseConfig(const std::string &filename, Config &config) {
  * @param ab       The structure to store the parsed data.
  * @return 0 if success, 1 if failure.   
 */
-int parseAb(const std::string &filename, double time, Vector1d &ab) {
+void parseAb(const std::string &filename, double time, Vector1d &ab) {
   std::ifstream file(filename);
 
   // return 1 on error
   if (!file) {
     std::cerr << "Error: Failed to open file " << filename << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   // read json file
@@ -101,7 +100,6 @@ int parseAb(const std::string &filename, double time, Vector1d &ab) {
   ab = ab_json["ab"][idx].get<Vector1d>();
 
   file.close();
-  return 0;
 }
 
 /**
@@ -109,15 +107,14 @@ int parseAb(const std::string &filename, double time, Vector1d &ab) {
  * 
  * @param filename The EEDL data filename.
  * @param eedl     The structure to store the parsed data.
- * @return 0 if success, 1 if failure. 
 */
-int parseEEDL(const std::string &filename, EEDLData &eedl) {
+void parseEEDL(const std::string &filename, EEDLData &eedl) {
   std::ifstream file(filename);
 
   // return 1 on error
   if (!file) {
     std::cerr << "Error: Failed to open file " << filename << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   // read json file
@@ -184,5 +181,4 @@ int parseEEDL(const std::string &filename, EEDLData &eedl) {
   }
 
   file.close();
-  return 0;
 }

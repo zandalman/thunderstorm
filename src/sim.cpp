@@ -31,6 +31,13 @@ Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string out
     part.newBvec(Bmag_co, Bmag_turb);
   }
 
+void Sim::reset(Part new_part) {
+  part = new_part;
+  part.newBvec(Bmag_co, Bmag_turb);
+  nstep = 0;
+  time = 0.0;
+}
+
 /**
  * @brief Compute the total cross section.
  * 
