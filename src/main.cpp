@@ -40,7 +40,9 @@ int main() {
   double rho = std::stod(config["Simulation"]["rho"]);
   double Bmag_turb = std::stod(config["Bfield"]["Bmag_turb"]);
   double Bmag_co = std::stod(config["Bfield"]["Bmag_co"]);
-  Sim sim = Sim(part, eedl, ab, outfile, rho, Bmag_co, Bmag_turb);
+  double q = std::stod(config["Bfield"]["q"]);
+  double Lmax = std::stod(config["Bfield"]["Lmax"]);
+  Sim sim = Sim(part, eedl, ab, outfile, rho, Bmag_co, Bmag_turb, q, Lmax);
 
   clearOutfile(outfile);
   while ( sim.time < tmax ) {

@@ -19,12 +19,14 @@ struct Sim {
   double rho;                    // The density [g/cc].
   double Bmag_co;                // The amplitude of the coherent magnetic field [G].
   double Bmag_turb;              // The amplitude of the turbulent magnetic field [G].
+  double q;                      // The power law exponent of the magnetic turbulence spectrum.
+  double Lmax;                   // The largest scale of magnetic turbulence [cm].
   bool do_Bfield;                // Whether a magnetic field is present.
   int nstep;                     // The step number.
   double time;                   // The time.
   std::vector<Event> event_list; // A vector of event objects.
 
-  Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double Bmag_co_, double Bmag_turb_);
+  Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double Bmag_co_, double Bmag_turb_, double q_, double Lmax_);
   double calcSigTot();
   void move(double sig_tot, Event &event);
   int choseElem();

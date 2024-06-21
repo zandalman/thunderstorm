@@ -15,6 +15,7 @@ Event::Event(int id_, int nstep_)
   , ion(-1)                // The ion index.
   , time(0.0)              // The event time.
   , x(0.0), y(0.0), z(0.0) // The event coordinates.
+  , ener(0.0)              // The particle energy.
   , cos_th(1.0)            // The cosine of the scattering angle.
   , ener_loss(0.0)         // The energy lost.
   , ener_sec(0.0)          // The energy of the secondary.
@@ -47,7 +48,7 @@ int writeEvent(std::string outfile, std::vector<Event> event_list) {
     return 1;
   }
 
-  file.write(reinterpret_cast<const char*>(&event_list), sizeof(event_list));
+  file.write(reinterpret_cast<const char*>(event_list.data()), event_list.size() * sizeof(Event));
 
   if ( !file.good() ) {
     std::cerr << "Error writing to file." << std::endl;

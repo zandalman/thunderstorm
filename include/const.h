@@ -32,7 +32,7 @@ constexpr double ba = 1.e-24;           // barn
 // mass [g]
 constexpr double m_e = 9.1093897e-28;  // electron mass
 constexpr double m_p = 1.6726231e-24;  // proton mass
-constexpr double m_n = 1.6749286 - 24; // neutron mass
+constexpr double m_n = 1.6749286e-24; // neutron mass
 constexpr double m_H = 1.660539e-24;   // hydrogen mass
 constexpr double amu = 1.6605402e-24;  // atomic mass unit
 constexpr double M_sol = 1.9891e+33;   // solar mass

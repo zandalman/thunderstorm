@@ -14,7 +14,7 @@
 #include "io.h"
 
 /// @brief A constructor to initial to the Sim structure.
-Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double Bmag_co_, double Bmag_turb_)
+Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double Bmag_co_, double Bmag_turb_, double q_, double Lmax_)
   : part(part_)                               // The particle object.
   , eedl(eedl_)                               // Data from the EEDL database.
   , ab(ab_)                                   // A vector of elemental abundances.
@@ -22,6 +22,8 @@ Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string out
   , rho(rho_)                                 // The density [g/cc].
   , Bmag_co(Bmag_co_)                         // The amplitude of the coherent magnetic field [G].
   , Bmag_turb(Bmag_turb_)                     // The amplitude of the turbulent magneitc field [G].
+  , q(q_)                                     // The power law exponent of the magnetic turbulence spectrum.
+  , Lmax(Lmax_)                               // The largest scale of magnetic turbulence [cm].
   , do_Bfield(Bmag_turb > 0. || Bmag_co > 0.) // Whether a magnetic field is present.
   , nstep (0)                                 // The step number.
   , time(0.0)                                 // The simulation time [s].
@@ -36,7 +38,7 @@ Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string out
 */
 double Sim::calcSigTot() {
   double sig_tot = 0.0;
-  double sig_Bturb = do_Bfield ? calcSigBturb(part, part.Bvec.mag(), Bmag_turb, rho) : 0.;
+  double sig_Bturb = do_Bfield ? calcSigBturb(part, part.Bvec.mag(), Bmag_turb, rho, q, Lmax) : 0.;
   sig_tot += sig_Bturb;
   for ( size_t i = 0; i < eedl.size(); i++ ) {
     SpecData spec_data = eedl[i];
@@ -65,6 +67,10 @@ void Sim::move(double sig_tot, Event &event) {
   } else {
     part.pos = part.pos + dis*part.vel.unit();
   }
+  event.time = time;
+  event.x = part.pos.x;
+  event.y = part.pos.y;
+  event.z = part.pos.z;
 }
 
 /**
@@ -75,7 +81,7 @@ void Sim::move(double sig_tot, Event &event) {
 int Sim::choseElem() {
   double sig_tot = 0.0;
   Vector1d sig_cum;
-  double sig_Bturb = do_Bfield ? calcSigBturb(part, part.Bvec.mag(), Bmag_turb, rho) : 0.;
+  double sig_Bturb = do_Bfield ? calcSigBturb(part, part.Bvec.mag(), Bmag_turb, rho, q, Lmax) : 0.;  
   sig_tot += sig_Bturb;
   sig_cum.push_back(sig_tot);
   for ( size_t i = 0; i < eedl.size(); i++ ) {
@@ -168,6 +174,7 @@ void Sim::interact(Event &event) {
       break;
     }
   }
+  event.ener = part.ener;
 }
 
 /**
@@ -178,7 +185,7 @@ void Sim::step() {
   double sig_tot = calcSigTot();
   move(sig_tot, event);
   interact(event);
-  event_list.push_back(Event());
+  event_list.push_back(event);
   nstep += 1;
 }
 

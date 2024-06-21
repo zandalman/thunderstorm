@@ -22,13 +22,13 @@ Part::Part(int id_, double m_i_, double q_i_, double ener_)
 
 /// @brief Compute the particle Lorentz factor.
 double Part::gam() const {
-  return 1 + ener * constants::eV / (m_i * constants::c * constants::c);
+  return 1.0 + ener * constants::eV / (m_i * constants::c * constants::c);
 }
 
 /// @brief Compute the particle velocity, relative to the speed of light.
 double Part::beta() const {
   double gam_val = gam();
-  return pow(1 - 1 / (gam_val * gam_val), 0.5);
+  return sqrt(1.0 - 1.0 / (gam_val * gam_val));
 }
 
 /**

@@ -164,17 +164,15 @@ double calcEnerLoss(double xi, double ener, const Vector1d &ener_list,
 double calcSigBturb(const Part &part, double Bmag, double Bmag_turb, double rho,
                     double q, double Lmax) {
   double beta_val = part.beta(), gam_val = part.gam();
-  double beta_A = Bmag / sqrt(4. * M_PI * rho * constants::c * constants::c); // Alfven speed relative to the speed of light
+  double beta_A = Bmag / sqrt(4.0 * M_PI * rho * constants::c*constants::c); // Alfven speed relative to the speed of light
   double func_beta_A = (1.0 - pow(beta_A / beta_val, 2.0 - q)) / (2.0 - q) -
                        (1.0 - pow(beta_A / beta_val, 4.0 - q)) / (4.0 - q);
   double Om = part.q_i * Bmag / (part.m_i * constants::c); // particle gyro-frequency
   double kmin = constants::c / (Om * Lmax); // minimum wavenumber of magnetic turbulence spectrum
-  double fturb = Bmag_turb*Bmag_turb / Bmag*Bmag; // fraction of magnetic energy in the turbulent field
-  double lam_Bturb = constants::c * pow(beta_val * gam_val, 2 - q) *
-                     func_beta_A * 2.0 /
-                     (M_PI * (q - 1.0) * fturb * constants::c * kmin) *
-                     pow(constants::c * kmin / Om, 2.0 - q);
-  return 1. / (lam_Bturb * rho * constants::N_A);
+  double fturb = Bmag_turb*Bmag_turb / (Bmag*Bmag); // fraction of magnetic energy in the turbulent field
+  double lam_Bturb = constants::c * pow(beta_val * gam_val, 2.0 - q) * func_beta_A * 
+                      2.0 / (M_PI * (q - 1.0) * fturb * constants::c * kmin) * pow(constants::c * kmin / Om, 2.0 - q);
+  return 1.0 / (lam_Bturb * rho * constants::N_A);
 }
 
 /**
@@ -190,5 +188,5 @@ double calcSigBturb(const Part &part, double Bmag, double Bmag_turb, double rho,
 double calcPowerSync(double q_i, double gam, double beta, double cos_alpha, double Bmag, double m_i) {
   return 2./3. * q_i*q_i*q_i*q_i * gam*gam * beta*beta
          * (1 - cos_alpha*cos_alpha) * Bmag*Bmag
-         / (m_i*m_i * constants::c*constants::c*constants::c);
+         / (m_i*m_i * constants::c*constants::c*constants::c) / constants::eV;
 }

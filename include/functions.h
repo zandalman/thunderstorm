@@ -24,7 +24,7 @@ double calcEnerLoss(double xi, double ener, const Vector1d &ener_list,
                     const Vector2d &ener_loss_arr_list,
                     const Vector2d &ener_loss_dist_list);
 double calcSigBturb(const Part &part, double Bmag, double Bmag_turb, double rho,
-                    double q = 5./3., double Lmax = 1.e17);
+                    double q, double Lmax);
 double calcPowerSync(double q_i, double gam, double beta, double cos_alpha, double Bmag, double m_i);
 
 #endif

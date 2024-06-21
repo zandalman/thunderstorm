@@ -13,6 +13,7 @@ struct Event {
   int ion;               // The ion index.
   double time;           // The event time.
   double x, y, z;        // The event coordinates.
+  double ener;           // The particle energy.
   double cos_th;         // The cosine of the scattering angle.
   double ener_loss;      // The energy lost.
   double ener_sec;       // The energy of the secondary.
