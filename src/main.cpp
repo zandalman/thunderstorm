@@ -2,29 +2,48 @@
 #define _USE_MATH_DEFINES
 
 // includes
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <string>
-#include <cmath>
 #include <chrono>
+#include <cmath>
+#include <fstream>
+#include <iostream>
 #include <random>
+#include <string>
+#include <vector>
 
-// header files
-#include "parser.h"
+// headers
 #include "main.h"
+#include "parser.h"
+#include "const.h"
+#include "random.h"
+#include "sim.h"
 
 int main() {
-    
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> dis(0.0, 1.0);
-    std::cout << dis(gen) << std::endl;
 
-    std::string config_dir = "../config/config.ini";
-    Config config = parseConfig(config_dir);
-    std::cout << config["Simulation"]["npac"] << std::endl;
+  std::string config_dir = "../config/config.ini";
+  Config config;
+  parseConfig(config_dir, config);
 
-    EEDLData eedl_data;
-    std::cout << parseEEDL(config["Directories"]["EEDL"], eedl_data) << std::endl;
+  Vector1d ab;
+  double time = std::stod(config["Simulation"]["ab_time"]) * constants::day;
+  parseAb(config["IO"]["ab"], time, ab);
+
+  EEDLData eedl;
+  parseEEDL(config["IO"]["EEDL"], eedl);
+
+  int id = 0;
+  double ener = std::stod(config["Particle"]["ener"]);
+  Part part = Part(id, constants::m_e, constants::e, ener);
+
+  std::string outfile = config["IO"]["outfile"];
+  int fsave = std::stoi(config["IO"]["fsave"]);
+  double tmax = std::stod(config["Simulation"]["tmax"]);
+  double rho = std::stod(config["Simulation"]["rho"]);
+  double Bmag_turb = std::stod(config["Bfield"]["Bmag_turb"]);
+  double Bmag_co = std::stod(config["Bfield"]["Bmag_co"]);
+  Sim sim = Sim(part, eedl, ab, outfile, rho, Bmag_co, Bmag_turb);
+
+  clearOutfile(outfile);
+  while ( sim.time < tmax ) {
+    sim.multistep(fsave);
+  }
 }

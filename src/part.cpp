@@ -1,46 +1,69 @@
 // includes
 #include <cmath>
-#include <random>
 
 // headers
 #include "const.h"
+#include "vec.h"
 #include "part.h"
+#include "random.h"
 
-std::random_device rd;
-std::mt19937 gen(rd());
-std::uniform_real_distribution<double> dis(0.0, 1.0);
+/// @brief A constructor for the Part structure.
+Part::Part(int id_, double m_i_, double q_i_, double ener_)
+  : id(id_)               // The particle ID.
+  , m_i(m_i_)             // The paricle mass [g].
+  , q_i(q_i_)             // The particle charge [esu].
+  , ener(ener_)           // The particle energy [eV].
+  , pos(Vec(0., 0., 0.))  // The particle position [cm].
+  , vel(Vec(0., 0., 0.))  // The particle velocity [cm/s].
+  , Bvec(Vec(0., 0., 0.)) // The particle magnetic field [G].
+  {
+    vel = randVec(beta() * constants::c);
+  }
 
-Vec::Vec(double x_, double y_, double z_): x(x_), y(y_), z(z_) {}
-double Vec::mag() const {
-    return pow(x*x + y*y + z*z, 0.5);
+/// @brief Compute the particle Lorentz factor.
+double Part::gam() const {
+  return 1 + ener * constants::eV / (m_i * constants::c * constants::c);
 }
-Vec Vec::unit() const {
-    double mag_val = mag();
-    return Vec(x/mag_val, y/mag_val, z/mag_val);
+
+/// @brief Compute the particle velocity, relative to the speed of light.
+double Part::beta() const {
+  double gam_val = gam();
+  return pow(1 - 1 / (gam_val * gam_val), 0.5);
 }
 
 /**
- * @brief Compute a vector in a random direction.
+ * @brief Scatter the particle by a given angle off a given axis.
  * 
- * @param mag The magnitude of the random vector.
- * @return The random vector.
+ * Scatter the particle by a given angle off a given axis:
+ *  1. Compute a unit vector perpendicular to the scattering axis.
+ *  2. Rotate the velocity about the perpendicular vector by the scattering angle.
+ *  3. Rotate the velocity about the scattering direction by a random angle.
+ * 
+ * @param cos_th The cosine of the scattering angle.
+ * @param A The scattering axis.
 */
-Vec randVec(double mag) {
-    double phi = 2*M_PI*dis(gen);
-    double cos_th = 2*dis(gen)-1;
-    double sin_th = pow(1- cos_th*cos_th, 0.5);
-    return Vec(mag*sin(phi)*sin_th, mag*cos(phi)*sin_th, mag*cos_th);
+void Part::scat(double cos_th, Vec A) {
+  Vec vperp = cross(A, randVec());
+  vel = rotate(vel, vperp, cos_th);
+  vel = rotate(vel, A, cos(2*M_PI*xi()));
+
 }
 
-Part::Part(double m_i_, double q_i_, double ener_): m_i(m_i_), q_i(q_i_), ener(ener_) {
-    pos = Vec(0., 0., 0.);
-    vel = randVec(beta()*constants::c);
+/**
+ * @brief Remove energy from the particle.
+ * 
+ * @param ener_loss The energy lost by the particle [eV].
+*/
+void Part::loseEner(double ener_loss) {
+  ener = ener - ener_loss;
 }
-double Part::gam() const {
-    return 1 + ener*constants::eV/(m_i*constants::c*constants::c);
+
+/**
+ * @brief Resample the particle magnetic field.
+ * 
+ * @param Bmag_co   The amplitude of the coherent magnetic field [G].
+ * @param Bmag_turb The amplitude of the turbulent magnetic field [G].
+*/
+void Part::newBvec(double Bmag_co, double Bmag_turb) {
+  Bvec = Bmag_co * Vec(0., 0., 1.) + randVec(Bmag_turb);
 }
-double Part::beta() const {
-    double gam_val = gam();
-    return pow(1 - 1/(gam_val*gam_val), 0.5);
-}
- 
