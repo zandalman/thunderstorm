@@ -9,6 +9,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <chrono>
 #include <mpi.h>
 
 // headers
@@ -25,6 +26,7 @@ int main(int argc, char** argv) {
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
+  auto start = std::chrono::steady_clock::now();
 
   std::string config_dir = "../config/config.ini";
   Config config;
@@ -41,8 +43,8 @@ int main(int argc, char** argv) {
   Part part = Part(0, constants::m_e, constants::e, ener);
 
   std::string outfile = config["IO"]["outfile"] + "." + std::to_string(rank);
-  int fsave = std::stoi(config["IO"]["fsave"]);
-  double tmax = std::stod(config["Simulation"]["tmax"]);
+  double tpart_max = std::stod(config["Particle"]["tpart_max"]);
+  double enerpart_min = std::stod(config["Particle"]["enerpart_min"]);
   double rho = std::stod(config["Simulation"]["rho"]);
   double Bmag_turb = std::stod(config["Bfield"]["Bmag_turb"]);
   double Bmag_co = std::stod(config["Bfield"]["Bmag_co"]);
@@ -51,6 +53,7 @@ int main(int argc, char** argv) {
   Sim sim = Sim(part, eedl, ab, outfile, rho, Bmag_co, Bmag_turb, q, Lmax);
 
   int npac = std::stoi(config["Simulation"]["npac"]);
+  int tsim_max = std::stoi(config["Simulation"]["tsim_max"]) * 3600;
   int count_loc = 0, count_glob = 0;
 
   clearOutfile(outfile);
@@ -64,7 +67,11 @@ int main(int argc, char** argv) {
     sim.reset(part);
 
     // run the simulation
-    while ( sim.time < tmax ) sim.step();
+    if ( tpart_max > 0 ) {
+      while ( sim.time < tpart_max ) sim.step();
+    } else if ( enerpart_min > 0 ) {
+      while ( sim.part.ener > enerpart_min ) sim.step();
+    }
     writeEvent(sim.outfile, sim.event_list);
     sim.event_list.clear();
 
@@ -72,7 +79,13 @@ int main(int argc, char** argv) {
     count_loc++;
     MPI_Reduce(&count_loc, &count_glob, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Bcast(&count_glob, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if ( count_glob > npac ) break;
+    if ( npac > 0 && count_glob >= npac ) break;
+
+    // compute the elapsed time
+    auto now = std::chrono::steady_clock::now();
+    auto tsim = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
+    if ( tsim_max > 0 && tsim >= tsim_max) break;
+
   }
 
   MPI_Finalize();
