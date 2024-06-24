@@ -29,8 +29,6 @@ int findIdx(double x0, Vector1d x_list) {
  * @return The integral of the numerical data.
  */
 double integrate(const Vector1d &x, const Vector1d &y) {
-  if (x.size() != y.size()) {
-    throw std::invalid_argument("x and y must have the same size.");}
   double integral = 0.0;
   for (size_t i = 1; i < x.size(); i++) {
     integral += 0.5 * (y[i] + y[i - 1]) * (x[i] - x[i - 1]);
@@ -47,8 +45,6 @@ double integrate(const Vector1d &x, const Vector1d &y) {
  * @return A vector of cumulative distribution functions values.
  */
 Vector1d calcCDF(const Vector1d &x, const Vector1d &dist, double initial) {
-  if (x.size() != dist.size()) {
-    throw std::invalid_argument("x and dist must have the same size.");}
   Vector1d cdf;
   double integral = integrate(x, dist), running_integral = 0.0;
   cdf.push_back(initial);
@@ -71,10 +67,7 @@ Vector1d calcCDF(const Vector1d &x, const Vector1d &dist, double initial) {
  * @param ulim    The upper limit on the interpolated value.
  * @return The interpolated value.
  */
-double interp(double x0, const Vector1d &x, const Vector1d &y, 
-              bool do_llim, bool do_ulim, double llim, double ulim) {
-  if (x.size() != y.size()) {
-    throw std::invalid_argument("x and y must have the same size.");}
+double interp(double x0, const Vector1d &x, const Vector1d &y, bool do_llim, bool do_ulim, double llim, double ulim) {
   // find left interpolation point
   size_t i = 0;
   if (x0 >= x[x.size() - 2]) {
@@ -104,15 +97,7 @@ double interp(double x0, const Vector1d &x, const Vector1d &y,
  * @param cos_th_dist_list A vector of vectors of cosine theta distribution function values at each energy.
  * @return The sampled cosine theta value.
  */
-double calcCosThScat(double xi, double ener, const Vector1d &ener_list,
-                     const Vector2d &cos_th_arr_list,
-                     const Vector2d &cos_th_dist_list) {
-  if (ener_list.size() != cos_th_arr_list.size()) {
-    throw std::invalid_argument(
-        "ener_list and cos_th_arr_list must have the same size.");}
-  if (ener_list.size() != cos_th_dist_list.size()) {
-    throw std::invalid_argument(
-        "ener_list and cos_th_dist_list must have the same size.");}
+double calcCosThScat(double xi, double ener, const Vector1d &ener_list, const Vector2d &cos_th_arr_list, const Vector2d &cos_th_dist_list) {
   Vector1d cos_th_arr;
   for (size_t i = 0; i < ener_list.size(); i++) {
     Vector1d cos_th_cdf = calcCDF(cos_th_arr_list[i], cos_th_dist_list[i]);
@@ -132,15 +117,7 @@ double calcCosThScat(double xi, double ener, const Vector1d &ener_list,
  * @param ener_loss_dist_list A vector of vectors of energy loss distribution function values at each energy [eV].
  * @return The sampled energy loss value.
  */
-double calcEnerLoss(double xi, double ener, const Vector1d &ener_list,
-                    const Vector2d &ener_loss_arr_list,
-                    const Vector2d &ener_loss_dist_list) {
-  if (ener_list.size() != ener_loss_arr_list.size()) {
-    throw std::invalid_argument(
-        "ener_list and ener_loss_arr_list must have the same size.");}
-  if (ener_list.size() != ener_loss_dist_list.size()) {
-    throw std::invalid_argument(
-        "ener_list and ener_loss_dist_list must have the same size.");}
+double calcEnerLoss(double xi, double ener, const Vector1d &ener_list, const Vector2d &ener_loss_arr_list, const Vector2d &ener_loss_dist_list) {
   Vector1d ener_loss_arr;
   for (size_t i = 0; i < ener_list.size(); i++) {
     Vector1d ener_loss_cdf =
@@ -161,8 +138,7 @@ double calcEnerLoss(double xi, double ener, const Vector1d &ener_list,
  * @param Lmax      The largest scale of magnetic turbulence [cm].
  * @return The effective cross section [cm^2].
  */
-double calcSigBturb(const Part &part, double Bmag, double Bmag_turb, double rho,
-                    double q, double Lmax) {
+double calcSigBturb(const Part &part, double Bmag, double Bmag_turb, double rho, double q, double Lmax) {
   double beta_val = part.beta(), gam_val = part.gam();
   double beta_A = Bmag / sqrt(4.0 * M_PI * rho * constants::c*constants::c); // Alfven speed relative to the speed of light
   double func_beta_A = (1.0 - pow(beta_A / beta_val, 2.0 - q)) / (2.0 - q) -
