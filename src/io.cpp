@@ -103,7 +103,7 @@ void writeInfo(const std::string& infofile, Config& config, const Vector1d& ab, 
   }
   file << std::endl;
 
-  licenseFile.close()
+  licenseFile.close();
   file.close();
 
   if ( !file.good() ) {
