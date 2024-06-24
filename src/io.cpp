@@ -50,7 +50,7 @@ void clearOutfile(const std::string& outfile) {
  * 
  * @param outfile The info file name.
 */
-void writeInfo(const std::string& infofile, Config& config, const Vector1d& ab, const EEDLData& eedl) {
+void writeInfo(const std::string& infofile, int size, Config& config, const Vector1d& ab, const EEDLData& eedl) {
 
   std::ofstream file;
   std::ifstream licenseFile("../LICENSE");
@@ -72,6 +72,7 @@ void writeInfo(const std::string& infofile, Config& config, const Vector1d& ab, 
   file << std::endl;
 
   file << "Simulation parameters" << std::endl;
+  file << "Number of MPI processes:     " << size << std::endl;
   file << "Number of particles:         " << config["Simulation"]["npac"] << std::endl;
   file << "Max simulation duration:     " << config["Simulation"]["tmax"] << " [s]" << std::endl;
   file << "Density:                     " << config["Simulation"]["rho"] << " [g/cc]" << std::endl;
@@ -108,11 +109,6 @@ void writeInfo(const std::string& infofile, Config& config, const Vector1d& ab, 
 
   if ( !file.good() ) {
     std::cerr << "Error writing to info file." << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-
-  if ( !licenseFile.good() ) {
-    std::cerr << "Error closing license file." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 }

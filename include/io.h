@@ -28,7 +28,7 @@ struct Event {
 
 void clearInfo(const std::string& infofile);
 void clearOutfile(const std::string& outfile);
-void writeInfo(const std::string& infofile, Config& config, const Vector1d& ab, const EEDLData& eedl);
+void writeInfo(const std::string& infofile, int size, Config& config, const Vector1d& ab, const EEDLData& eedl);
 void writeEvent(std::string outfile, std::vector<Event> event_list);
 
 #endif
