@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
   while ( true ) {
     
     // reset the simulation with a new particle
-    int id = 10 * count_loc + rank;
+    int id = 1000 * count_loc + rank;
     Part part = Part(id, constants::m_e, constants::e, ener);
     sim.reset(part);
 
