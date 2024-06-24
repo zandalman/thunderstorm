@@ -175,8 +175,8 @@ void Sim::interact(Event &event) {
       case flags::ion:
       event.ion = choseIon(event.Zelem);
       Vector1d2d2d spec_ion_data_1ion = spec_data.spec_ion_data[event.ion];
-      event.ener_loss = calcEnerLoss(xi(), part.ener, spec_ion_data_1ion.first, spec_ion_data_1ion.second, spec_ion_data_1ion.third);
-      event.ener_sec = event.ener_loss - spec_data.ener_bind_list[event.ion];
+      event.ener_sec = calcEnerLoss(xi(), part.ener, spec_ion_data_1ion.first, spec_ion_data_1ion.second, spec_ion_data_1ion.third);
+      event.ener_loss = event.ener_sec + spec_data.ener_bind_list[event.ion];
       part.loseEner(event.ener_loss);
       break;
     }

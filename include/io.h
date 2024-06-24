@@ -4,6 +4,9 @@
 // includes
 #include <string>
 
+// headers
+#include "parser.h"
+
 /// @brief A structure to represent an event.
 struct Event {
   int id;                // The particle ID.
@@ -23,7 +26,9 @@ struct Event {
   Event(int id_, int nstep_);
 };
 
+void clearInfo(const std::string& infofile);
 void clearOutfile(const std::string& outfile);
+void writeInfo(const std::string& infofile, Config& config, const Vector1d& ab, const EEDLData& eedl);
 void writeEvent(std::string outfile, std::vector<Event> event_list);
 
 #endif

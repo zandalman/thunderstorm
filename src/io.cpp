@@ -2,10 +2,12 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <string>
 #include <mpi.h>
 
 // headers
 #include "io.h"
+#include "parser.h"
 
 /// @brief A constructor to initialize the Event structure.
 Event::Event(int id_, int nstep_) 
@@ -24,6 +26,16 @@ Event::Event(int id_, int nstep_)
  {}
 
 /**
+ * @brief Clear the info file.
+ * 
+ * @param outfile The info file name.
+*/
+void clearInfo(const std::string& infofile) {
+  std::ofstream file(infofile);
+  file.close();
+}
+
+/**
  * @brief Clear the outfile.
  * 
  * @param outfile The outfile name.
@@ -31,6 +43,78 @@ Event::Event(int id_, int nstep_)
 void clearOutfile(const std::string& outfile) {
     std::ofstream file(outfile, std::ios::binary | std::ios::trunc);
     file.close();
+}
+
+/**
+ * @brief Write information about the simulation to a text file.
+ * 
+ * @param outfile The info file name.
+*/
+void writeInfo(const std::string& infofile, Config& config, const Vector1d& ab, const EEDLData& eedl) {
+
+  std::ofstream file;
+  std::ifstream licenseFile("../LICENSE");
+  file.open(infofile);
+
+  if ( !file ) {
+    std::cerr << "Failed to open info file for writing." << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+
+  if ( !licenseFile ) {
+    std::cerr << "Failed to open license file." << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+
+  file << "Thunderstorm" << std::endl;
+  std::string line;
+  while ( std::getline(licenseFile, line) ) file << line << std::endl;
+  file << std::endl;
+
+  file << "Simulation parameters" << std::endl;
+  file << "Number of particles:         " << config["Simulation"]["npac"] << std::endl;
+  file << "Max simulation duration:     " << config["Simulation"]["tmax"] << " [s]" << std::endl;
+  file << "Density:                     " << config["Simulation"]["rho"] << " [g/cc]" << std::endl;
+  file << "Abundance time:              " << config["Simulation"]["ab_time"] << " [day]" << std::endl;
+  file << "Particle energy:             " << config["Particle"]["ener"] << " [eV]" << std::endl;
+  file << "Particle lifetime:           " << config["Particle"]["tpart"] << " [s]" << std::endl;
+  file << "Coherent B_field amplitude:  " << config["Bfield"]["Bmag_co"] << " [G]" << std::endl;
+  file << "Turbulent B-field amplitude: " << config["Bfield"]["Bmag_turb"] << " [G]" << std::endl;
+  file << "B-field spectrum index:      " << config["Bfield"]["q"] << std::endl;
+  file << "B-field spectrum max scale:  " << config["Bfield"]["Lmax"] << " [cm]" << std::endl;
+  file << std::endl;
+
+  file << "Abundances" << std::endl;
+  file << "Z,ab" << std::endl;
+  for ( size_t i = 0; i < ab.size(); i++ ) {
+    file << i << "," << ab[i] << std::endl;
+  }
+  file << std::endl;
+
+  file << "Ions" << std::endl;
+  file << "Z:ion_list" << std::endl;
+  for ( size_t i = 0; i < eedl.size(); i++ ) {
+    file << i+1 << ":";
+    std::vector<std::string> ion_list = eedl[i].ion_list;
+    for ( size_t j = 0; j < ion_list.size(); j++ ) {
+      file << ion_list[j] << ",";
+    }
+    file << std::endl;
+  }
+  file << std::endl;
+
+  licenseFile.close()
+  file.close();
+
+  if ( !file.good() ) {
+    std::cerr << "Error writing to info file." << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+
+  if ( !licenseFile.good() ) {
+    std::cerr << "Error closing license file." << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
 }
 
 /**
@@ -48,11 +132,10 @@ void writeEvent(std::string outfile, std::vector<Event> event_list) {
   }
 
   file.write(reinterpret_cast<const char*>(event_list.data()), event_list.size() * sizeof(Event));
+  file.close();
 
   if ( !file.good() ) {
     std::cerr << "Error writing to file." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  
-  file.close();
 }

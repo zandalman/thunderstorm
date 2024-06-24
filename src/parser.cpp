@@ -82,7 +82,6 @@ void parseConfig(const std::string &filename, Config &config) {
 void parseAb(const std::string &filename, double time, Vector1d &ab) {
   std::ifstream file(filename);
 
-  // return 1 on error
   if (!file) {
     std::cerr << "Error: Failed to open file " << filename << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
@@ -111,8 +110,7 @@ void parseAb(const std::string &filename, double time, Vector1d &ab) {
 void parseEEDL(const std::string &filename, EEDLData &eedl) {
   std::ifstream file(filename);
 
-  // return 1 on error
-  if (!file) {
+  if ( !file ) {
     std::cerr << "Error: Failed to open file " << filename << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }

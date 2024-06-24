@@ -21,6 +21,7 @@
 
 int main(int argc, char** argv) {
 
+  // initialize MPI
   MPI_Init(&argc, &argv);
 
   int rank, size;
@@ -39,12 +40,17 @@ int main(int argc, char** argv) {
   EEDLData eedl;
   parseEEDL(config["IO"]["EEDL"], eedl);
 
+  if ( rank == 0 ) {
+    std::string infofile = config["IO"]["outpath"] + "/info.txt";
+    clearInfo(infofile);
+    writeInfo(infofile, config, ab, eedl);
+  }
+
   double ener = std::stod(config["Particle"]["ener"]);
   Part part = Part(0, constants::m_e, constants::e, ener);
 
-  std::string outfile = config["IO"]["outfile"] + "." + std::to_string(rank);
-  double tpart_max = std::stod(config["Particle"]["tpart_max"]);
-  double enerpart_min = std::stod(config["Particle"]["enerpart_min"]);
+  std::string outfile = config["IO"]["outpath"] + "/data.bin." + std::to_string(rank);
+  double tpart = std::stod(config["Particle"]["tpart"]);
   double rho = std::stod(config["Simulation"]["rho"]);
   double Bmag_turb = std::stod(config["Bfield"]["Bmag_turb"]);
   double Bmag_co = std::stod(config["Bfield"]["Bmag_co"]);
@@ -53,7 +59,7 @@ int main(int argc, char** argv) {
   Sim sim = Sim(part, eedl, ab, outfile, rho, Bmag_co, Bmag_turb, q, Lmax);
 
   int npac = std::stoi(config["Simulation"]["npac"]);
-  int tsim_max = std::stoi(config["Simulation"]["tsim_max"]) * 3600;
+  int tmax = std::stoi(config["Simulation"]["tmax"]);
   int count_loc = 0, count_glob = 0;
 
   clearOutfile(outfile);
@@ -67,11 +73,7 @@ int main(int argc, char** argv) {
     sim.reset(part);
 
     // run the simulation
-    if ( tpart_max > 0 ) {
-      while ( sim.time < tpart_max ) sim.step();
-    } else if ( enerpart_min > 0 ) {
-      while ( sim.part.ener > enerpart_min ) sim.step();
-    }
+    if ( tpart > 0 ) while ( sim.time < tpart ) sim.step();
     writeEvent(sim.outfile, sim.event_list);
     sim.event_list.clear();
 
@@ -84,7 +86,7 @@ int main(int argc, char** argv) {
     // compute the elapsed time
     auto now = std::chrono::steady_clock::now();
     auto tsim = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
-    if ( tsim_max > 0 && tsim >= tsim_max) break;
+    if ( tmax > 0 && tsim >= tmax) break;
 
   }
 
