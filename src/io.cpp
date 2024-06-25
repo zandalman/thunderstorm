@@ -73,13 +73,12 @@ void writeInfo(const std::string& infofile, int size, Config& config, const Vect
 
   file << "Simulation parameters" << std::endl;
   file << "Number of MPI processes:     " << size << std::endl;
-  file << "Number of particles:         " << config["Simulation"]["npac"] << std::endl;
   file << "Max simulation duration:     " << config["Simulation"]["tmax"] << " [s]" << std::endl;
   file << "Density:                     " << config["Simulation"]["rho"] << " [g/cc]" << std::endl;
   file << "Abundance time:              " << config["Simulation"]["ab_time"] << " [day]" << std::endl;
   file << "Particle energy:             " << config["Particle"]["ener"] << " [eV]" << std::endl;
   file << "Particle lifetime:           " << config["Particle"]["tpart"] << " [s]" << std::endl;
-  file << "Coherent B_field amplitude:  " << config["Bfield"]["Bmag_co"] << " [G]" << std::endl;
+  file << "Coherent B-field amplitude:  " << config["Bfield"]["Bmag_co"] << " [G]" << std::endl;
   file << "Turbulent B-field amplitude: " << config["Bfield"]["Bmag_turb"] << " [G]" << std::endl;
   file << "B-field spectrum index:      " << config["Bfield"]["q"] << std::endl;
   file << "B-field spectrum max scale:  " << config["Bfield"]["Lmax"] << " [cm]" << std::endl;

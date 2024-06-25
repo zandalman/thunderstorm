@@ -5,48 +5,164 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.colors import Normalize, LogNorm
 from matplotlib.cm import ScalarMappable
+from datetime import datetime
 import const
 import os
 
-def read(data_path='../data'):
-  ''' 
-  Read the simulation data. 
+col_event = SimpleNamespace(id=0, nstep=1, Zelem=2, interaction=3, ion=4, time=5, x=6, y=7, z=8, ener=9, cos_th=10, ener_loss=11, ener_sec=12, ener_loss_sync=13)
+col_interact = SimpleNamespace(scat=0, brem=1, exc=2, ion=3, bturb=4)
+
+def save_fig(fig_name, filetype="png", dpi=256):
+  '''
+  Save the current matplotlib figure.
 
   Args
-  data_path: Path of the simulation data directory.
+  name (string): figure name
+  filetype (string): file type
+  dpi (int): dots per inch
+  '''
+  datetime_string = datetime.now().strftime("%m%d%Y%H%M")
+  filename = "%s-%s.%s" % (fig_name, datetime_string, filetype)
+  plt.savefig(os.path.join('..', 'figures', 'current', filename), bbox_inches="tight", dpi=dpi)
+  print("Saved figure as '%s'" % filename)
+
+def read_chunk(file, chunk_size, lim=None):
+  '''
+  Read a file chunk by chunk.
+
+  Args
+  file: File object.
+  chunk_size: Chunk size in bytes.
+  lim: Number of chunks to read.
+  '''
+  count = 0
+  while type(lim)==type(None) or count < lim:
+    data = file.read(chunk_size)
+    if not data: break # stop if there is no data
+    count += 1
+    yield data
+
+def processing(func):
+  '''
+  Converts a function on one chunk into a function on the whole data set.
+
+  Args
+  shape_data: Shape of the data returned by the function.
+  '''
+  def processing_func(data_path='../data', chunk_size=128, chunk_num=128, **kwargs):
+    '''
+    Function to process the data.
+
+    Args
+    data_path:  Path to the data.
+    chunk_size: Number of events per chunk.
+    chunk_num:  Number of chunks.
+    kwargs:     Function arguments.
+
+    Return
+    id_list: List of particle IDs.
+    data_list: List of particle data.
+    '''
+    id_list, data_list = [], []  
+    format_string = '5i9d'
+    event_size = struct.calcsize(format_string)
+    for filename in os.listdir(data_path):
+      if filename == 'info.txt': continue
+      file = open(os.path.join(data_path, filename), 'rb') # open file
+      for data_raw in read_chunk(file, chunk_size*event_size, lim=chunk_num):          
+        data_1chunk = []
+        for j in range(len(data_raw) // event_size):
+          data_raw_1event = data_raw[j*event_size:(j+1)*event_size]
+          data_1event = struct.unpack(format_string, data_raw_1event)
+          id = data_1event[0]     
+          if id in id_list:
+            data_1chunk.append(data_1event)
+          else:
+            if len(data_1chunk)>0:
+              if type(data_list[-1])==type(None):
+                data_list[-1] = func(np.array(data_1chunk), **kwargs)
+              else:
+                data_list[-1] += func(np.array(data_1chunk), **kwargs)
+            id_list.append(id)
+            data_list.append(None)         
+        if len(data_1chunk)>0:
+          if type(data_list[-1])==type(None):
+            data_list[-1] = func(np.array(data_1chunk), **kwargs)
+          else:
+            data_list[-1] += func(np.array(data_1chunk), **kwargs)
+        chunk_num = chunk_num - 1
+      file.close()   
+    return np.array(id_list), np.array(data_list)
+  return processing_func
+
+@processing
+def ener_loss_mech(data_1chunk):
+  data = np.zeros((4))
+  for i, interaction in enumerate([col_interact.brem, col_interact.exc, col_interact.ion]):
+    cond = data_1chunk[:, col_event.interaction] == interaction
+    data[i] = np.sum(data_1chunk[:, col_event.ener_loss][cond])
+  data[3] = np.sum(data_1chunk[:, col_event.ener_loss_sync])
+  return data
+
+@processing
+def num_ion(data_1chunk, Zelem_bins=np.arange(0.5, 99.5)):
+  data, _ = np.histogram(data_1chunk[:, col_event.Zelem], bins=Zelem_bins)
+  return data
+
+@processing
+def num_sec(data_1chunk, ener_bins=np.logspace(0, 5, 64)):
+  interaction = data_1chunk[:, col_event.interaction]
+  ener_sec = data_1chunk[:, col_event.ener_sec][interaction==col_interact.ion]
+  data, _ = np.histogram(ener_sec, bins=ener_bins)
+  return data
+
+@processing
+def ener_loss_time(data_1chunk, time_bins=np.linspace(0, 3600, 64)):
+  ener_loss = data_1chunk[:, col_event.ener_loss] + data_1chunk[:, col_event.ener_loss_sync]
+  data, _ = np.histogram(data_1chunk[:, col_event.time], bins=time_bins, weights=ener_loss)
+  return data
+
+@processing
+def ener_loss_dis(data_1chunk, dis_bins=np.linspace(0, 0.01*const.AU, 64)):
+  ener_loss = data_1chunk[:, col_event.ener_loss] + data_1chunk[:, col_event.ener_loss_sync]
+  dis = np.sqrt(data_1chunk[:, col_event.x]**2 + data_1chunk[:, col_event.y]**2 + data_1chunk[:, col_event.z]**2)
+  data, _ = np.histogram(dis, bins=dis_bins, weights=ener_loss)
+  return data
+
+def read_1part(data_path='../data', chunk_size=128):
+  ''' 
+  Read event data for one particle.
+
+  Args
+  data_path: Path to the data.
   
   Return
-  id_list: List of particle IDs.
-  data: List of particle data.
+  data: Particle data.
   '''
   format_string = '5i9d'
   event_size = struct.calcsize(format_string)
 
-  data, data_temp = [], {}
+  id = None
   col_name_list = ['id', 'nstep', 'Zelem', 'interaction', 'ion', 'time', 'x', 'y', 'z', 'ener', 'cos_th', 'ener_loss', 'ener_sec', 'ener_loss_sync']
-  for col_name in col_name_list: data_temp[col_name] = []
+  data = {col_name: [] for col_name in col_name_list}
 
-  for filename in os.listdir(data_path):
-
-    with open(os.path.join(data_path, filename), 'rb') as file:
-      data_raw = file.read()
-          
-    num_event = len(data_raw) // event_size
-    for i in range(num_event):
-      event_data = data_raw[i*event_size:(i+1)*event_size]
-      event = struct.unpack(format_string, event_data)
+  filename = [filename for filename in os.listdir(data_path) if filename != 'info.txt'][0]
+  file = open(os.path.join(data_path, filename), 'rb')
+  for data_raw in read_chunk(file, chunk_size*event_size, lim=None):
+    for i in range(len(data_raw) // event_size):
+      data_raw_1event = data_raw[i*event_size:(i+1)*event_size]
+      data_1event = struct.unpack(format_string, data_raw_1event)
+      if type(id)==type(None): id = data_1event[col_event.id]
+      if data_1event[col_event.id] != id: break
       for j, col_name in enumerate(col_name_list):
-        data_temp[col_name_list[j]].append(event[j])
+        data[col_name_list[j]].append(data_1event[j])
+    if data_1event[col_event.id] != id: break
           
   for col_name in col_name_list:
-    data_temp[col_name] = np.array(data_temp[col_name])
-
-  id_list = np.sort(list(set(data_temp["id"])))
-  for id in id_list:
-      cond = data_temp["id"] == id
-      data.append(SimpleNamespace(**{col_name: data_temp[col_name][cond] for col_name in col_name_list}))
+    data[col_name] = np.array(data[col_name])
+  data = SimpleNamespace(**data)
   
-  return id_list, data
+  return data
 
 def plot_traj(data, var_c=None, unit_l=const.AU, unit_c=const.day, unit_l_label='AU', cbar_label=r'$t$ [${\rm day}$]', cmap='jet', cval=0., do_top=False):
   '''
