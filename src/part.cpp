@@ -1,5 +1,6 @@
 // includes
 #include <cmath>
+#include <algorithm>
 
 // headers
 #include "const.h"
@@ -55,7 +56,7 @@ void Part::scat(double cos_th, Vec A) {
  * @param ener_loss The energy lost by the particle [eV].
 */
 void Part::loseEner(double ener_loss) {
-  ener = ener - ener_loss;
+  ener = std::min(0., ener - ener_loss);
 }
 
 /**
