@@ -18,6 +18,7 @@
 #include "const.h"
 #include "random.h"
 #include "sim.h"
+#include "functions.h"
 
 int main(int argc, char** argv) {
 
@@ -40,7 +41,7 @@ int main(int argc, char** argv) {
   
   // read abundance data
   Vector1d ab;
-  double time = std::stod(config["Simulation"]["ab_time"]) * constants::day;
+  double time = std::stod(config["Background"]["ab_time"]) * constants::day;
   parseAb(config["IO"]["ab"], time, ab);
   if ( rank == 0 ) std::cout << "Read abundance data." << std::endl;
 
@@ -49,27 +50,37 @@ int main(int argc, char** argv) {
   parseEEDL(config["IO"]["EEDL"], eedl);
   if ( rank == 0 ) std::cout << "Read EEDL data." << std::endl;
 
-  // clear files and write info file
+  // read the config file
+  int tmax = std::stoi(config["Simulation"]["tmax"]);
   bool cont = config["Simulation"]["continue"] == "true";
-  std::string infofile = config["IO"]["outpath"] + "/info.txt";
-  std::string outfile = config["IO"]["outpath"] + "/data.bin." + std::to_string(rank);
-  if ( !cont ) clearOutfile(outfile);
-  if ( rank == 0 && !cont ) { clearInfo(infofile); writeInfo(infofile, size, config, ab, eedl); }
-
-  // initialize the simulation
   double ener = std::stod(config["Particle"]["ener"]);
-  Part part = Part(0, constants::m_e, constants::e, ener);
   double tpart = std::stod(config["Particle"]["tpart"]);
-  double rho = std::stod(config["Simulation"]["rho"]);
+  double rho = std::stod(config["Background"]["rho"]);
+  double temp = std::stod(config["Background"]["temp"]);
+  double ion_state_avg = std::stod(config["Background"]["ion_state_avg"]);
   double Bmag_turb = std::stod(config["Bfield"]["Bmag_turb"]);
   double Bmag_co = std::stod(config["Bfield"]["Bmag_co"]);
   double q = std::stod(config["Bfield"]["q"]);
   double Lmax = std::stod(config["Bfield"]["Lmax"]);
-  Sim sim = Sim(part, eedl, ab, outfile, rho, Bmag_co, Bmag_turb, q, Lmax);
+  double cos_th_cut = std::stod(config["Simulation"]["cos_th_cut"]);
 
-  int tmax = std::stoi(config["Simulation"]["tmax"]);
+  // clear files and write info file
+  std::string infofile = config["IO"]["outpath"] + "/info.txt";
+  std::string outfile = config["IO"]["outpath"] + "/data.bin." + std::to_string(rank);
+  if ( !cont ) {
+    clearOutfile(outfile);
+    if ( rank == 0 ) { 
+      double n_i, n_e_free, lam_deb;
+      calcLamDeb(ab, rho, temp, ion_state_avg, n_i, n_e_free, lam_deb);
+      clearInfo(infofile); 
+      writeInfo(infofile, size, config, ab, eedl, n_i, n_e_free, lam_deb); 
+    }
+  }
+
+  // initialize the simulation
+  Part part = Part(0, constants::m_e, constants::e, ener);
+  Sim sim = Sim(part, eedl, ab, outfile, rho, temp, ion_state_avg, Bmag_co, Bmag_turb, q, Lmax, cos_th_cut);
   int count_loc = 0;
-
   if ( rank == 0 ) std::cout << "Starting simulation." << std::endl;
   MPI_Barrier(MPI_COMM_WORLD);
   

@@ -9,8 +9,10 @@ from datetime import datetime
 import const
 import os
 
-col_event = SimpleNamespace(id=0, nstep=1, Zelem=2, interaction=3, ion=4, time=5, x=6, y=7, z=8, ener=9, cos_th=10, ener_loss=11, ener_sec=12, ener_loss_sync=13)
-col_interact = SimpleNamespace(scat=0, brem=1, exc=2, ion=3, bturb=4)
+col_event = SimpleNamespace(id=0, nstep=1, Zelem=2, interaction=3, ion=4, time=5, x=6, y=7, z=8, ener=9, cos_th=10, ener_loss=11, ener_sec=12, ener_loss_sync=13, ener_loss_cher=14, ener_loss_moller=15)
+col_interact = SimpleNamespace(scat=0, brem=1, exc=2, ion=3, bturb=4, moller=5)
+format_string = '5i11d'
+event_size = struct.calcsize(format_string)
 
 def save_fig(fig_name, filetype="png", dpi=256):
   '''
@@ -64,8 +66,6 @@ def processing(func):
     data_list: List of particle data.
     '''
     id_list, data_list = [], []  
-    format_string = '5i9d'
-    event_size = struct.calcsize(format_string)
     for filename in os.listdir(data_path):
       if filename == 'info.txt': continue
       file = open(os.path.join(data_path, filename), 'rb') # open file
@@ -90,18 +90,20 @@ def processing(func):
             data_list[-1] = func(np.array(data_1chunk), **kwargs)
           else:
             data_list[-1] += func(np.array(data_1chunk), **kwargs)
-        chunk_num = chunk_num - 1
+        if type(chunk_num) != type(None): chunk_num = chunk_num - 1
       file.close()   
     return np.array(id_list), np.array(data_list)
   return processing_func
 
 @processing
 def ener_loss_mech(data_1chunk):
-  data = np.zeros((4))
-  for i, interaction in enumerate([col_interact.brem, col_interact.exc, col_interact.ion]):
+  data = np.zeros((6))
+  for i, interaction in enumerate([col_interact.brem, col_interact.exc, col_interact.ion, col_interact.moller]):
     cond = data_1chunk[:, col_event.interaction] == interaction
     data[i] = np.sum(data_1chunk[:, col_event.ener_loss][cond])
-  data[3] = np.sum(data_1chunk[:, col_event.ener_loss_sync])
+  data[3] += np.sum(data_1chunk[:, col_event.ener_loss_moller])
+  data[4] = np.sum(data_1chunk[:, col_event.ener_loss_sync])
+  data[5] = np.sum(data_1chunk[:, col_event.ener_loss_cher])
   return data
 
 @processing
@@ -129,7 +131,7 @@ def ener_loss_dis(data_1chunk, dis_bins=np.linspace(0, 0.01*const.AU, 64)):
   data, _ = np.histogram(dis, bins=dis_bins, weights=ener_loss)
   return data
 
-def read_1part(data_path='../data', chunk_size=128):
+def read_1part(data_path='../data', chunk_size=128, idx_file=0):
   ''' 
   Read event data for one particle.
 
@@ -139,14 +141,11 @@ def read_1part(data_path='../data', chunk_size=128):
   Return
   data: Particle data.
   '''
-  format_string = '5i9d'
-  event_size = struct.calcsize(format_string)
-
   id = None
-  col_name_list = ['id', 'nstep', 'Zelem', 'interaction', 'ion', 'time', 'x', 'y', 'z', 'ener', 'cos_th', 'ener_loss', 'ener_sec', 'ener_loss_sync']
+  col_name_list = ['id', 'nstep', 'Zelem', 'interaction', 'ion', 'time', 'x', 'y', 'z', 'ener', 'cos_th', 'ener_loss', 'ener_sec', 'ener_loss_sync', 'ener_loss_cher', 'ener_loss_moller']
   data = {col_name: [] for col_name in col_name_list}
 
-  filename = [filename for filename in os.listdir(data_path) if filename != 'info.txt'][0]
+  filename = [filename for filename in os.listdir(data_path) if filename != 'info.txt'][idx_file]
   file = open(os.path.join(data_path, filename), 'rb')
   for data_raw in read_chunk(file, chunk_size*event_size, lim=None):
     for i in range(len(data_raw) // event_size):

@@ -1,12 +1,18 @@
 #ifndef CONST_H
 #define CONST_H
 
+namespace flags_elem {
+constexpr int Bturb = -1;
+constexpr int moller = -2;
+}
+
 namespace flags {
 constexpr int scat = 0;
 constexpr int brem = 1;
 constexpr int exc = 2;
 constexpr int ion = 3;
 constexpr int Bturb = 4;
+constexpr int moller = 5;
 }
 
 namespace constants {
