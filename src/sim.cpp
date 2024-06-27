@@ -163,7 +163,7 @@ int Sim::choseInter(int Zelem) {
     sig_tot += sig_list[i];
     sig_cum.push_back(sig_tot);
   }
-  return findIdx(sig_tot*xi(), sig_cum);
+  return findIdx(sig_tot*xi(), sig_cum) + 1;
 }
 
 /**

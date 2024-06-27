@@ -94,11 +94,12 @@ int main(int argc, char** argv) {
     sim.reset(part);
 
     // run the simulation
-    if ( tpart > 0 ) while ( sim.time < tpart && sim.part.alive ) {
+    while ( sim.part.alive ) {
       sim.step();
       if ( sim.part.ener < ener_min ) { 
         sim.kill(); count_dead_loc++; 
       }
+      if ( tpart > 0. && sim.time < tpart ) break;
     }
     writeEvent(sim.outfile, sim.event_list);
     sim.event_list.clear();
