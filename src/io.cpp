@@ -16,13 +16,15 @@ Event::Event(int id_, int nstep_)
   , Zelem(-1)              // The proton number of the element.
   , interaction(-1)        // The interaction flag.
   , ion(-1)                // The ion index.
-  , time(0.0)              // The event time.
-  , x(0.0), y(0.0), z(0.0) // The event coordinates.
-  , ener(0.0)              // The particle energy.
+  , time(0.0)              // The event time [s].
+  , x(0.0), y(0.0), z(0.0) // The event coordinates [cm].
+  , ener(0.0)              // The particle kinetic energy [eV].
   , cos_th(1.0)            // The cosine of the scattering angle.
-  , ener_loss(0.0)         // The energy lost.
-  , ener_sec(0.0)          // The energy of the secondary.
-  , ener_loss_sync(0.0)    // The energy lost due to synchrotron.
+  , ener_loss(0.0)         // The energy lost [eV].
+  , ener_sec(0.0)          // The energy of the secondary [eV].
+  , ener_loss_sync(0.0)    // The energy lost due to synchrotron [eV].
+  , ener_loss_cher(0.0)    // The energy lost due to Cherenkov radiation [eV].
+  , ener_loss_moller(0.0)  // The energy lost due to small-angle Moller scattering [eV].
  {}
 
 /**
@@ -50,7 +52,7 @@ void clearOutfile(const std::string& outfile) {
  * 
  * @param outfile The info file name.
 */
-void writeInfo(const std::string& infofile, int size, Config& config, const Vector1d& ab, const EEDLData& eedl) {
+void writeInfo(const std::string& infofile, int size, Config& config, const Vector1d& ab, const EEDLData& eedl, double n_i, double n_e_free, double lam_deb) {
 
   std::ofstream file;
   std::ifstream licenseFile("../LICENSE");
@@ -72,16 +74,21 @@ void writeInfo(const std::string& infofile, int size, Config& config, const Vect
   file << std::endl;
 
   file << "Simulation parameters" << std::endl;
-  file << "Number of MPI processes:     " << size << std::endl;
-  file << "Max simulation duration:     " << config["Simulation"]["tmax"] << " [s]" << std::endl;
-  file << "Density:                     " << config["Simulation"]["rho"] << " [g/cc]" << std::endl;
-  file << "Abundance time:              " << config["Simulation"]["ab_time"] << " [day]" << std::endl;
-  file << "Particle energy:             " << config["Particle"]["ener"] << " [eV]" << std::endl;
-  file << "Particle lifetime:           " << config["Particle"]["tpart"] << " [s]" << std::endl;
-  file << "Coherent B-field amplitude:  " << config["Bfield"]["Bmag_co"] << " [G]" << std::endl;
-  file << "Turbulent B-field amplitude: " << config["Bfield"]["Bmag_turb"] << " [G]" << std::endl;
-  file << "B-field spectrum index:      " << config["Bfield"]["q"] << std::endl;
-  file << "B-field spectrum max scale:  " << config["Bfield"]["Lmax"] << " [cm]" << std::endl;
+  file << "Number of MPI processes:         " << size << std::endl;
+  file << "Simulation duration [s]:         " << config["Simulation"]["tmax"] << std::endl;
+  file << "Density [g/cc]:                  " << config["Background"]["rho"] << std::endl;
+  file << "Temperature [K]:                 " << config["Background"]["temp"] << std::endl;
+  file << "Abundance time [day]:            " << config["Background"]["ab_time"] << std::endl;
+  file << "Average ion state:               " << config["Background"]["ion_state_avg"] << std::endl;
+  file << "Ion number density [1/cc]:       " << n_i << std::endl;
+  file << "Free elec number density [1/cc]: " << n_e_free << std::endl;
+  file << "Debye length [cm]:               " << lam_deb << std::endl;
+  file << "Particle energy [eV]:            " << config["Particle"]["ener"] << std::endl;
+  file << "Particle lifetime [s]:           " << config["Particle"]["tpart"] << std::endl;
+  file << "Coherent B-field amplitude [G]:  " << config["Bfield"]["Bmag_co"] << std::endl;
+  file << "Turbulent B-field amplitude [G]: " << config["Bfield"]["Bmag_turb"] << std::endl;
+  file << "B-field spectrum index:          " << config["Bfield"]["q"] << std::endl;
+  file << "B-field spectrum max scale [cm]: " << config["Bfield"]["Lmax"] << std::endl;
   file << std::endl;
 
   file << "Abundances" << std::endl;

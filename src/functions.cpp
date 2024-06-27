@@ -2,6 +2,8 @@
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <fstream>
+#include <iostream>
 
 // headers
 #include "functions.h"
@@ -88,6 +90,24 @@ double interp(double x0, const Vector1d &x, const Vector1d &y, bool do_llim, boo
 }
 
 /**
+ * @brief Compute the ion and free electron number densities and the Debye length.
+ * 
+ * @param ab            The vector of elemental abundances.
+ * @param rho           The density [g/cc].
+ * @param temp          The temperature [K].
+ * @param ion_state_avg The average ionization state.
+ * @param n_i           The ion number density [1/cc].
+ * @param n_e_free      The free electron number density [1/cc].
+ * @param lam_deb       The Debye length [cm].
+ */
+void calcLamDeb(Vector1d ab, double rho, double temp, double ion_state_avg, double &n_i, double &n_e_free, double &lam_deb) {
+  n_i = 0.;
+  for ( size_t i = 0; i < ab.size(); i++ ) { n_i += rho * constants::N_A * ab[i]; }
+  n_e_free = n_i * ion_state_avg;
+  lam_deb  = sqrt(constants::k_B * temp / (4*M_PI * constants::e*constants::e * n_i * ion_state_avg * (ion_state_avg + 1.)));
+}
+
+/**
  * @brief Sample the cosine of the scattering angle (theta).
  *
  * @param xi               A random number.
@@ -138,16 +158,13 @@ double calcEnerLoss(double xi, double ener, const Vector1d &ener_list, const Vec
  * @param Lmax      The largest scale of magnetic turbulence [cm].
  * @return The effective cross section [cm^2].
  */
-double calcSigBturb(const Part &part, double Bmag, double Bmag_turb, double rho, double q, double Lmax) {
-  double beta_val = part.beta(), gam_val = part.gam();
+double calcSigBturb(double m_i, double q_i, double gam, double beta, double rho, double Bmag, double Bmag_turb, double q, double Lmax) {
   double beta_A = Bmag / sqrt(4.0 * M_PI * rho * constants::c*constants::c); // Alfven speed relative to the speed of light
-  double func_beta_A = (1.0 - pow(beta_A / beta_val, 2.0 - q)) / (2.0 - q) -
-                       (1.0 - pow(beta_A / beta_val, 4.0 - q)) / (4.0 - q);
-  double Om = part.q_i * Bmag / (part.m_i * constants::c); // particle gyro-frequency
+  double func_beta_A = (1.0 - pow(beta_A / beta, 2.0 - q)) / (2.0 - q) - (1.0 - pow(beta_A / beta, 4.0 - q)) / (4.0 - q);
+  double Om = q_i * Bmag / (m_i * constants::c); // particle gyro-frequency
   double kmin = constants::c / (Om * Lmax); // minimum wavenumber of magnetic turbulence spectrum
   double fturb = Bmag_turb*Bmag_turb / (Bmag*Bmag); // fraction of magnetic energy in the turbulent field
-  double lam_Bturb = constants::c * pow(beta_val * gam_val, 2.0 - q) * func_beta_A * 
-                      2.0 / (M_PI * (q - 1.0) * fturb * constants::c * kmin) * pow(constants::c * kmin / Om, 2.0 - q);
+  double lam_Bturb = constants::c * pow(beta * gam, 2.0 - q) * func_beta_A * 2.0 / (M_PI * (q - 1.0) * fturb * constants::c * kmin) * pow(constants::c * kmin / Om, 2.0 - q);
   return 1.0 / (lam_Bturb * rho * constants::N_A);
 }
 
@@ -162,7 +179,7 @@ double calcSigBturb(const Part &part, double Bmag, double Bmag_turb, double rho,
  * @param m_i       The particle mass [g].
  * @return The synchrotron power.
 */
-double calcPowerSync(double q_i, double gam, double beta, double cos_alpha, double Bmag, double m_i) {
+double calcPowerSync(double m_i, double q_i, double gam, double beta, double Bmag, double cos_alpha) {
   return 2./3. * q_i*q_i*q_i*q_i * gam*gam * beta*beta
          * (1 - cos_alpha*cos_alpha) * Bmag*Bmag
          / (m_i*m_i * constants::c*constants::c*constants::c) / constants::eV;
@@ -181,14 +198,11 @@ double calcPowerSync(double q_i, double gam, double beta, double cos_alpha, doub
  * @param n_e_free The free electron density [1/cc].
  * @return The Cherenkov power.
  */
-double calcPowerCher(double gam, double beta, double temp, double n_e_free) {
+double calcPowerCher(double beta, double temp, double n_e_free) {
   double vel_th = sqrt(3. * constants::k_B * temp / (2. * constants::m_e)); // thermal velocity
   double omega_p = sqrt(4.*M_PI * n_e_free * constants::e*constants::e / constants::m_e); // plasma frequency
-  if ( beta*beta * constants::c*constants::c < 2. * vel_th*vel_th ) {
-    return 0.;
-  } else {
-    return constants::e*constants::e * omega_p*omega_p / (2. * beta*beta * constants::c*constants::c) * log(beta*beta * constants::c*constants::c / (vel_th*vel_th) - 1.);
-  }
+  bool subthermal = beta*beta * constants::c*constants::c < 2. * vel_th*vel_th;
+  return subthermal ? 0. : constants::e*constants::e * omega_p*omega_p / (2. * beta * constants::c) * log(beta*beta * constants::c*constants::c / (vel_th*vel_th) - 1.) / constants::eV;
 }
 
 /**
@@ -204,8 +218,8 @@ double calcPowerCher(double gam, double beta, double temp, double n_e_free) {
  * @param omxcut     One minus the cosine of the cutoff scattering angle in the CM frame.
  */
 void calcOmxMoller(double gam, double beta, double cos_th_cut, double lam_deb, double &prefac, double &omxmin, double &omxmax, double &omxcut) {
-  double prefac = 4*M_PI * constants::e*constants::e*constants::e*constants::e / (constants::m_e*constants::m_e * constants::c*constants::c*constants::c*constants::c * beta*beta) * (gam + 1) / (gam*gam);
-  double bmin = constants::h * constants::c / (gam * constants::m_e * beta * constants::c);
+  prefac = 4*M_PI * constants::e*constants::e*constants::e*constants::e / (constants::m_e*constants::m_e * constants::c*constants::c*constants::c*constants::c * beta*beta) * (gam + 1) / (gam*gam);
+  double bmin = constants::h * constants::c / (gam * constants::m_e * beta * constants::c*constants::c);
   double bmax = lam_deb;
   omxmin = prefac * M_PI / (bmin*bmin);
   omxmax = prefac * M_PI / (bmax*bmax);
@@ -224,7 +238,7 @@ void calcOmxMoller(double gam, double beta, double cos_th_cut, double lam_deb, d
  * @param n_e_free   The number density of free electrons [1/cc].
  * @return The small-angle Moller power.
  */
-double calcPowerMoller(double gam, double beta, double cos_th_cut, double lam_deb, double ener, double n_e_free) {
+double calcPowerMoller(double ener, double gam, double beta, double n_e_free, double lam_deb, double cos_th_cut) {
   double prefac, omxmin, omxmax, omxcut;
   calcOmxMoller(gam, beta, cos_th_cut, lam_deb, prefac, omxmin, omxmax, omxcut);
   return prefac * ener * log(omxcut/omxmax) / 2. * n_e_free * beta * constants::c;
@@ -239,7 +253,7 @@ double calcPowerMoller(double gam, double beta, double cos_th_cut, double lam_de
  * @param lam_deb    The Debye length [cm].
  * @return The cross section of large-angle Moller scattering.
  */
-double calcSigMoller(double gam, double beta, double cos_th_cut, double lam_deb) {
+double calcSigMoller(double gam, double beta, double lam_deb, double cos_th_cut) {
   double prefac, omxmin, omxmax, omxcut;
   calcOmxMoller(gam, beta, cos_th_cut, lam_deb, prefac, omxmin, omxmax, omxcut);
   return omxcut >= omxmin ? 0. : prefac * (1. / omxcut - 1. / omxmin);
@@ -257,7 +271,7 @@ double calcSigMoller(double gam, double beta, double cos_th_cut, double lam_deb)
  * @param cos_th     The sampled cosine theta value.
  * @param ener_loss  The sampled energy loss value [eV].
  */
-void calcCosThScatEnerLossMoller(double xi, double gam, double beta, double cos_th_cut, double lam_deb, double ener, double &cos_th, double &ener_loss) {
+void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta, double lam_deb, double cos_th_cut, double &cos_th, double &ener_loss) {
   double prefac, omxmin, omxmax, omxcut;
   calcOmxMoller(gam, beta, cos_th_cut, lam_deb, prefac, omxmin, omxmax, omxcut);
   double sig = prefac * (1. / omxcut - 1. / omxmin);
