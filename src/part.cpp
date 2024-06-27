@@ -17,6 +17,7 @@ Part::Part(int id_, double m_i_, double q_i_, double ener_)
   , pos(Vec(0., 0., 0.))  // The particle position [cm].
   , vel(Vec(0., 0., 0.))  // The particle velocity [cm/s].
   , Bvec(Vec(0., 0., 0.)) // The particle magnetic field [G].
+  , alive(true)           // Whether the particle is alive.
   {
     vel = randVec(beta() * constants::c);
   }

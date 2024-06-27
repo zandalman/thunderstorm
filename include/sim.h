@@ -35,6 +35,7 @@ struct Sim {
 
   Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double temp_, double ion_state_avg_, double Bmag_co_, double Bmag_turb_, double q_, double Lmax_, double cos_th_cut_);
   void reset(Part part);
+  void kill();
   double calcSigTot();
   void move(double sig_tot, Event &event);
   int choseElem();
@@ -42,7 +43,6 @@ struct Sim {
   int choseIon(int Zelem);
   void interact(Event &event);
   void step();
-  void multistep(int num);
 };
 
 #endif

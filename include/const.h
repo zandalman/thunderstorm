@@ -7,12 +7,13 @@ constexpr int moller = -2;
 }
 
 namespace flags {
-constexpr int scat = 0;
-constexpr int brem = 1;
-constexpr int exc = 2;
-constexpr int ion = 3;
-constexpr int Bturb = 4;
-constexpr int moller = 5;
+constexpr int death = 0;
+constexpr int scat = 1;
+constexpr int brem = 2;
+constexpr int exc = 3;
+constexpr int ion = 4;
+constexpr int Bturb = 5;
+constexpr int moller = 6;
 }
 
 namespace constants {

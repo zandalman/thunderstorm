@@ -52,6 +52,7 @@ int main(int argc, char** argv) {
 
   // read the config file
   int tmax = std::stoi(config["Simulation"]["tmax"]);
+  double ener_min = std::stod(config["Simulation"]["ener_min"]);
   bool cont = config["Simulation"]["continue"] == "true";
   double ener = std::stod(config["Particle"]["ener"]);
   double tpart = std::stod(config["Particle"]["tpart"]);
@@ -80,8 +81,10 @@ int main(int argc, char** argv) {
   // initialize the simulation
   Part part = Part(0, constants::m_e, constants::e, ener);
   Sim sim = Sim(part, eedl, ab, outfile, rho, temp, ion_state_avg, Bmag_co, Bmag_turb, q, Lmax, cos_th_cut);
-  int count_loc = 0;
-  if ( rank == 0 ) std::cout << "Starting simulation." << std::endl;
+  int count_loc = 0, count_dead_loc = 0;
+  if ( rank == 0 ) {
+    std::cout << "Starting simulation." << std::endl << std::endl;
+  }
   MPI_Barrier(MPI_COMM_WORLD);
   
   while ( true ) {
@@ -91,7 +94,12 @@ int main(int argc, char** argv) {
     sim.reset(part);
 
     // run the simulation
-    if ( tpart > 0 ) while ( sim.time < tpart ) sim.step();
+    if ( tpart > 0 ) while ( sim.time < tpart && sim.part.alive ) {
+      sim.step();
+      if ( sim.part.ener < ener_min ) { 
+        sim.kill(); count_dead_loc++; 
+      }
+    }
     writeEvent(sim.outfile, sim.event_list);
     sim.event_list.clear();
 
@@ -103,15 +111,17 @@ int main(int argc, char** argv) {
   }
 
   // compute the packet counts
-  int count_glob;
+  int count_glob, count_dead_glob;
   std::vector<int> count_loc_list(size);
   MPI_Gather(&count_loc, 1, MPI_INT, count_loc_list.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Reduce(&count_loc, &count_glob, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&count_dead_loc, &count_dead_glob, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   if ( rank == 0 ) {
     auto now = std::chrono::steady_clock::now();
     auto tsim = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     std::cout << "Simulation complete." << std::endl;
-    std::cout << "Total Packet count: " << count_glob << std::endl;
+    std::cout << "Total packet count: " << count_glob << std::endl;
+    std::cout << "Total dead packet count: " << count_dead_glob << std::endl;
     std::cout << "Runtime [s]:        " << tsim << std::endl;
     std::cout << std::endl;
     std::cout << "Local packet counts" << std::endl;

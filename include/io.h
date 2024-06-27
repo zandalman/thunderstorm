@@ -11,7 +11,7 @@
 struct Event {
   int id;                  // The particle ID.
   int nstep;               // The step number.
-  int Zelem;              // The proton number of the element.
+  int Zelem;               // The proton number of the element.
   int interaction;         // The interaction flag.
   int ion;                 // The ion index.
   double time;             // The event time [s].

@@ -39,11 +39,30 @@ Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string out
     calcLamDeb(ab, rho, temp, ion_state_avg, n_i, n_e_free, lam_deb);
   }
 
+/**
+ * @brief Reset the simulation with a new particle.
+ * 
+ * @param new_part The new particle.
+ */
 void Sim::reset(Part new_part) {
   part = new_part;
   part.newBvec(Bmag_co, Bmag_turb);
   nstep = 0;
   time = 0.0;
+}
+
+/**
+ * @brief Kill the particle.
+ */
+void Sim::kill() { 
+  Event event_death(part.id, nstep);
+  event_death.time = time;
+  event_death.x = part.pos.x;
+  event_death.y = part.pos.y;
+  event_death.z = part.pos.z;
+  event_death.interaction = flags::death;
+  event_list.push_back(event_death);
+  part.alive = false;
 }
 
 /**
@@ -229,19 +248,3 @@ void Sim::step() {
   event_list.push_back(event);
   nstep += 1;
 }
-
-/**
- * @brief Step the simulation forward multiple steps.
- * 
- * Step the simulation forward by a given number of steps.
- * Then write the event list to the outfile.
- * Finally, reset the event list.
- * 
- * @param num The number of steps.
-*/
-void Sim::multistep(int num) {
-  for ( int i = 0; i < num; i++ ) { step(); }
-  writeEvent(outfile, event_list);
-  event_list.clear();
-}
-

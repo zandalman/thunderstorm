@@ -10,7 +10,7 @@ import const
 import os
 
 col_event = SimpleNamespace(id=0, nstep=1, Zelem=2, interaction=3, ion=4, time=5, x=6, y=7, z=8, ener=9, cos_th=10, ener_loss=11, ener_sec=12, ener_loss_sync=13, ener_loss_cher=14, ener_loss_moller=15)
-col_interact = SimpleNamespace(scat=0, brem=1, exc=2, ion=3, bturb=4, moller=5)
+col_interact = SimpleNamespace(death=0, scat=1, brem=2, exc=3, ion=4, bturb=5, moller=6)
 format_string = '5i11d'
 event_size = struct.calcsize(format_string)
 
@@ -120,13 +120,13 @@ def num_sec(data_1chunk, ener_bins=np.logspace(0, 5, 64)):
 
 @processing
 def ener_loss_time(data_1chunk, time_bins=np.linspace(0, 3600, 64)):
-  ener_loss = data_1chunk[:, col_event.ener_loss] + data_1chunk[:, col_event.ener_loss_sync]
+  ener_loss = data_1chunk[:, col_event.ener_loss] + data_1chunk[:, col_event.ener_loss_sync] + data_1chunk[:, col_event.ener_loss_cher] + data_1chunk[:, col_event.ener_loss_moller]
   data, _ = np.histogram(data_1chunk[:, col_event.time], bins=time_bins, weights=ener_loss)
   return data
 
 @processing
 def ener_loss_dis(data_1chunk, dis_bins=np.linspace(0, 0.01*const.AU, 64)):
-  ener_loss = data_1chunk[:, col_event.ener_loss] + data_1chunk[:, col_event.ener_loss_sync]
+  ener_loss = data_1chunk[:, col_event.ener_loss] + data_1chunk[:, col_event.ener_loss_sync] + data_1chunk[:, col_event.ener_loss_cher] + data_1chunk[:, col_event.ener_loss_moller]
   dis = np.sqrt(data_1chunk[:, col_event.x]**2 + data_1chunk[:, col_event.y]**2 + data_1chunk[:, col_event.z]**2)
   data, _ = np.histogram(dis, bins=dis_bins, weights=ener_loss)
   return data

@@ -13,6 +13,7 @@ struct Part {
   Vec pos;     // The particle position [cm].
   Vec vel;     // The particle velocity [cm/s].
   Vec Bvec;    // The particle magnetic field [G].
+  bool alive;  // Whether the particle is alive.
 
   Part() = default;
   Part(int id_, double m_i_, double q_i_, double ener_);
