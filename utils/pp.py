@@ -12,6 +12,10 @@ import os
 col_event = SimpleNamespace(id=0, nstep=1, Zelem=2, interaction=3, ion=4, time=5, x=6, y=7, z=8, ener=9, cos_th=10, ener_loss=11, ener_sec=12, ener_loss_sync=13)
 col_interact = SimpleNamespace(scat=0, brem=1, exc=2, ion=3, bturb=4)
 
+def clear_fig():
+    for filename in os.listdir(os.path.join('..', 'figures', 'current')): 
+        os.remove(os.path.join('..', 'figures', 'current', filename))
+
 def save_fig(fig_name, filetype="png", dpi=256):
   '''
   Save the current matplotlib figure.
