@@ -95,7 +95,7 @@ def processing(func):
           else:
             data_list[-1] += func(np.array(data_1chunk), **kwargs)
         if type(chunk_num) != type(None): chunk_num = chunk_num - 1
-      file.close()   
+      file.close()
     return np.array(id_list), np.array(data_list)
   return processing_func
 
@@ -120,6 +120,14 @@ def num_sec(data_1chunk, ener_bins=np.logspace(0, 5, 64)):
   interaction = data_1chunk[:, col_event.interaction]
   ener_sec = data_1chunk[:, col_event.ener_sec][interaction==col_interact.ion]
   data, _ = np.histogram(ener_sec, bins=ener_bins)
+  return data
+
+@processing
+def ener_time(data_1chunk, time_bins=np.linspace(0, 3600, 64)):
+  ener = data_1chunk[:, col_event.ener]
+  nevent_bin, _ = np.histogram(data_1chunk[:, col_event.time], bins=time_bins)
+  ener_bin, _ = np.histogram(data_1chunk[:, col_event.time], bins=time_bins, weights=ener)
+  data = np.array([nevent_bin, ener_bin])
   return data
 
 @processing
