@@ -33,8 +33,8 @@ struct PartData {
   double x_start = 0.;
   double y_start = 0.;
   double z_start = 0.;
-  double ener_loss_mech[6];
-  int num_ion[118];
+  std::vector<double> ener_loss_mech;
+  std::vector<int> num_ion;
   std::vector<int> num_ev_time;
   std::vector<double> ener_time;
   std::vector<double> ener_loss_time;
@@ -45,8 +45,14 @@ struct PartData {
   void reset(int id_, double ener_, size_t num_time, size_t num_dis);
 };
 
+template <typename T>
+void writeVector(std::ofstream& file, const std::vector<T>& vec);
+int writeInfo(std::string infofile, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list);
+
 void processEvent(const Event* event, std::vector<PartData>& part_data_list, const std::vector<double>& ener_list, const std::vector<double>& time_list, const std::vector<double>& dis_list);
-void writePartData(std::vector<PartData>& part_data_list, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list);
-int processFile(std::string filename, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list);
+void clearFile(const std::string& outfile);
+void postProcPartData(std::vector<PartData>& part_data_list);
+int writePartData(std::string outfile, std::vector<PartData>& part_data_list);
+int processFile(std::string filename, std::string outfile, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list);
 
 #endif

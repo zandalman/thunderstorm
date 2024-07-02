@@ -62,8 +62,12 @@ int main(int argc, char** argv) {
   bool log_dis = config["Distance"]["log"] == "true";
   linspace(dis_min, dis_max, num_dis, log_dis, dis_list);
 
-  const size_t num_event_per_chunk = std::stoul(config["Chunk"]["num_event_per_chunk"]);
-  processFile(filename, num_event_per_chunk, ener_list, time_list, dis_list);
+  std::string infofile = config["IO"]["outpath"] + "/info.txt";
+  std::string outfile = config["IO"]["outpath"] + "/data.txt";
+  const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
+  writeInfo(infofile, ener_list, time_list, dis_list);
+  clearFile(outfile);
+  processFile(filename, outfile, num_event_per_chunk, ener_list, time_list, dis_list);
 
   // MPI_Finalize();
   return 0;

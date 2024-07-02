@@ -35,8 +35,8 @@ Event::Event(int int_data[5], double double_data[11])
 PartData::PartData(size_t num_time, size_t num_dis)
   : id(-1)
  {
-  for ( size_t i = 0; i < 6; i++ ) ener_loss_mech[i] = 0.;
-  for ( size_t i = 0; i < 118; i++ ) num_ion[i] = 0;
+  for ( size_t i = 0; i < 6; i++ ) ener_loss_mech.push_back(0.);
+  for ( size_t i = 0; i < 118; i++ ) num_ion.push_back(0);
   for ( size_t i = 0; i < (num_time - 1); i++ ) num_ev_time.push_back(0);
   for ( size_t i = 0; i < (num_time - 1); i++ ) ener_time.push_back(0.);
   for ( size_t i = 0; i < (num_time - 1); i++ ) ener_loss_time.push_back(0.);
@@ -94,14 +94,14 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
 
     // compute time histograms
     if ( idx_time > 0 && idx_time < time_list.size() ) {
-      part_data.num_ev_time[idx_time] += 1;
-      part_data.ener_time[idx_time] += event->ener;
-      part_data.ener_loss_time[idx_time] += ener_loss;
+      part_data.num_ev_time[idx_time - 1] += 1;
+      part_data.ener_time[idx_time - 1] += event->ener;
+      part_data.ener_loss_time[idx_time - 1] += ener_loss;
     }
 
     // compute distance histograms
     if ( idx_dis > 0 && idx_dis < dis_list.size() ) {
-      part_data.ener_loss_dis[idx_dis] += ener_loss;
+      part_data.ener_loss_dis[idx_dis - 1] += ener_loss;
     }
     
     // compute interaction histograms
@@ -127,10 +127,20 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
   }
 }
 
-void writePartData(std::vector<PartData>& part_data_list, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list) {
-  for ( size_t i = 0; i < ener_list.size(); i++ ) {
+/**
+ * @brief Clear the outfile.
+ * 
+ * @param outfile The outfile name.
+*/
+void clearFile(const std::string& outfile) {
+  std::ofstream file(outfile);
+  file.close();
+}
+
+void postProcPartData(std::vector<PartData>& part_data_list) {
+  for ( size_t i = 0; i < part_data_list.size(); i++ ) {
     PartData &part_data = part_data_list[i];
-    for ( size_t j = 0; j < (time_list.size() - 1); j++ ) {
+    for ( size_t j = 0; j < part_data.num_ev_time.size(); j++ ) {
       if ( part_data.num_ev_time[j] > 0 ) {
         part_data.ener_time[j] /= part_data.num_ev_time[j];
       }
@@ -138,7 +148,84 @@ void writePartData(std::vector<PartData>& part_data_list, const std::vector<doub
   }
 }
 
-int processFile(std::string filename, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list) {
+template <typename T>
+void writeVector(std::ofstream& file, const std::vector<T>& vec) {
+
+  if ( !file.is_open() ) {
+    std::cerr << "File is not open." << std::endl;
+    return;
+  }
+
+  for (size_t i = 0; i < vec.size(); ++i) {
+    file << vec[i];
+    if (i != vec.size() - 1) file << ",";
+  }
+  file << std::endl;
+}
+
+int writeInfo(std::string infofile, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list) {
+
+  std::ofstream file(infofile);
+
+  if ( !file ) {
+    std::cerr << "Failed to open file for writing." << std::endl;
+    return 1;
+  }
+
+  file << "Energy list [eV]" << std::endl;  
+  writeVector(file, ener_list);
+  file << "Time list [s]" << std::endl;
+  writeVector(file, time_list);
+  file << "Distance list [cm]" << std::endl;
+  writeVector(file, dis_list);
+
+  file.close();
+  if ( !file.good() ) {
+    std::cerr << "Error writing to file." << std::endl;
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+int writePartData(std::string outfile, std::vector<PartData>& part_data_list) {
+  
+  std::ofstream file(outfile, std::ios::app);
+
+  if ( !file ) {
+    std::cerr << "Failed to open file for writing." << std::endl;
+    return 1;
+  }
+
+  file << "ID: " << part_data_list[0].id << std::endl;
+
+  for ( size_t i = 0; i < part_data_list.size(); i++ ) {
+    PartData &part_data = part_data_list[i];
+
+    file << "energy [eV]: " << part_data.ener << std::endl;
+    file << part_data.num_ev << std::endl;
+    file << part_data.x_start << "," << part_data.y_start << "," << part_data.z_start << std::endl;
+    writeVector(file, part_data.ener_loss_mech);
+    writeVector(file, part_data.num_ion);
+    writeVector(file, part_data.num_ev_time);
+    writeVector(file, part_data.ener_time);
+    writeVector(file, part_data.ener_loss_time);
+    writeVector(file, part_data.ener_loss_dis);
+  }
+
+  file << std::endl;
+
+  file.close();
+
+  if ( !file.good() ) {
+    std::cerr << "Error writing to file." << std::endl;
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+int processFile(std::string filename, std::string outfile, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list) {
 
   // Open file
   std::ifstream file(filename, std::ios::binary);
@@ -164,8 +251,11 @@ int processFile(std::string filename, size_t num_event_per_chunk, const std::vec
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
       if ( event->id != current_id ) {
-        if ( current_id != -1 ) writePartData(part_data_list, ener_list, time_list, dis_list);
-        for ( size_t i = 0; i < ener_list.size(); i++ ) part_data_list[i].reset(event->id, ener_list[i], time_list.size(), dis_list.size());
+        if ( current_id != -1 ) {
+          postProcPartData(part_data_list);
+          writePartData(outfile, part_data_list);
+        }
+        for ( size_t j = 0; j < ener_list.size(); j++ ) part_data_list[j].reset(event->id, ener_list[j], time_list.size(), dis_list.size());
         current_id = event->id;
         npart++;
       } else {
@@ -182,8 +272,11 @@ int processFile(std::string filename, size_t num_event_per_chunk, const std::vec
       for ( size_t i = 0; i < num_event_last_chunk; i++ ) {
         event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
         if ( event->id != current_id ) {
-          if ( current_id != -1 ) writePartData(part_data_list, ener_list, time_list, dis_list);
-          for ( size_t i = 0; i < ener_list.size(); i++ ) part_data_list[i].reset(event->id, ener_list[i], time_list.size(), dis_list.size());
+          if ( current_id != -1 ) {
+            postProcPartData(part_data_list);
+            writePartData(outfile, part_data_list);
+          }
+          for ( size_t j = 0; j < ener_list.size(); j++ ) part_data_list[j].reset(event->id, ener_list[j], time_list.size(), dis_list.size());
           current_id = event->id;
           npart++;
         } else {
