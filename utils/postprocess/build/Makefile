@@ -1,6 +1,6 @@
 # compiler and flags
-CXX := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra -g
+CXX := mpic++
+CXXFLAGS := -std=c++17 -Wall -Wextra
 
 # directories
 SRC_DIR := ../src

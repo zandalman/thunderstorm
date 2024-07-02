@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
     auto tsim = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     std::cout << "Simulation complete." << std::endl;
     std::cout << "Total packet count: " << count_glob << std::endl;
-    std::cout << "Total dead packet count: " << count_dead_glob << std::endl;
+    std::cout << "Total dead count:   " << count_dead_glob << std::endl;
     std::cout << "Runtime [s]:        " << tsim << std::endl;
     std::cout << std::endl;
     std::cout << "Local packet counts" << std::endl;

@@ -6,6 +6,7 @@
 #include <cstring>
 #include <vector>
 #include <cmath>
+#include <mpi.h>
 
 // headers
 #include "const.h"
@@ -62,7 +63,7 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
 
   if ( event == nullptr ) {
     std::cerr << "Error: Null event pointer." << std::endl;
-    return;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   for ( size_t i = 0; i < ener_list.size(); i++ ) {
@@ -163,13 +164,13 @@ void writeVector(std::ofstream& file, const std::vector<T>& vec) {
   file << std::endl;
 }
 
-int writeInfo(std::string infofile, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list) {
+void writeInfo(std::string infofile, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list) {
 
   std::ofstream file(infofile);
 
   if ( !file ) {
     std::cerr << "Failed to open file for writing." << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   file << "Energy list [eV]" << std::endl;  
@@ -182,19 +183,17 @@ int writeInfo(std::string infofile, const std::vector<double> &ener_list, const 
   file.close();
   if ( !file.good() ) {
     std::cerr << "Error writing to file." << std::endl;
-    return 1;
-  } else {
-    return 0;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 }
 
-int writePartData(std::string outfile, std::vector<PartData>& part_data_list) {
+void writePartData(std::string outfile, std::vector<PartData>& part_data_list) {
   
   std::ofstream file(outfile, std::ios::app);
 
   if ( !file ) {
     std::cerr << "Failed to open file for writing." << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   file << "ID: " << part_data_list[0].id << std::endl;
@@ -219,20 +218,18 @@ int writePartData(std::string outfile, std::vector<PartData>& part_data_list) {
 
   if ( !file.good() ) {
     std::cerr << "Error writing to file." << std::endl;
-    return 1;
-  } else {
-    return 0;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 }
 
-int processFile(std::string filename, std::string outfile, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list) {
+void processFile(std::string filename, std::string outfile, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list) {
 
   // Open file
   std::ifstream file(filename, std::ios::binary);
 
   if ( !file.is_open() ) {
     std::cerr << "Failed to open file " << filename << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   // Compute chunk size
@@ -286,9 +283,10 @@ int processFile(std::string filename, std::string outfile, size_t num_event_per_
     }
   } else {
     std::cerr << "Error reading file " << filename << std::endl;
-    return 1;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
   file.close();
-  return 0;
 }
+
+

@@ -47,12 +47,12 @@ struct PartData {
 
 template <typename T>
 void writeVector(std::ofstream& file, const std::vector<T>& vec);
-int writeInfo(std::string infofile, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list);
+void writeInfo(std::string infofile, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list);
 
 void processEvent(const Event* event, std::vector<PartData>& part_data_list, const std::vector<double>& ener_list, const std::vector<double>& time_list, const std::vector<double>& dis_list);
 void clearFile(const std::string& outfile);
 void postProcPartData(std::vector<PartData>& part_data_list);
-int writePartData(std::string outfile, std::vector<PartData>& part_data_list);
-int processFile(std::string filename, std::string outfile, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list);
+void writePartData(std::string outfile, std::vector<PartData>& part_data_list);
+void processFile(std::string filename, std::string outfile, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &time_list, const std::vector<double> &dis_list);
 
 #endif
