@@ -1,6 +1,6 @@
 # compiler and flags
 CXX := mpic++
-CXXFLAGS := -std=c++17 -Wall -Wextra
+CXXFLAGS := -std=c++17 -Wall -Wextra -O3 -march=native -finline-functions
 
 # directories
 SRC_DIR := ../src

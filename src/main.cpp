@@ -13,7 +13,6 @@
 #include <mpi.h>
 
 // headers
-#include "main.h"
 #include "parser.h"
 #include "const.h"
 #include "random.h"

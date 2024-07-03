@@ -5,9 +5,11 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <mpi.h>
 
 // headers
 #include "parser.h"
+#include "functions.h"
 
 /**
  * @brief Remove spaces at the beginning and end of a string.
@@ -28,19 +30,17 @@ std::string trim(const std::string &str) {
  * @param filename The configuration file name.
  * @param config   The structure to store the parsed data.
 */
-int parseConfig(const std::string &filename, Config &config) {
-  std::ifstream file(filename);
+void parseConfig(const std::string &configfile_name, Config &config) {
+  std::ifstream configfile(configfile_name);
   std::string line;
   std::string section;
 
-  // return 1 on error
-  if (!file) {
-    std::cerr << "Error: Failed to open file " << filename << std::endl;
-    // MPI_Abort(MPI_COMM_WORLD, 1);
-    return 1;
+  if ( !configfile ) {
+    std::cerr << "Error: Failed to open file " << configfile_name << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  while (std::getline(file, line)) {
+  while ( std::getline(configfile, line) ) {
     line = trim(line);
     if (line.empty() || line[0] == '#')
       continue;
@@ -57,6 +57,21 @@ int parseConfig(const std::string &filename, Config &config) {
     config[section][key] = value;
   }
 
-  file.close();
-  return 0;
+  configfile.close();
 };
+
+/**
+ * @brief Make a list using data from the configuration file.
+ * 
+ * @param dict The dictionary containing the configuration file information.
+ * @param unit The unit for the configuration file data.
+ * @param num  The number of elements in the list.
+ * @param list The vector to store the list.
+ */
+void makeList(Dict &dict, double unit, size_t &num, std::vector<double> &list) {
+  double min = std::stod(dict["min"]) * unit;
+  double max = std::stod(dict["max"]) * unit;
+  bool log = dict["log"] == "true";
+  num = std::stoul(dict["num"]);
+  linspace(min, max, num, log, list);
+} 

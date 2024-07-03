@@ -2,12 +2,22 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <mpi.h>
 
 // headers
 #include "functions.h"
 
-void linspace(double vmin, double vmax, size_t num, bool log, std::vector<double> &value_list) {
-  value_list.reserve(num);
+/**
+ * @brief Make a linearly or logarithmically spaced list of values.
+ * 
+ * @param vmin The minimum value.
+ * @param vmax The maximum value.
+ * @param num  The number of values.
+ * @param log  Whether the list is logarithmically spaced.
+ * @param list The vector to store the list.
+ */
+void linspace(double vmin, double vmax, size_t num, bool log, std::vector<double> &list) {
+  list.reserve(num);
   if ( log ) {
     vmin = log10(vmin);
     vmax = log10(vmax);
@@ -16,7 +26,7 @@ void linspace(double vmin, double vmax, size_t num, bool log, std::vector<double
   for ( size_t i = 0; i < num; i++ ) {
     double value = vmin + i * step;
     if ( log ) value = pow(10.0, value);
-    value_list.push_back(value);
+    list.push_back(value);
   }
 }
 
