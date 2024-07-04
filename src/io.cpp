@@ -110,13 +110,18 @@ void writeInfo(const std::string& infofile, int size, Config& config, const Vect
   }
   file << std::endl;
 
-  licenseFile.close();
-  file.close();
-
   if ( !file.good() ) {
     std::cerr << "Error writing to info file." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
+
+  if ( !licenseFile.good() ) {
+    std::cerr << "Error reading from license file." << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+
+  licenseFile.close();
+  file.close();
 }
 
 /**
