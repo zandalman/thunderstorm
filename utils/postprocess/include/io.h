@@ -38,10 +38,11 @@ struct PartData {
   double x_start = 0.;                // The start x-coordinate [cm].
   double y_start = 0.;                // The start y-coordinate [cm].
   double z_start = 0.;                // The start z-coordinate [cm].
-  std::vector<double> ener_loss_mech; // The energy loss per mechanism [eV].
+  std::vector<double> ener_loss_mech; // The energy loss for each mechanism [eV].
   std::vector<int> num_ion;           // The number of ionizations per element.
   std::vector<int> num_sec;           // The number of secondary particles per energy bin.
   std::vector<int> num_ev_time;       // The number of events per time bin.
+  std::vector<double> dis_time;       // The average distance in each time bin.
   std::vector<double> ener_time;      // The average energy in each time bin.
   std::vector<double> ener_loss_time; // The energy loss per time bin.
   std::vector<double> ener_loss_dis;  // The energy loss per distance bin.

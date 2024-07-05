@@ -39,13 +39,24 @@ Event::Event(int int_data[5], double double_data[11])
 PartData::PartData(size_t num_ener_sec, size_t num_time, size_t num_dis)
   : id(-1)
  {
-  for ( size_t i = 0; i < 6; i++ ) ener_loss_mech.push_back(0.);
-  for ( size_t i = 0; i < 118; i++ ) num_ion.push_back(0);
-  for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) num_sec.push_back(0);
-  for ( size_t i = 0; i < (num_time - 1); i++ ) num_ev_time.push_back(0);
-  for ( size_t i = 0; i < (num_time - 1); i++ ) ener_time.push_back(0.);
-  for ( size_t i = 0; i < (num_time - 1); i++ ) ener_loss_time.push_back(0.);
-  for ( size_t i = 0; i < (num_dis - 1); i++ ) ener_loss_dis.push_back(0.);
+  for ( size_t i = 0; i < 6; i++ ) {
+    ener_loss_mech.push_back(0.);
+  }
+  for ( size_t i = 0; i < 118; i++ ) {
+    num_ion.push_back(0);
+  }
+  for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) {
+    num_sec.push_back(0);
+  }
+  for ( size_t i = 0; i < (num_time - 1); i++ ) {
+    num_ev_time.push_back(0);
+    dis_time.push_back(0.);
+    ener_time.push_back(0.);
+    ener_loss_time.push_back(0.);
+  }
+  for ( size_t i = 0; i < (num_dis - 1); i++ ) {
+    ener_loss_dis.push_back(0.);
+  }
  }
 
 /**
@@ -65,13 +76,24 @@ void PartData::reset(int id_, double ener_, size_t num_ener_sec, size_t num_time
   x_start = 0.;
   y_start = 0.;
   z_start = 0.;
-  for ( size_t i = 0; i < 6; i++ ) ener_loss_mech[i] = 0.;
-  for ( size_t i = 0; i < 118; i++ ) num_ion[i] = 0;
-  for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) num_sec[i] = 0;
-  for ( size_t i = 0; i < (num_time - 1); i++ ) num_ev_time[i] = 0;
-  for ( size_t i = 0; i < (num_time - 1); i++ ) ener_time[i] = 0.;
-  for ( size_t i = 0; i < (num_time - 1); i++ ) ener_loss_time[i] = 0.;
-  for ( size_t i = 0; i < (num_dis - 1); i++ ) ener_loss_dis[i] = 0.;
+  for ( size_t i = 0; i < 6; i++ ) {
+    ener_loss_mech[i] = 0.;
+  }
+  for ( size_t i = 0; i < 118; i++ ) {
+    num_ion[i] = 0;
+  }
+  for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) {
+    num_sec[i] = 0;
+  }
+  for ( size_t i = 0; i < (num_time - 1); i++ ) {
+    num_ev_time[i] = 0;
+    dis_time[i] = 0.;
+    ener_time[i] = 0.;
+    ener_loss_time[i] = 0.;
+  }
+  for ( size_t i = 0; i < (num_dis - 1); i++ ) {
+    ener_loss_dis[i] = 0.;
+  }
 }
 
 /**
@@ -131,7 +153,7 @@ void writeInfo(std::string &infofile_name, Config &config, const std::vector<dou
   infofile << "File number:        " << config["IO"]["num_file"] << std::endl;
   infofile << "Events per chunk:   " << config["IO"]["num_event_per_chunk"] << std::endl;
   infofile << "Number of energies: " << config["Energy"]["num"] << std::endl;
-  infofile << "Number of lines:    " << 9 << std::endl;
+  infofile << "Number of lines:    " << 10 << std::endl;
   infofile << std::endl;
 
   infofile << "Variable lists" << std::endl;
@@ -152,9 +174,10 @@ void writeInfo(std::string &infofile_name, Config &config, const std::vector<dou
   infofile << "4. energy loss [eV] for each mechanism" << std::endl;
   infofile << "5. number of ionizations per element" << std::endl;
   infofile << "6. number of secondary electrons per secondary energy bin" << std::endl;
-  infofile << "7. average energy [eV] per time bin" << std::endl;
-  infofile << "8. energy loss [eV] per time bin" << std::endl;
-  infofile << "9. energy loss [eV] per distance bin" << std::endl;
+  infofile << "7. average distance [cm] for each time bin" << std::endl;
+  infofile << "8. average energy [eV] for each time bin" << std::endl;
+  infofile << "9. energy loss [eV] per time bin" << std::endl;
+  infofile << "10. energy loss [eV] per distance bin" << std::endl;
 
   infofile.close();
   if ( !infofile.good() ) {
@@ -213,6 +236,7 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
     // compute time histograms
     if ( idx_time > 0 && idx_time < time_list.size() ) {
       part_data.num_ev_time[idx_time - 1] += 1;
+      part_data.dis_time[idx_time - 1] += dis;
       part_data.ener_time[idx_time - 1] += event->ener;
       part_data.ener_loss_time[idx_time - 1] += ener_loss;
     }
@@ -233,7 +257,10 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
       case flags::ion:
       part_data.ener_loss_mech[2] += event->ener_loss;
       part_data.num_ion[event->Zelem - 1] += 1;
-      part_data.num_sec[findIdx(event->ener_sec, ener_sec_list)] += 1;
+      size_t idx_ener_sec = findIdx(event->ener_sec, ener_sec_list);
+      if ( idx_ener_sec > 0 && idx_ener_sec < ener_sec_list.size() ) {
+        part_data.num_sec[idx_ener_sec - 1] += 1;
+      }
       break;
       case flags::moller:
       part_data.ener_loss_mech[3] += event->ener_loss;
@@ -255,6 +282,7 @@ void postProcPartData(std::vector<PartData>& part_data_list) {
     PartData &part_data = part_data_list[i];
     for ( size_t j = 0; j < part_data.num_ev_time.size(); j++ ) {
       if ( part_data.num_ev_time[j] > 0 ) {
+        part_data.dis_time[j] /= part_data.num_ev_time[j];
         part_data.ener_time[j] /= part_data.num_ev_time[j];
       }
     }
