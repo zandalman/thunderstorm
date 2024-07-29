@@ -54,14 +54,14 @@ int main(int argc, char** argv) {
   double ener_min = std::stod(config["Simulation"]["ener_min"]);
   bool cont = config["Simulation"]["continue"] == "true";
   double ener = std::stod(config["Particle"]["ener"]);
-  double tpart = std::stod(config["Particle"]["tpart"]);
+  double tsim_part = std::stod(config["Particle"]["tpart"]);
   double rho = std::stod(config["Background"]["rho"]);
   double temp = std::stod(config["Background"]["temp"]);
   double ion_state_avg = std::stod(config["Background"]["ion_state_avg"]);
-  double Bmag_turb = std::stod(config["Bfield"]["Bmag_turb"]);
-  double Bmag_co = std::stod(config["Bfield"]["Bmag_co"]);
-  double q = std::stod(config["Bfield"]["q"]);
-  double Lmax = std::stod(config["Bfield"]["Lmax"]);
+  double L = std::stod(config["Bfield"]["L"]);
+  double B0 = std::stod(config["Bfield"]["B0"]);
+  double mach_A = std::stod(config["Bfield"]["mach_A"]);
+  double sig_turb_frac = std::stod(config["Bfield"]["sig_turb_frac"]);
   double cos_th_cut = std::stod(config["Simulation"]["cos_th_cut"]);
 
   // clear files and write info file
@@ -78,8 +78,8 @@ int main(int argc, char** argv) {
   }
 
   // initialize the simulation
-  Part part = Part(0, constants::m_e, constants::e, ener);
-  Sim sim = Sim(part, eedl, ab, outfile, rho, temp, ion_state_avg, Bmag_co, Bmag_turb, q, Lmax, cos_th_cut);
+  Part part = Part(0, constants::m_e, constants::e, ener, B0);
+  Sim sim = Sim(part, eedl, ab, outfile, rho, temp, ion_state_avg, L, B0, mach_A, sig_turb_frac, cos_th_cut);
   int count_loc = 0, count_dead_loc = 0;
   if ( rank == 0 ) {
     std::cout << "Starting simulation." << std::endl << std::endl;
@@ -87,9 +87,12 @@ int main(int argc, char** argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   
   while ( true ) {
+    // start a timer for the particle
+    auto start_part = std::chrono::steady_clock::now();
+    
     // reset the simulation with a new particle
     int id = size * count_loc + rank;
-    Part part = Part(id, constants::m_e, constants::e, ener);
+    Part part = Part(id, constants::m_e, constants::e, ener, B0);
     sim.reset(part);
 
     // run the simulation
@@ -98,7 +101,7 @@ int main(int argc, char** argv) {
       if ( sim.part.ener < ener_min ) { 
         sim.kill(); count_dead_loc++; 
       }
-      if ( tpart > 0. && sim.time < tpart ) break;
+      if ( tsim_part > 0. && sim.time > tsim_part ) break;
     }
     writeEvent(sim.outfile, sim.event_list);
     sim.event_list.clear();
@@ -107,7 +110,8 @@ int main(int argc, char** argv) {
     count_loc++;
     auto now = std::chrono::steady_clock::now();
     auto tsim = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
-    if ( tsim >= tmax ) break;
+    auto tpart = std::chrono::duration_cast<std::chrono::seconds>(now - start_part).count();  
+    if ( tsim >= (tmax - tpart) ) break;
   }
 
   // compute the packet counts

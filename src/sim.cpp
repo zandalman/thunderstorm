@@ -14,7 +14,7 @@
 #include "io.h"
 
 /// @brief A constructor to initial to the Sim structure.
-Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double temp_, double ion_state_avg_, double Bmag_co_, double Bmag_turb_, double q_, double Lmax_, double cos_th_cut_)
+Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double temp_, double ion_state_avg_, double L_, double B0_, double mach_A_, double sig_turb_frac_, double cos_th_cut_)
   : part(part_)                               // The particle object.
   , eedl(eedl_)                               // Data from the EEDL database.
   , ab(ab_)                                   // A vector of elemental abundances.
@@ -22,21 +22,25 @@ Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string out
   , rho(rho_)                                 // The density [g/cc].
   , temp(temp_)                               // The temperature [K].
   , ion_state_avg(ion_state_avg_)             // The average ionization state.
-  , Bmag_co(Bmag_co_)                         // The amplitude of the coherent magnetic field [G].
-  , Bmag_turb(Bmag_turb_)                     // The amplitude of the turbulent magneitc field [G].
-  , q(q_)                                     // The power law exponent of the magnetic turbulence spectrum.
-  , Lmax(Lmax_)                               // The largest scale of magnetic turbulence [cm].
-  , cos_th_cut(cos_th_cut_)                   // The cutoff cosine of the scattering angle for Moller scattering.
-  , do_Bfield(Bmag_turb > 0. || Bmag_co > 0.) // Whether a magnetic field is present.
+  , L(L_)                                     // The injection scale of the turbulence [cm].
+  , B0(B0_)                                   // The amplitude of the coherent magneitc field [G].
+  , mach_A(mach_A_)                           // The Alfven Mach number.
+  , sig_turb_frac(sig_turb_frac_)             // The effective turbulence cross section as a fraction of the total cross section.
+  , cos_th_cut(cos_th_cut_)                   // The cutoff scattering angle cosine for discrete Moller scattering.
+  , do_Bfield(B0 > 0.)                        // Whether a magnetic field is present.
+  , do_turb(mach_A != 0.)                     // Whether turbulence is present.
   , nstep (0)                                 // The step number.
   , time(0.0)                                 // The simulation time [s].
   , n_i(0.0)                                  // The ion number density [1/cc].
   , n_e_free(0.0)                             // The free electron number density [1/cc].
   , lam_deb(0.0)                              // The Debye length [1/cc].
   , do_ion(ion_state_avg > 0.)                // Whether the atoms are ionized.
+  , scale(0.)                                 // The scale parameter for turbulent diffusion [cm^(-1/2)].
+  , rperp_max(0.)                             // The truncation parameter for turbulent diffusion [cm].
+
   {
-    part.newBvec(Bmag_co, Bmag_turb);
     calcLamDeb(ab, rho, temp, ion_state_avg, n_i, n_e_free, lam_deb);
+    calcStableParam(L, mach_A, scale, rperp_max);
   }
 
 /**
@@ -46,7 +50,6 @@ Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string out
  */
 void Sim::reset(Part new_part) {
   part = new_part;
-  part.newBvec(Bmag_co, Bmag_turb);
   nstep = 0;
   time = 0.0;
 }
@@ -72,8 +75,6 @@ void Sim::kill() {
 */
 double Sim::calcSigTot() {
   double sig_tot = 0.0;
-  double sig_Bturb = do_Bfield ? calcSigBturb(part.m_i, part.q_i, part.gam(), part.beta(), rho, part.Bvec.mag(), Bmag_turb, q, Lmax) : 0.;
-  sig_tot += sig_Bturb;
   double sig_moller = do_ion ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i;
   for ( size_t i = 0; i < eedl.size(); i++ ) {
@@ -81,6 +82,8 @@ double Sim::calcSigTot() {
     double sig = interp(part.ener, spec_data.sig_tot_data.first, spec_data.sig_tot_data.second, true, false, 0., 0.);
     sig_tot += sig * ab[i+1];
   }
+  double sig_turb = (do_Bfield && do_turb) ? sig_turb_frac * sig_tot / (1.0 - sig_turb_frac) : 0.;
+  sig_tot += sig_turb;
   return sig_tot;
 }
 
@@ -95,12 +98,17 @@ void Sim::move(double sig_tot, Event &event) {
   double dt = dis / (constants::c * part.beta());
   time += dt;
   if ( do_Bfield ) {
-    double cos_alpha = dot(part.vel.unit(), part.Bvec.unit());
-    part.pos = part.pos + dis * cos_alpha * part.Bvec.unit();
+    part.pos = part.pos + dis * part.cos_alpha() * part.Bvec.unit();
+    if ( part.flag_turb_diff ) {
+      double lam_turb = fabs(part.cos_alpha()) / (rho * constants::N_A * sig_tot * sig_turb_frac);
+      double rperp = calcTurbDiff(xi(), xi(), lam_turb, scale, rperp_max);
+      part.pos = part.pos + randPerpVec(part.Bvec, rperp);
+      part.flag_turb_diff = false;
+    }
     part.vel = rotate(part.vel, part.Bvec, cos(2.*M_PI * xi()));
-    event.ener_loss_sync = calcPowerSync(part.m_i, part.q_i, part.gam(), part.beta(), part.Bvec.mag(), cos_alpha) * dt;
+    event.ener_loss_sync = calcPowerSync(part.m_i, part.q_i, part.gam(), part.beta(), part.Bvec.mag(), part.cos_alpha()) * dt;
   } else {
-    part.pos = part.pos + dis*part.vel.unit();
+    part.pos = part.pos + dis * part.vel.unit();
   }
   if ( do_ion ) {
     event.ener_loss_cher = calcPowerCher(part.beta(), temp, n_e_free) * dt;
@@ -116,14 +124,14 @@ void Sim::move(double sig_tot, Event &event) {
 /**
  * @brief Select an element.
  * 
- * @return The proton number of the selected element, or 0 for a non-element interaction.
+ * @return The proton number of the selected element, or a flag for a non-element interactions.
 */
 int Sim::choseElem() {
+  if ( do_Bfield && do_turb && ( xi() < sig_turb_frac ) ) {
+    return flags_elem::turb;
+  }
   double sig_tot = 0.0;
   Vector1d sig_cum;
-  double sig_Bturb = do_Bfield ? calcSigBturb(part.m_i, part.q_i, part.gam(), part.beta(), rho, part.Bvec.mag(), Bmag_turb, q, Lmax) : 0.;
-  sig_tot += sig_Bturb;
-  sig_cum.push_back(sig_tot);
   double sig_moller = do_ion ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i;
   sig_cum.push_back(sig_tot);
@@ -133,14 +141,12 @@ int Sim::choseElem() {
     sig_tot += sig * ab[i+1];
     sig_cum.push_back(sig_tot);
   }
-  int idx_elem = findIdx(sig_tot*xi(), sig_cum);
+  int idx_elem = findIdx(sig_tot * xi(), sig_cum);
   switch ( idx_elem ) { 
     case 0:
-    return flags_elem::Bturb;
-    case 1:
     return flags_elem::moller;
     default:
-    return idx_elem-1;
+    return idx_elem;
   }
 }
 
@@ -182,7 +188,7 @@ int Sim::choseIon(int Zelem) {
     sig_tot += sig;
     sig_cum.push_back(sig_tot);
   }
-  return findIdx(sig_tot*xi(), sig_cum);
+  return findIdx(sig_tot * xi(), sig_cum);
 }
 
 /**
@@ -198,9 +204,9 @@ int Sim::choseIon(int Zelem) {
 void Sim::interact(Event &event) {
   event.Zelem = choseElem();
   switch ( event.Zelem ) {
-    case flags_elem::Bturb:
-    event.interaction = flags::Bturb;
-    part.newBvec(Bmag_co, Bmag_turb);
+    case flags_elem::turb:
+    event.interaction = flags::turb;
+    part.flag_turb_diff = true;
     break;
     case flags_elem::moller:
     event.interaction = flags::moller;

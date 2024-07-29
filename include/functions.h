@@ -26,5 +26,7 @@ void calcOmxMoller(double gam, double beta, double cos_th_cut, double lam_deb, d
 double calcPowerMoller(double ener, double gam, double beta, double n_e_free, double lam_deb, double cos_th_cut);
 double calcSigMoller(double gam, double beta, double lam_deb, double cos_th_cut);
 void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta, double lam_deb, double cos_th_cut, double &cos_th, double &ener_loss);
+void calcStableParam(double L, double mach_A, double &scale, double &rperp_max);
+double calcTurbDiff(double xi1, double xi2, double lam, double scale, double rperp_max);
 
 #endif

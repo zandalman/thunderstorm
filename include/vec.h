@@ -18,5 +18,6 @@ Vec cross(Vec A, Vec B);
 double dot(Vec A, Vec B);
 Vec rotate(Vec A, Vec B, double cos_th);
 Vec randVec(double mag = 1.0);
+Vec randPerpVec(Vec A, double mag = 1.0);
 
 #endif

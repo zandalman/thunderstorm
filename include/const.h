@@ -2,7 +2,7 @@
 #define CONST_H
 
 namespace flags_elem {
-constexpr int Bturb = -1;
+constexpr int turb = -1;
 constexpr int moller = -2;
 }
 
@@ -12,8 +12,8 @@ constexpr int scat = 1;
 constexpr int brem = 2;
 constexpr int exc = 3;
 constexpr int ion = 4;
-constexpr int Bturb = 5;
-constexpr int moller = 6;
+constexpr int moller = 5;
+constexpr int turb = 6;
 }
 
 namespace constants {
@@ -37,12 +37,12 @@ constexpr double sig_T = 6.6524587e-25; // Thompson scattering cross section
 constexpr double ba = 1.e-24;           // barn
 
 // mass [g]
-constexpr double m_e = 9.1093897e-28;  // electron mass
-constexpr double m_p = 1.6726231e-24;  // proton mass
+constexpr double m_e = 9.1093897e-28; // electron mass
+constexpr double m_p = 1.6726231e-24; // proton mass
 constexpr double m_n = 1.6749286e-24; // neutron mass
-constexpr double m_H = 1.660539e-24;   // hydrogen mass
-constexpr double amu = 1.6605402e-24;  // atomic mass unit
-constexpr double M_sol = 1.9891e+33;   // solar mass
+constexpr double m_H = 1.660539e-24;  // hydrogen mass
+constexpr double amu = 1.6605402e-24; // atomic mass unit
+constexpr double M_sol = 1.9891e+33;  // solar mass
 
 // time [s]
 constexpr double min = 60;        // minute
@@ -74,16 +74,14 @@ constexpr double X_sol = 0.7381;        // solar hydrogen abundance
 constexpr double N_A = 6.0221367e23;    // Avagadro's number
 
 // other
-constexpr double hbar = 1.0545726e-27; // reduced plank c onstant [erg s]
-constexpr double h = 6.6260702e-27;    // plank constant [erg s]
-constexpr double k_B = 1.3806490e-16;  // boltzmann constant [erg/K]
-constexpr double a_rad =
-    7.5657233e-15;                  // radiation density constant [erg/cm^3/K^4]
-constexpr double e = 4.8032068e-10; // electron charge [esu]
-constexpr double G = 6.67408e-08;   // gravitational constant [cm^3/g/s^2]
-constexpr double sig_SB =
-    5.67051e-5; // stefan-boltzmann constant [erg/cm^2/K^4/s]
-constexpr double L_sol = 3.828e+33; // solar luminosity [erg/s]
-} // namespace constants
+constexpr double hbar = 1.0545726e-27;  // reduced plank c onstant [erg s]
+constexpr double h = 6.6260702e-27;     // plank constant [erg s]
+constexpr double k_B = 1.3806490e-16;   // boltzmann constant [erg/K]
+constexpr double a_rad = 7.5657233e-15; // radiation density constant [erg/cm^3/K^4]
+constexpr double e = 4.8032068e-10;     // electron charge [esu]
+constexpr double G = 6.67408e-08;       // gravitational constant [cm^3/g/s^2]
+constexpr double sig_SB = 5.67051e-5;   // stefan-boltzmann constant [erg/cm^2/K^4/s]
+constexpr double L_sol = 3.828e+33;     // solar luminosity [erg/s]
+}
 
 #endif

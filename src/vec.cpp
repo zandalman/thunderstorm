@@ -85,8 +85,21 @@ Vec rotate(Vec A, Vec B, double cos_th) {
  * @return The random vector.
  */
 Vec randVec(double mag) {
-  double phi = 2 * M_PI * xi();
-  double cos_th = 2 * xi() - 1;
+  double phi = 2.*M_PI * xi();
+  double cos_th = 2.0 * xi() - 1.0;
   double sin_th = pow(1 - cos_th * cos_th, 0.5);
   return Vec(mag * sin(phi) * sin_th, mag * cos(phi) * sin_th, mag * cos_th);
+}
+
+/**
+ * @brief Compute a random vector perpendicular to a given vector.
+ * 
+ * @param A The given vector.
+ * @param B A random vector perpendicular to the given vector.
+ */
+Vec randPerpVec(Vec A, double mag) {
+  double phi = 2.*M_PI * xi();
+  Vec perp1 = cross(A, Vec(1.0, 0.0, 0.0)).unit();
+  Vec perp2 = cross(A, perp1).unit();
+  return mag * (perp1 * cos(phi) + perp2 * sin(phi));
 }

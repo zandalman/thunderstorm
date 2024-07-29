@@ -19,21 +19,24 @@ struct Sim {
   double rho;                    // The density [g/cc].
   double temp;                   // The temperature [K].
   double ion_state_avg;          // The average ionization state.
-  double Bmag_co;                // The amplitude of the coherent magnetic field [G].
-  double Bmag_turb;              // The amplitude of the turbulent magnetic field [G].
-  double q;                      // The power law exponent of the magnetic turbulence spectrum.
-  double Lmax;                   // The largest scale of magnetic turbulence [cm].
-  double cos_th_cut;             // The cutoff cosine of the scattering angle for Moller scattering.
+  double L;                      // The injection scale of the turbulence [cm].
+  double B0;                     // The amplitude of the coherent magnetic field [G].
+  double mach_A;                 // The Alfven Mach number.
+  double sig_turb_frac;          // The effective turbulence cross section as a fraction of the total cross section.
+  double cos_th_cut;             // The cutoff scattering angle cosine for discrete Moller scattering.
   bool do_Bfield;                // Whether a magnetic field is present.
+  bool do_turb;                  // Whether turbulence is present.
   int nstep;                     // The step number.
   double time;                   // The simulation time [s].
   double n_i;                    // The ion number density [1/cc].
   double n_e_free;               // The free electron number density [1/cc].
   double lam_deb;                // The Debye length [cm].
   bool do_ion;                   // Whether the atoms are ionized.
+  double scale;                  // The scale parameter for turbulent diffusion [cm^(-1/2)].
+  double rperp_max;              // The truncation parameter for turbulent diffusion [cm].
   std::vector<Event> event_list; // A vector of event objects.
 
-  Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double temp_, double ion_state_avg_, double Bmag_co_, double Bmag_turb_, double q_, double Lmax_, double cos_th_cut_);
+  Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double temp_, double ion_state_avg_, double L_, double B0_, double mach_A_, double sig_turb_frac_, double cos_th_cut_);
   void reset(Part part);
   void kill();
   double calcSigTot();
