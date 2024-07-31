@@ -8,6 +8,7 @@
 // headers
 #include "functions.h"
 #include "part.h"
+#include "random.h"
 
 /**
  * @brief Find the index to insert a value into a list.
@@ -104,7 +105,20 @@ void calcLamDeb(Vector1d ab, double rho, double temp, double ion_state_avg, doub
   n_i = 0.;
   for ( size_t i = 0; i < ab.size(); i++ ) { n_i += rho * constants::N_A * ab[i]; }
   n_e_free = n_i * ion_state_avg;
-  lam_deb  = sqrt(constants::k_B * temp / (4*M_PI * constants::e*constants::e * n_i * ion_state_avg * (ion_state_avg + 1.)));
+  lam_deb = sqrt(constants::k_B * temp / (4*M_PI * constants::e*constants::e * n_i * ion_state_avg * (ion_state_avg + 1.)));
+}
+
+/**
+ * @brief Compute the mean field amplitude.
+ * 
+ * @param n      The total number density [1/cc].
+ * @param temp   The temperature [K].
+ * @param beta   The plasma beta.
+ * @param mach_A The Alfven Mach number.
+ * @return The mean field amplitude [G].
+ */
+double calcB0(double n, double temp, double beta, double mach_A) {
+  return sqrt(2.0 * n * constants::k_B * temp * beta / (1.0 + mach_A*mach_A));
 }
 
 /**
@@ -145,27 +159,6 @@ double calcEnerLoss(double xi, double ener, const Vector1d &ener_list, const Vec
     ener_loss_arr.push_back(interp(xi, ener_loss_cdf, ener_loss_arr_list[i]));
   }
   return interp(ener, ener_list, ener_loss_arr);
-}
-
-/**
- * @brief Compute the effective cross section for the turbulent magnetic field.
- *
- * @param part      The particle structure.
- * @param Bmag      The amplitude of the total magnetic field [G].
- * @param Bmag_turb The amplitude of the turbulent magneitc field [G].
- * @param rho       The density [g/cc].
- * @param q         The power law exponent of the magnetic turbulence spectrum.
- * @param Lmax      The largest scale of magnetic turbulence [cm].
- * @return The effective cross section [cm^2].
- */
-double calcSigBturb(double m_i, double q_i, double gam, double beta, double rho, double Bmag, double Bmag_turb, double q, double Lmax) {
-  double beta_A = Bmag / sqrt(4.0 * M_PI * rho * constants::c*constants::c); // Alfven speed relative to the speed of light
-  double func_beta_A = (1.0 - pow(beta_A / beta, 2.0 - q)) / (2.0 - q) - (1.0 - pow(beta_A / beta, 4.0 - q)) / (4.0 - q);
-  double Om = q_i * Bmag / (m_i * constants::c); // particle gyro-frequency
-  double kmin = constants::c / (Om * Lmax); // minimum wavenumber of magnetic turbulence spectrum
-  double fturb = Bmag_turb*Bmag_turb / (Bmag*Bmag); // fraction of magnetic energy in the turbulent field
-  double lam_Bturb = constants::c * pow(beta * gam, 2.0 - q) * func_beta_A * 2.0 / (M_PI * (q - 1.0) * fturb * constants::c * kmin) * pow(constants::c * kmin / Om, 2.0 - q);
-  return 1.0 / (lam_Bturb * rho * constants::N_A);
 }
 
 /**
@@ -262,7 +255,7 @@ double calcSigMoller(double gam, double beta, double lam_deb, double cos_th_cut)
 /** 
  * @brief Sample the cosine of the scattering angle (theta) and the energy loss for large-angle Moller scattering.
  * 
- * @param xi A random number.
+ * @param xi         A random number.
  * @param gam        The particle Lorentz factor.
  * @param beta       The particle velocity, relative to the speed of light.
  * @param cos_th_cut The cosine of the cutoff scattering angle in the lab frame.
@@ -278,4 +271,78 @@ void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta
   double omx = 1. / (sig * xi / prefac + 1. / omxmin);
   cos_th = sqrt((2. - omx) * (1. + gam) / (2. * (1 + gam) + omx * (1. - gam)));
   ener_loss = ener * omx / 2.;
+}
+
+/**
+ * @brief Calculate stable distribution parameters from MHD turbulence parameters.
+ * 
+ * @param L         The injection scale of the turbulence [cm].
+ * @param mach_A    The Alfven Mach number.
+ * @param scale     The scale parameter of the stable distribution, normalized by the turbulent mean free path to the power 3/2 [cm^(-1/2)].
+ * @param rperp_max The truncation parameter of the stable distribution [cm].
+ */
+void calcStableParam(double L, double mach_A, double &scale, double &rperp_max) {
+  double sig0 = 0.25; // width of stable distribution for scale = 1.0
+  double A = tgamma(5.0/3.0) * 0.1875 * sqrt(3.0) / M_PI;
+  if ( mach_A < 1.0 ) { // sub-Alfvenic turbulence
+    scale = sig0 / sqrt(L) * mach_A*mach_A;
+    rperp_max = pow(2.0 * A, -0.75) / sqrt(sig0) * L * mach_A*mach_A*mach_A*mach_A*mach_A;
+  } else { // super-Alfvenic turbulence
+    scale = sig0 / sqrt(L) * pow(mach_A, 1.5);
+    rperp_max = pow(2.0 * A, -0.75) / sqrt(sig0) * L / (mach_A*mach_A*mach_A);
+  }
+}
+
+/**
+ * @brief Calculate the displacement perpendicular to the mean field due to turbulent diffusion.
+ * Sample from a truncated stable distribution with stability parameter 2/3.
+ *
+ * @param xi1, xi2  Two random numbers.
+ * @param lam       The turbulent mean free path.
+ * @param scale     The scale parameter of the stable distribution, normalized by the turbulent mean free path to the power 3/2 [cm^(-1/2)].
+ * @param rperp_max The truncation parameter of the stable distribution [cm].
+ * @return The displacement perpendicular to the mean field due to turbulent diffusion [cm].
+ */
+double calcTurbDiff(double xi1, double xi2, double lam, double scale, double rperp_max) {
+  double rperp = 2.0 * rperp_max;
+  double U = M_PI * (xi1 - 0.5);
+  double W = -log(xi2);
+  while ( fabs(rperp) > rperp_max ) {
+    rperp = 2.0 * scale * pow(lam, 1.5) / sqrt(W) * sin(U / 3.0) * pow(2.0 * cos(2.0/3.0 * U) - 1.0, 3.0/2.0);
+  }
+  return rperp;
+}
+
+/**
+ * @brief Compute the effective transport distance in the presence of intermittancy.
+ *
+ * @param xi1, xi2          Two random numbers
+ * @param lam_intermittancy The mean free path to an interaction with a region of high magnetic field curvature.
+ * @param dis               The total transport distance.
+ * @param cos_alpha         The pitch angle cosine.
+ * @return The effective transport distance
+ */
+double calcIntermittancyTrans(double xi1, double xi2, double lam_intermittancy, double dis, double cos_alpha) {
+  double var = lam_intermittancy * dis / fabs(cos_alpha);
+  return sqrt(-2.0 * var * log(xi1)) * cos(2.0 * M_PI * xi2);
+}
+
+/**
+ * @brief Compute the mean free path to an interaction with a region of high magnetic field curvature.
+ *
+ * @param m_i The particle mass [g].
+ * @param q_i The particle charge [esu].
+ * @param gam The Lorentz factor.
+ * @param vmag The magnitude of the velocity [cm/s].
+ * @param Brms The RMS magnetic field amplitude [G].
+ * @param L The injection scale of the turbulence [cm].
+ * @param mach_A The Alfven Mach number.
+ * @param alpha  The exponent of the magnetic field curvature spectrum.
+ * @return The mean free path to an interaction with a region of high magnetic field curvature.
+ */
+double calcLamIntermittancy(double m_i, double q_i, double gam, double vmag, double Brms, double L, double mach_A, double alpha) {
+  double Leff;
+  Leff = mach_A < 1 ? L / (mach_A*mach_A*mach_A*mach_A) : L / (mach_A*mach_A*mach_A);
+  double r_gy = gam * m_i * vmag / (q_i * Brms);
+  return r_gy * pow(mach_A * pow(r_gy / Leff, 2.0/3.0), 1.0 - alpha);
 }

@@ -19,6 +19,7 @@ Event::Event(int id_, int nstep_)
   , time(0.0)              // The event time [s].
   , x(0.0), y(0.0), z(0.0) // The event coordinates [cm].
   , ener(0.0)              // The particle kinetic energy [eV].
+  , cos_alpha(1.0)         // The particle pitch angle cosine.
   , cos_th(1.0)            // The cosine of the scattering angle.
   , ener_loss(0.0)         // The energy lost [eV].
   , ener_sec(0.0)          // The energy of the secondary [eV].
@@ -32,9 +33,9 @@ Event::Event(int id_, int nstep_)
  * 
  * @param outfile The info file name.
 */
-void clearInfo(const std::string& infofile) {
-  std::ofstream file(infofile);
-  file.close();
+void clearInfo(const std::string& infofile_name) {
+  std::ofstream infofile(infofile_name);
+  infofile.close();
 }
 
 /**
@@ -42,9 +43,9 @@ void clearInfo(const std::string& infofile) {
  * 
  * @param outfile The outfile name.
 */
-void clearOutfile(const std::string& outfile) {
-    std::ofstream file(outfile, std::ios::binary | std::ios::trunc);
-    file.close();
+void clearOutfile(const std::string& outfile_name) {
+    std::ofstream outfile(outfile_name, std::ios::binary | std::ios::trunc);
+    outfile.close();
 }
 
 /**
@@ -52,76 +53,75 @@ void clearOutfile(const std::string& outfile) {
  * 
  * @param outfile The info file name.
 */
-void writeInfo(const std::string& infofile, int size, Config& config, const Vector1d& ab, const EEDLData& eedl, double n_i, double n_e_free, double lam_deb) {
+void writeInfo(const std::string& infofile_name, int size, Config& config, const Vector1d& ab, const EEDLData& eedl, double n_i, double n_e_free, double lam_deb, double B0) {
 
-  std::ofstream file;
-  std::ifstream licenseFile("../LICENSE");
-  file.open(infofile);
+  std::ofstream infofile(infofile_name);
+  std::ifstream licensefile("../LICENSE");
 
-  if ( !file ) {
-    std::cerr << "Failed to open info file for writing." << std::endl;
+  if ( !infofile ) {
+    std::cerr << "Failed to open " << infofile_name << " for writing." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  if ( !licenseFile ) {
-    std::cerr << "Failed to open license file." << std::endl;
+  if ( !licensefile ) {
+    std::cerr << "Failed to open " << "../LICENSE" << " for reading." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  file << "Thunderstorm" << std::endl;
+  infofile << "Thunderstorm" << std::endl;
   std::string line;
-  while ( std::getline(licenseFile, line) ) file << line << std::endl;
-  file << std::endl;
-
-  file << "Simulation parameters" << std::endl;
-  file << "Number of MPI processes:         " << size << std::endl;
-  file << "Simulation duration [s]:         " << config["Simulation"]["tmax"] << std::endl;
-  file << "Density [g/cc]:                  " << config["Background"]["rho"] << std::endl;
-  file << "Temperature [K]:                 " << config["Background"]["temp"] << std::endl;
-  file << "Abundance time [day]:            " << config["Background"]["ab_time"] << std::endl;
-  file << "Average ion state:               " << config["Background"]["ion_state_avg"] << std::endl;
-  file << "Ion number density [1/cc]:       " << n_i << std::endl;
-  file << "Free elec number density [1/cc]: " << n_e_free << std::endl;
-  file << "Debye length [cm]:               " << lam_deb << std::endl;
-  file << "Particle energy [eV]:            " << config["Particle"]["ener"] << std::endl;
-  file << "Particle lifetime [s]:           " << config["Particle"]["tpart"] << std::endl;
-  file << "Coherent B-field amplitude [G]:  " << config["Bfield"]["Bmag_co"] << std::endl;
-  file << "Turbulent B-field amplitude [G]: " << config["Bfield"]["Bmag_turb"] << std::endl;
-  file << "B-field spectrum index:          " << config["Bfield"]["q"] << std::endl;
-  file << "B-field spectrum max scale [cm]: " << config["Bfield"]["Lmax"] << std::endl;
-  file << std::endl;
-
-  file << "Abundances" << std::endl;
-  file << "Z,ab" << std::endl;
-  for ( size_t i = 0; i < ab.size(); i++ ) {
-    file << i << "," << ab[i] << std::endl;
+  while ( std::getline(licensefile, line) ) {
+    infofile << line << std::endl;
   }
-  file << std::endl;
+  infofile << std::endl;
 
-  file << "Ions" << std::endl;
-  file << "Z:ion_list" << std::endl;
+  infofile << "Simulation parameters" << std::endl;
+  infofile << "Number of MPI processes:         " << size << std::endl;
+  infofile << "Simulation duration [s]:         " << config["Simulation"]["tmax"] << std::endl;
+  infofile << "Density [g/cc]:                  " << config["Background"]["rho"] << std::endl;
+  infofile << "Temperature [K]:                 " << config["Background"]["temp"] << std::endl;
+  infofile << "Abundance time [day]:            " << config["Background"]["ab_time"] << std::endl;
+  infofile << "Average ion state:               " << config["Background"]["ion_state_avg"] << std::endl;
+  infofile << "Ion number density [1/cc]:       " << n_i << std::endl;
+  infofile << "Free elec number density [1/cc]: " << n_e_free << std::endl;
+  infofile << "Debye length [cm]:               " << lam_deb << std::endl;
+  infofile << "Particle energy [eV]:            " << config["Particle"]["ener"] << std::endl;
+  infofile << "Particle lifetime [s]:           " << config["Particle"]["tpart"] << std::endl;
+  infofile << "Turbulence injection scale [cm]: " << config["Bfield"]["L"] << std::endl;
+  infofile << "Plasma beta:                     " << config["Bfield"]["beta"] << std::endl;
+  infofile << "Coherent B-field amplitude [G]:  " << B0 << std::endl;
+  infofile << "Alfven Mach number:              " << config["Bfield"]["mach_A"] << std::endl;
+  infofile << "Turbulent cross section fraction " << config["Bfield"]["sig_turb_frac"] << std::endl;
+  infofile << "B-field curvature spectrum expon " << config["Bfield"]["alpha"] << std::endl;
+  infofile << "Discrete Moller cos angle cutoff " << config["Simulation"]["cos_th_cut"] << std::endl;
+  infofile << std::endl;
+
+  infofile << "Abundances" << std::endl;
+  infofile << "Z,ab" << std::endl;
+  for ( size_t i = 0; i < ab.size(); i++ ) {
+    infofile << i << "," << ab[i] << std::endl;
+  }
+  infofile << std::endl;
+
+  infofile << "Ions" << std::endl;
+  infofile << "Z:ion_list" << std::endl;
   for ( size_t i = 0; i < eedl.size(); i++ ) {
-    file << i+1 << ":";
+    infofile << i+1 << ":";
     std::vector<std::string> ion_list = eedl[i].ion_list;
     for ( size_t j = 0; j < ion_list.size(); j++ ) {
-      file << ion_list[j] << ",";
+      infofile << ion_list[j] << ",";
     }
-    file << std::endl;
+    infofile << std::endl;
   }
-  file << std::endl;
+  infofile << std::endl;
 
-  if ( !file.good() ) {
-    std::cerr << "Error writing to info file." << std::endl;
+  if ( !infofile.good() ) {
+    std::cerr << "Error writing to " << infofile_name << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  if ( !licenseFile.good() ) {
-    std::cerr << "Error reading from license file." << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-
-  licenseFile.close();
-  file.close();
+  licensefile.close();
+  infofile.close();
 }
 
 /**
@@ -130,19 +130,20 @@ void writeInfo(const std::string& infofile, int size, Config& config, const Vect
  * @param outfile    The outfile name.
  * @param event_list A vector of events.
 */
-void writeEvent(std::string outfile, std::vector<Event> event_list) {
-  std::ofstream file(outfile, std::ios::out | std::ios::binary | std::ios::app);
+void writeEvent(const std::string& outfile_name, std::vector<Event> event_list) {
+  std::ofstream outfile(outfile_name, std::ios::out | std::ios::binary | std::ios::app);
 
-  if ( !file ) {
-    std::cerr << "Failed to open file for writing." << std::endl;
+  if ( !outfile ) {
+    std::cerr << "Failed to open " << outfile_name << " for writing." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  file.write(reinterpret_cast<const char*>(event_list.data()), event_list.size() * sizeof(Event));
-  file.close();
-
-  if ( !file.good() ) {
-    std::cerr << "Error writing to file." << std::endl;
+  outfile.write(reinterpret_cast<const char*>(event_list.data()), event_list.size() * sizeof(Event));
+  
+  if ( !outfile.good() ) {
+    std::cerr << "Error writing to " << outfile_name << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
+  
+  outfile.close();
 }
