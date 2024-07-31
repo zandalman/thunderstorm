@@ -4,6 +4,7 @@
 namespace flags_elem {
 constexpr int turb = -1;
 constexpr int moller = -2;
+constexpr int intermittancy = -3;
 }
 
 namespace flags {
@@ -14,6 +15,7 @@ constexpr int exc = 3;
 constexpr int ion = 4;
 constexpr int moller = 5;
 constexpr int turb = 6;
+constexpr int intermittancy = 7;
 }
 
 namespace constants {

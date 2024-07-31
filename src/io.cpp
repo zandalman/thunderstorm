@@ -19,6 +19,7 @@ Event::Event(int id_, int nstep_)
   , time(0.0)              // The event time [s].
   , x(0.0), y(0.0), z(0.0) // The event coordinates [cm].
   , ener(0.0)              // The particle kinetic energy [eV].
+  , cos_alpha(1.0)         // The particle pitch angle cosine.
   , cos_th(1.0)            // The cosine of the scattering angle.
   , ener_loss(0.0)         // The energy lost [eV].
   , ener_sec(0.0)          // The energy of the secondary [eV].
@@ -52,7 +53,7 @@ void clearOutfile(const std::string& outfile_name) {
  * 
  * @param outfile The info file name.
 */
-void writeInfo(const std::string& infofile_name, int size, Config& config, const Vector1d& ab, const EEDLData& eedl, double n_i, double n_e_free, double lam_deb) {
+void writeInfo(const std::string& infofile_name, int size, Config& config, const Vector1d& ab, const EEDLData& eedl, double n_i, double n_e_free, double lam_deb, double B0) {
 
   std::ofstream infofile(infofile_name);
   std::ifstream licensefile("../LICENSE");
@@ -87,9 +88,11 @@ void writeInfo(const std::string& infofile_name, int size, Config& config, const
   infofile << "Particle energy [eV]:            " << config["Particle"]["ener"] << std::endl;
   infofile << "Particle lifetime [s]:           " << config["Particle"]["tpart"] << std::endl;
   infofile << "Turbulence injection scale [cm]: " << config["Bfield"]["L"] << std::endl;
-  infofile << "Coherent B-field amplitude [G]:  " << config["Bfield"]["B0"] << std::endl;
+  infofile << "Plasma beta:                     " << config["Bfield"]["beta"] << std::endl;
+  infofile << "Coherent B-field amplitude [G]:  " << B0 << std::endl;
   infofile << "Alfven Mach number:              " << config["Bfield"]["mach_A"] << std::endl;
   infofile << "Turbulent cross section fraction " << config["Bfield"]["sig_turb_frac"] << std::endl;
+  infofile << "B-field curvature spectrum expon " << config["Bfield"]["alpha"] << std::endl;
   infofile << "Discrete Moller cos angle cutoff " << config["Simulation"]["cos_th_cut"] << std::endl;
   infofile << std::endl;
 

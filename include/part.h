@@ -6,15 +6,17 @@
 
 /// @brief A structure to represent a particle.
 struct Part {
-  int id;              // The particle ID.
-  double m_i;          // The paricle mass [g].
-  double q_i;          // The particle charge [esu].
-  double ener;         // The particle energy [eV].
-  Vec pos;             // The particle position [cm].
-  Vec vel;             // The particle velocity [cm/s].
-  Vec Bvec;            // The particle magnetic field [G].
-  bool alive;          // Whether the particle is alive.
-  bool flag_turb_diff; // Whether to use account for turbulent diffusion in transport.
+  int id;                   // The particle ID.
+  double m_i;               // The paricle mass [g].
+  double q_i;               // The particle charge [esu].
+  double ener;              // The particle energy [eV].
+  Vec pos;                  // The particle position [cm].
+  Vec vel;                  // The particle velocity [cm/s].
+  Vec Bvec;                 // The particle magnetic field [G].
+  bool alive;               // Whether the particle is alive.
+  bool flag_turb_diff;      // Whether to account for turbulent diffusion in transport.
+  bool flag_intermittancy;  // Whether to transport using intermittancy.
+  double lam_intermittancy; // The mean free path to an interaction with a region of high magnetic field curvature.
 
   Part() = default;
   Part(int id_, double m_i_, double q_i_, double ener_, double B0_);

@@ -17,6 +17,7 @@ struct Event {
   double time;             // The event time [s].
   double x, y, z;          // The event coordinates [cm].
   double ener;             // The particle kinetic energy [eV].
+  double cos_alpha;        // The particle pitch angle cosine.
   double cos_th;           // The cosine of the scattering angle.
   double ener_loss;        // The energy lost [eV].
   double ener_sec;         // The energy of the secondary [eV].
@@ -30,7 +31,7 @@ struct Event {
 
 void clearInfo(const std::string& infofile_name);
 void clearOutfile(const std::string& outfile_name);
-void writeInfo(const std::string& infofile_name, int size, Config& config, const Vector1d& ab, const EEDLData& eedl, double n_i, double n_e_free, double lam_deb);
+void writeInfo(const std::string& infofile_name, int size, Config& config, const Vector1d& ab, const EEDLData& eedl, double n_i, double n_e_free, double lam_deb, double B0);
 void writeEvent(const std::string& outfile_name, std::vector<Event> event_list);
 
 #endif

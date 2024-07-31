@@ -10,15 +10,17 @@
 
 /// @brief A constructor for the Part structure.
 Part::Part(int id_, double m_i_, double q_i_, double ener_, double B0_)
-  : id(id_)                // The particle ID.
-  , m_i(m_i_)              // The paricle mass [g].
-  , q_i(q_i_)              // The particle charge [esu].
-  , ener(ener_)            // The particle energy [eV].
-  , pos(Vec(0., 0., 0.))   // The particle position [cm].
-  , vel(Vec(0., 0., 0.))   // The particle velocity [cm/s].
-  , Bvec(Vec(0., 0., B0_)) // The particle magnetic field [G].
-  , alive(true)            // Whether the particle is alive.
-  , flag_turb_diff(false)  // Whether to use account for turbulent diffusion in transport.
+  : id(id_)                   // The particle ID.
+  , m_i(m_i_)                 // The paricle mass [g].
+  , q_i(q_i_)                 // The particle charge [esu].
+  , ener(ener_)               // The particle energy [eV].
+  , pos(Vec(0., 0., 0.))      // The particle position [cm].
+  , vel(Vec(0., 0., 0.))      // The particle velocity [cm/s].
+  , Bvec(Vec(0., 0., B0_))    // The particle magnetic field [G].
+  , alive(true)               // Whether the particle is alive.
+  , flag_turb_diff(false)     // Whether to account for turbulent diffusion in transport.
+  , flag_intermittancy(false) // Whether to transport using intermittancy.
+  , lam_intermittancy(0.0)    // The mean free path to an interaction with a region of high magnetic field curvature.
   {
     vel = randVec(beta() * constants::c);
   }
@@ -63,4 +65,5 @@ void Part::scat(double cos_th, Vec A) {
 */
 void Part::loseEner(double ener_loss) {
   ener = std::max(0., ener - ener_loss);
+  vel = beta() * constants::c * vel.unit();
 }

@@ -7,8 +7,8 @@ constexpr int scat = 1;
 constexpr int brem = 2;
 constexpr int exc = 3;
 constexpr int ion = 4;
-constexpr int Bturb = 5;
-constexpr int moller = 6;
+constexpr int moller = 5;
+constexpr int turb = 6;
 }
 
 namespace constants {

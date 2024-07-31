@@ -105,7 +105,20 @@ void calcLamDeb(Vector1d ab, double rho, double temp, double ion_state_avg, doub
   n_i = 0.;
   for ( size_t i = 0; i < ab.size(); i++ ) { n_i += rho * constants::N_A * ab[i]; }
   n_e_free = n_i * ion_state_avg;
-  lam_deb  = sqrt(constants::k_B * temp / (4*M_PI * constants::e*constants::e * n_i * ion_state_avg * (ion_state_avg + 1.)));
+  lam_deb = sqrt(constants::k_B * temp / (4*M_PI * constants::e*constants::e * n_i * ion_state_avg * (ion_state_avg + 1.)));
+}
+
+/**
+ * @brief Compute the mean field amplitude.
+ * 
+ * @param n      The total number density [1/cc].
+ * @param temp   The temperature [K].
+ * @param beta   The plasma beta.
+ * @param mach_A The Alfven Mach number.
+ * @return The mean field amplitude [G].
+ */
+double calcB0(double n, double temp, double beta, double mach_A) {
+  return sqrt(2.0 * n * constants::k_B * temp * beta / (1.0 + mach_A*mach_A));
 }
 
 /**
@@ -298,4 +311,38 @@ double calcTurbDiff(double xi1, double xi2, double lam, double scale, double rpe
     rperp = 2.0 * scale * pow(lam, 1.5) / sqrt(W) * sin(U / 3.0) * pow(2.0 * cos(2.0/3.0 * U) - 1.0, 3.0/2.0);
   }
   return rperp;
+}
+
+/**
+ * @brief Compute the effective transport distance in the presence of intermittancy.
+ *
+ * @param xi1, xi2          Two random numbers
+ * @param lam_intermittancy The mean free path to an interaction with a region of high magnetic field curvature.
+ * @param dis               The total transport distance.
+ * @param cos_alpha         The pitch angle cosine.
+ * @return The effective transport distance
+ */
+double calcIntermittancyTrans(double xi1, double xi2, double lam_intermittancy, double dis, double cos_alpha) {
+  double var = lam_intermittancy * dis / fabs(cos_alpha);
+  return sqrt(-2.0 * var * log(xi1)) * cos(2.0 * M_PI * xi2);
+}
+
+/**
+ * @brief Compute the mean free path to an interaction with a region of high magnetic field curvature.
+ *
+ * @param m_i The particle mass [g].
+ * @param q_i The particle charge [esu].
+ * @param gam The Lorentz factor.
+ * @param vmag The magnitude of the velocity [cm/s].
+ * @param Brms The RMS magnetic field amplitude [G].
+ * @param L The injection scale of the turbulence [cm].
+ * @param mach_A The Alfven Mach number.
+ * @param alpha  The exponent of the magnetic field curvature spectrum.
+ * @return The mean free path to an interaction with a region of high magnetic field curvature.
+ */
+double calcLamIntermittancy(double m_i, double q_i, double gam, double vmag, double Brms, double L, double mach_A, double alpha) {
+  double Leff;
+  Leff = mach_A < 1 ? L / (mach_A*mach_A*mach_A*mach_A) : L / (mach_A*mach_A*mach_A);
+  double r_gy = gam * m_i * vmag / (q_i * Brms);
+  return r_gy * pow(mach_A * pow(r_gy / Leff, 2.0/3.0), 1.0 - alpha);
 }

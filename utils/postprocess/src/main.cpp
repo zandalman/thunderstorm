@@ -36,17 +36,18 @@ int main(int argc, char** argv) {
   const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
 
   // make lists
-  size_t num_ener, num_ener_sec, num_time, num_dis;
-  std::vector<double> ener_list, ener_sec_list, time_list, dis_list;
+  size_t num_ener, num_ener_sec, num_time, num_dis_par, num_dis_perp;
+  std::vector<double> ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list;
   makeList(config["Energy"], 1., num_ener, ener_list);
   makeList(config["EnergySec"], 1., num_ener_sec, ener_sec_list);
   makeList(config["Time"], constants::hr, num_time, time_list);
-  makeList(config["Distance"], constants::AU, num_dis, dis_list);
+  makeList(config["DistancePar"], constants::AU, num_dis_par, dis_par_list);
+  makeList(config["DistancePerp"], constants::AU, num_dis_perp, dis_perp_list);
 
   // write info file
   if ( rank == 0 ) {
     std::string infofile = config["IO"]["outpath"] + "/info.txt";
-    writeInfo(infofile, config, ener_list, ener_sec_list, time_list, dis_list);
+    writeInfo(infofile, config, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list);
   }
 
   int num_file = std::stoi(config["IO"]["num_file"]);
@@ -59,7 +60,7 @@ int main(int argc, char** argv) {
     std::string datafile_name = data_path + "/data.bin." + std::to_string(i);
     std::string outfile_name = config["IO"]["outpath"] + "/data.txt." + std::to_string(i);
     clearFile(outfile_name);
-    processFile(datafile_name, outfile_name, num_event_per_chunk, ener_list, ener_sec_list, time_list, dis_list);
+    processFile(datafile_name, outfile_name, num_event_per_chunk, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list);
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
