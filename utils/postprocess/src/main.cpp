@@ -35,6 +35,30 @@ int main(int argc, char** argv) {
   const std::string data_path = config["IO"]["data_path"];
   const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
 
+  // get statistics list
+  size_t num_stat = 0;
+  bool do_stat;
+  std::vector<bool> do_stat_list, do_stat_cat;
+  std::vector<std::string> stat_list = {
+    "ener_loss_mech",
+    "num_ion_elem",
+    "num_ener_sec",
+    "dis_par_time",
+    "dis_perp_time",
+    "ener_time",
+    "ener_loss_time",
+    "ener_loss_dis2d"
+  };
+  for ( size_t i = 0; i < stat_list.size(); i++ ) {
+    do_stat = config["Statistics"][stat_list[i]] == "true";
+    do_stat_list.push_back(do_stat);
+    if ( do_stat ) num_stat += 1;
+  }
+  do_stat_cat.push_back(do_stat_list[2]);
+  do_stat_cat.push_back(do_stat_list[3] || do_stat_list[4] || do_stat_list[5] || do_stat_list[6]);
+  do_stat_cat.push_back(do_stat_list[7]);
+  do_stat_cat.push_back(do_stat_list[7]);
+
   // make lists
   size_t num_ener, num_ener_sec, num_time, num_dis_par, num_dis_perp;
   std::vector<double> ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list;
@@ -47,7 +71,7 @@ int main(int argc, char** argv) {
   // write info file
   if ( rank == 0 ) {
     std::string infofile = config["IO"]["outpath"] + "/info.txt";
-    writeInfo(infofile, config, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list);
+    writeInfo(infofile, config, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list, num_stat, do_stat_list, do_stat_cat);
   }
 
   int num_file = std::stoi(config["IO"]["num_file"]);
@@ -60,7 +84,7 @@ int main(int argc, char** argv) {
     std::string datafile_name = data_path + "/data.bin." + std::to_string(i);
     std::string outfile_name = config["IO"]["outpath"] + "/data.txt." + std::to_string(i);
     clearFile(outfile_name);
-    processFile(datafile_name, outfile_name, num_event_per_chunk, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list);
+    processFile(datafile_name, outfile_name, num_event_per_chunk, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list, do_stat_list, do_stat_cat);
   }
 
   MPI_Barrier(MPI_COMM_WORLD);

@@ -61,6 +61,23 @@ void parseConfig(const std::string &configfile_name, Config &config) {
 };
 
 /**
+ * @brief Split a string by a delimiter.
+ *
+ * @param str       The string to split.
+ * @param delimiter The delimiter.
+ * @return The list of strings.
+ */
+std::vector<std::string> splitString(const std::string& str, char delimiter) {
+  std::vector<std::string> token_list;
+  std::string token;
+  std::stringstream ss(str);
+  while (std::getline(ss, token, delimiter)) {
+    token_list.push_back(token);
+  }
+  return token_list;
+}
+
+/**
  * @brief Make a list using data from the configuration file.
  * 
  * @param dict The dictionary containing the configuration file information.

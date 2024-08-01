@@ -51,11 +51,11 @@ struct PartData {
   std::vector<double> dis_perp_time;  // The average perpdicular distance in each time bin.
   std::vector<double> ener_time;      // The average energy in each time bin.
   std::vector<double> ener_loss_time; // The energy loss per time bin.
-  vector2d<double> ener_loss_dis2d;           // The energy loss per parallel and perpendicular distance bin.
+  vector2d<double> ener_loss_dis2d;   // The energy loss per parallel and perpendicular distance bin.
 
   PartData() = default;
-  PartData(size_t num_ener_sec, size_t num_time, size_t num_dis_par, size_t num_dis_perp);
-  void reset(int id_, double ener_, size_t num_ener_sec, size_t num_time, size_t num_dis, size_t num_dis_perp);
+  PartData(size_t num_ener_sec, size_t num_time, size_t num_dis_par, size_t num_dis_perp, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat);
+  void reset(int id_, double ener_, size_t num_ener_sec, size_t num_time, size_t num_dis, size_t num_dis_perp, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat);
 };
 
 template <typename T>
@@ -63,11 +63,11 @@ void writeVector(std::ofstream& file, const std::vector<T>& vec);
 template <typename T>
 void writeVector2d(std::ofstream& file, const vector2d<T>& vec);
 void clearFile(const std::string& file_name);
-void writeInfo(std::string &infofile_name, Config& config, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list);
-void processEvent(const Event* event, std::vector<PartData>& part_data_list, const std::vector<double>& ener_list, const std::vector<double> &ener_sec_list, const std::vector<double>& time_list, const std::vector<double>& dis_par_list, const std::vector<double>& dis_perp_list);
-void postProcPartData(std::vector<PartData>& part_data_list);
-void writePartData(std::string &outfile_name, std::vector<PartData>& part_data_list);
-void processFile(std::string &datafile_name, std::string &outfile_name, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list);
+void writeInfo(std::string &infofile_name, Config& config, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list, size_t num_stat, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat);
+void processEvent(const Event* event, std::vector<PartData>& part_data_list, const std::vector<double>& ener_list, const std::vector<double> &ener_sec_list, const std::vector<double>& time_list, const std::vector<double>& dis_par_list, const std::vector<double>& dis_perp_list, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat);
+void postProcPartData(std::vector<PartData>& part_data_list, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat);
+void writePartData(std::string &outfile_name, std::vector<PartData>& part_data_list, const std::vector<bool> &do_stat_list);
+void processFile(std::string &datafile_name, std::string &outfile_name, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat);
 void concatenateFiles(std::string data_path, int num_file);
 
 #endif

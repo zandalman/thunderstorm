@@ -41,7 +41,7 @@ Event::Event(int int_data[5], double double_data[12])
  {}
 
 /// @brief A constructor to initialize the PartData structure.
-PartData::PartData(size_t num_ener_sec, size_t num_time, size_t num_dis_par, size_t num_dis_perp)
+PartData::PartData(size_t num_ener_sec, size_t num_time, size_t num_dis_par, size_t num_dis_perp, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat)
   : id(-1)
  {
   for ( size_t i = 0; i < 6; i++ ) {
@@ -50,23 +50,29 @@ PartData::PartData(size_t num_ener_sec, size_t num_time, size_t num_dis_par, siz
   for ( size_t i = 0; i < 118; i++ ) {
     num_ion_elem.push_back(0);
   }
-  for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) {
-    num_sec_ener.push_back(0);
-  }
-  for ( size_t i = 0; i < (num_time - 1); i++ ) {
-    num_ev_time.push_back(0);
-    dis_par_time.push_back(0.);
-    dis_perp_time.push_back(0.);
-    ener_time.push_back(0.);
-    ener_loss_time.push_back(0.);
-  }
-  std::vector<double> ener_loss_dis_perp;
-  for ( size_t i = 0; i < (num_dis_par - 1); i++ ) {
-    ener_loss_dis_perp.clear();
-    for ( size_t j = 0; j < (num_dis_perp - 1); j++ ) {
-      ener_loss_dis_perp.push_back(0.);
+  if ( do_stat_list[0] ) {
+    for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) {
+      if ( do_stat_list[2] ) num_sec_ener.push_back(0);
     }
-    ener_loss_dis2d.push_back(ener_loss_dis_perp);
+  }
+  if ( do_stat_cat[1] ) {
+    for ( size_t i = 0; i < (num_time - 1); i++ ) {
+      num_ev_time.push_back(0);
+      if ( do_stat_list[3] ) dis_par_time.push_back(0.);
+      if ( do_stat_list[4] ) dis_perp_time.push_back(0.);
+      if ( do_stat_list[5] ) ener_time.push_back(0.);
+      if ( do_stat_list[6] ) ener_loss_time.push_back(0.);
+    }
+  }
+  if ( do_stat_cat[2] && do_stat_cat[3] ) {
+    std::vector<double> ener_loss_dis_perp;
+    for ( size_t i = 0; i < (num_dis_par - 1); i++ ) {
+      ener_loss_dis_perp.clear();
+      for ( size_t j = 0; j < (num_dis_perp - 1); j++ ) {
+        if ( do_stat_list[7] ) ener_loss_dis_perp.push_back(0.);
+      }
+      if ( do_stat_list[7] ) ener_loss_dis2d.push_back(ener_loss_dis_perp);
+    }
   }
  }
 
@@ -79,7 +85,7 @@ PartData::PartData(size_t num_ener_sec, size_t num_time, size_t num_dis_par, siz
  * @param num_time     The number of time bins.
  * @param num_dis      The number of distance bins.
  */
-void PartData::reset(int id_, double ener_, size_t num_ener_sec, size_t num_time, size_t num_dis_par, size_t num_dis_perp) {
+void PartData::reset(int id_, double ener_, size_t num_ener_sec, size_t num_time, size_t num_dis_par, size_t num_dis_perp, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat) {
   id = id_;
   num_ev = 0;
   ener = ener_;
@@ -93,19 +99,25 @@ void PartData::reset(int id_, double ener_, size_t num_ener_sec, size_t num_time
   for ( size_t i = 0; i < 118; i++ ) {
     num_ion_elem[i] = 0;
   }
-  for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) {
-    num_sec_ener[i] = 0;
+  if ( do_stat_cat[0] ) {
+    for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) {
+      if ( do_stat_list[2] ) num_sec_ener[i] = 0;
+    }
   }
-  for ( size_t i = 0; i < (num_time - 1); i++ ) {
-    num_ev_time[i] = 0;
-    dis_par_time[i] = 0.;
-    dis_perp_time[i] = 0.;
-    ener_time[i] = 0.;
-    ener_loss_time[i] = 0.;
+  if ( do_stat_cat[1] ) {
+    for ( size_t i = 0; i < (num_time - 1); i++ ) {
+      num_ev_time[i] = 0;
+      if ( do_stat_list[3] ) dis_par_time[i] = 0.;
+      if ( do_stat_list[4] ) dis_perp_time[i] = 0.;
+      if ( do_stat_list[5] ) ener_time[i] = 0.;
+      if ( do_stat_list[6] ) ener_loss_time[i] = 0.;
+    }
   }
-  for ( size_t i = 0; i < (num_dis_par - 1); i++ ) {
-    for ( size_t j = 0; j < (num_dis_perp - 1); j++ ) {
-      ener_loss_dis2d[i][j] = 0.;
+  if ( do_stat_cat[2] && do_stat_cat[3] ) {
+    for ( size_t i = 0; i < (num_dis_par - 1); i++ ) {
+      for ( size_t j = 0; j < (num_dis_perp - 1); j++ ) {
+        if ( do_stat_list[7] ) ener_loss_dis2d[i][j] = 0.;
+      }
     }
   }
 }
@@ -175,7 +187,7 @@ void writeVector2d(std::ofstream& file, const vector2d<T>& vec) {
  * @param time_list     The list of time bins.
  * @param dis_list      The list of distance bins.
  */
-void writeInfo(std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list) {
+void writeInfo(std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list, size_t num_stat, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat) {
 
   std::ofstream infofile(infofile_name);
 
@@ -191,34 +203,45 @@ void writeInfo(std::string &infofile_name, Config &config, const std::vector<dou
   infofile << "File number:        " << config["IO"]["num_file"] << std::endl;
   infofile << "Events per chunk:   " << config["IO"]["num_event_per_chunk"] << std::endl;
   infofile << "Number of energies: " << config["Energy"]["num"] << std::endl;
-  infofile << "Number of lines:    " << 11 << std::endl;
+  infofile << "Number of lines:    " << (num_stat + 3) << std::endl;
   infofile << std::endl;
 
   infofile << "Variable lists" << std::endl;
   infofile << "Energy [eV]" << std::endl;  
   writeVector(infofile, ener_list);
-  infofile << "Secondary energy [eV]" << std::endl;  
-  writeVector(infofile, ener_sec_list);
-  infofile << "Time [s]" << std::endl;
-  writeVector(infofile, time_list);
-  infofile << "Distance (parallel) [cm]" << std::endl;
-  writeVector(infofile, dis_par_list);
-  infofile << "Distance (perppendicular) [cm]" << std::endl;
-  writeVector(infofile, dis_perp_list);
+  if ( do_stat_cat[0] ) {
+    infofile << "Secondary energy [eV]" << std::endl;  
+    writeVector(infofile, ener_sec_list);
+  }
+  if ( do_stat_cat[1] ) {
+    infofile << "Time [s]" << std::endl;
+    writeVector(infofile, time_list);
+  }
+  if ( do_stat_cat[2] ) {
+    infofile << "Distance (parallel) [cm]" << std::endl;
+    writeVector(infofile, dis_par_list);
+  }
+  if ( do_stat_cat[3] ) {
+    infofile << "Distance (perppendicular) [cm]" << std::endl;
+    writeVector(infofile, dis_perp_list);
+  }
   infofile << std::endl;
 
+  size_t num_line = 1;
   infofile << "Post-processed data format" << std::endl;
   infofile << "1.  energy" << std::endl;
   infofile << "2.  number of events" << std::endl;
   infofile << "3.  start time [s] and start coordinates [cm]" << std::endl;
-  infofile << "4.  energy loss [eV] for each mechanism" << std::endl;
-  infofile << "5.  number of ionizations per element" << std::endl;
-  infofile << "6.  number of secondary electrons per secondary energy bin" << std::endl;
-  infofile << "7.  average parallel distance [cm] for each time bin" << std::endl;
-  infofile << "8.  average perpendicular distance [cm] for each time bin" << std::endl;
-  infofile << "9.  average energy [eV] for each time bin" << std::endl;
-  infofile << "10. energy loss [eV] per time bin" << std::endl;
-  infofile << "11. energy loss [eV] per parallel and perpendicular distance bin" << std::endl;
+  num_line = 4;
+
+  if ( do_stat_list[0] ) infofile << num_line << ".  " << "energy loss [eV] for each mechanism" << std::endl, num_line++;
+  if ( do_stat_list[1] ) infofile << num_line << ".  " << "number of ionizations per element" << std::endl, num_line++;
+  if ( do_stat_list[2] ) infofile << num_line << ".  " << "number of secondary electrons per secondary energy bin" << std::endl, num_line++;
+  if ( do_stat_list[3] ) infofile << num_line << ".  " << "average parallel distance [cm] for each time bin" << std::endl, num_line++;
+  if ( do_stat_list[4] ) infofile << num_line << ".  " << "average perpendicular distance [cm] for each time bin" << std::endl, num_line++;
+  if ( do_stat_list[5] ) infofile << num_line << ".  " << "average energy [eV] for each time bin" << std::endl, num_line++;
+  if ( do_stat_list[6] ) infofile << num_line << ".  " << "energy loss [eV] per time bin" << std::endl, num_line++;
+  if ( do_stat_list[7] ) infofile << num_line << ".  " << "energy loss [eV] per parallel and perpendicular distance bin" << std::endl, num_line++;
 
   infofile.close();
   if ( !infofile.good() ) {
@@ -237,13 +260,16 @@ void writeInfo(std::string &infofile_name, Config &config, const std::vector<dou
  * @param time_list      The list of time bins.
  * @param dis_list       The list of distance bins.
  */
-void processEvent(const Event* event, std::vector<PartData>& part_data_list, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list) {
+void processEvent(const Event* event, std::vector<PartData>& part_data_list, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat) {
 
   if ( event == nullptr ) {
     std::cerr << "Error: Null event pointer." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
+  double t_rel, x_rel, y_rel, z_rel, dis_perp, ener_loss;
+  size_t idx_ener_sec, idx_time, idx_dis_par, idx_dis_perp;
+  
   for ( size_t i = 0; i < ener_list.size(); i++ ) {
     
     PartData &part_data = part_data_list[i];
@@ -256,63 +282,65 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
       part_data.z_start = event->z;
       continue;
     }
-
-    // increment the event count
+    
+    // compute useful quantities
     part_data.num_ev += 1;
-    
-    // compute time index
-    double t_rel = event->time - part_data.t_start;
-    size_t idx_time = findIdx(t_rel, time_list);
-    
-    // compute distance indices
-    double x_rel = event->x - part_data.x_start;
-    double y_rel = event->y - part_data.y_start;
-    double z_rel = event->z - part_data.z_start;
-    double dis_perp = sqrt(x_rel*x_rel + y_rel*y_rel);
-    size_t idx_dis_par = findIdx(z_rel, dis_par_list);
-    size_t idx_dis_perp = findIdx(dis_perp, dis_perp_list);
+    t_rel = event->time - part_data.t_start;
+    x_rel = event->x - part_data.x_start;
+    y_rel = event->x - part_data.y_start;
+    z_rel = event->x - part_data.z_start;
+    dis_perp = sqrt(x_rel*x_rel + y_rel*y_rel);
+    ener_loss = event->ener_loss + event->ener_loss_moller + event->ener_loss_sync + event->ener_loss_cher;
 
-    // compute energy loss
-    double ener_loss = event->ener_loss + event->ener_loss_moller + event->ener_loss_sync + event->ener_loss_cher;
+    // compute indices
+    if ( do_stat_cat[1] ) idx_time = findIdx(t_rel, time_list);
+    if ( do_stat_cat[2] ) idx_dis_par = findIdx(z_rel, dis_par_list);
+    if ( do_stat_cat[3] ) idx_dis_perp = findIdx(dis_perp, dis_perp_list);
 
     // compute time histograms
-    if ( idx_time > 0 && idx_time < time_list.size() ) {
+    if ( do_stat_cat[1] && idx_time > 0 && idx_time < time_list.size() ) {
       part_data.num_ev_time[idx_time - 1] += 1;
-      part_data.dis_par_time[idx_time - 1] += z_rel;
-      part_data.dis_perp_time[idx_time - 1] += dis_perp;
-      part_data.ener_time[idx_time - 1] += event->ener;
-      part_data.ener_loss_time[idx_time - 1] += ener_loss;
+      if ( do_stat_list[3] ) part_data.dis_par_time[idx_time - 1] += z_rel;
+      if ( do_stat_list[4] ) part_data.dis_perp_time[idx_time - 1] += dis_perp;
+      if ( do_stat_list[5] ) part_data.ener_time[idx_time - 1] += event->ener;
+      if ( do_stat_list[6] ) part_data.ener_loss_time[idx_time - 1] += ener_loss;
     }
 
-    // compute distance histograms
-    if ( idx_dis_par > 0 && idx_dis_par < dis_par_list.size() && idx_dis_perp > 0 && idx_dis_perp < dis_perp_list.size() ) {
-      part_data.ener_loss_dis2d[idx_dis_par - 1][idx_dis_perp - 1] += ener_loss;
+    // compute 2d distance histograms
+    if ( do_stat_cat[2] && do_stat_cat[3] && idx_dis_par > 0 && idx_dis_par < dis_par_list.size() && idx_dis_perp > 0 && idx_dis_perp < dis_perp_list.size() ) {
+      if ( do_stat_list[7] ) part_data.ener_loss_dis2d[idx_dis_par - 1][idx_dis_perp - 1] += ener_loss;
     }
     
     // compute interaction histograms
-    size_t idx_ener_sec;
     switch ( event->interaction ) {
       case flags::brem:
-      part_data.ener_loss_mech[0] += event->ener_loss;
+      if ( do_stat_list[0] ) part_data.ener_loss_mech[0] += event->ener_loss;
       break;
       case flags::exc:
-      part_data.ener_loss_mech[1] += event->ener_loss;
+      if ( do_stat_list[0] ) part_data.ener_loss_mech[1] += event->ener_loss;
       break;
       case flags::ion:
-      part_data.ener_loss_mech[2] += event->ener_loss;
-      part_data.num_ion_elem[event->Zelem - 1] += 1;
-      idx_ener_sec = findIdx(event->ener_sec, ener_sec_list);
-      if ( idx_ener_sec > 0 && idx_ener_sec < ener_sec_list.size() ) {
-        part_data.num_sec_ener[idx_ener_sec - 1] += 1;
+      if ( do_stat_list[0] ) part_data.ener_loss_mech[2] += event->ener_loss;
+      if ( do_stat_list[1] ) part_data.num_ion_elem[event->Zelem - 1] += 1;
+      
+      // compute secondary energy histograms
+      if ( do_stat_cat[0] ) {
+        idx_ener_sec = findIdx(event->ener_sec, ener_sec_list);
+        if ( idx_ener_sec > 0 && idx_ener_sec < ener_sec_list.size() ) {
+          if ( do_stat_list[0] ) part_data.num_sec_ener[idx_ener_sec - 1] += 1;
+        }
       }
+
       break;
       case flags::moller:
-      part_data.ener_loss_mech[3] += event->ener_loss;
+      if ( do_stat_list[0] ) part_data.ener_loss_mech[3] += event->ener_loss;
       break;
     }
-    part_data.ener_loss_mech[3] += event->ener_loss_moller;
-    part_data.ener_loss_mech[4] += event->ener_loss_sync;
-    part_data.ener_loss_mech[5] += event->ener_loss_cher;
+    if ( do_stat_list[0] ) {
+      part_data.ener_loss_mech[3] += event->ener_loss_moller;
+      part_data.ener_loss_mech[4] += event->ener_loss_sync;
+      part_data.ener_loss_mech[5] += event->ener_loss_cher;
+    }
   }
 }
 
@@ -321,14 +349,16 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
  * 
  * @param part_data_list The list of particle data structs for each energy.
  */
-void postProcPartData(std::vector<PartData>& part_data_list) {
-  for ( size_t i = 0; i < part_data_list.size(); i++ ) {
-    PartData &part_data = part_data_list[i];
-    for ( size_t j = 0; j < part_data.num_ev_time.size(); j++ ) {
-      if ( part_data.num_ev_time[j] > 0 ) {
-        part_data.dis_par_time[j] /= part_data.num_ev_time[j];
-        part_data.dis_perp_time[j] /= part_data.num_ev_time[j];
-        part_data.ener_time[j] /= part_data.num_ev_time[j];
+void postProcPartData(std::vector<PartData>& part_data_list, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat) {
+  if ( do_stat_cat[1] ) {
+    for ( size_t i = 0; i < part_data_list.size(); i++ ) {
+      PartData &part_data = part_data_list[i];
+      for ( size_t j = 0; j < part_data.num_ev_time.size(); j++ ) {
+        if ( part_data.num_ev_time[j] > 0 ) {
+          if ( do_stat_list[3] ) part_data.dis_par_time[j] /= part_data.num_ev_time[j];
+          if ( do_stat_list[4] ) part_data.dis_perp_time[j] /= part_data.num_ev_time[j];
+          if ( do_stat_list[5] ) part_data.ener_time[j] /= part_data.num_ev_time[j];
+        }
       }
     }
   }
@@ -340,7 +370,7 @@ void postProcPartData(std::vector<PartData>& part_data_list) {
  * @param outfile_name   The name of the output file.
  * @param part_data_list The list of particle data structs for each energy.
  */
-void writePartData(std::string &outfile_name, std::vector<PartData>& part_data_list) {
+void writePartData(std::string &outfile_name, std::vector<PartData>& part_data_list, const std::vector<bool> &do_stat_list) {
   
   std::ofstream outfile(outfile_name, std::ios::app);
 
@@ -355,14 +385,14 @@ void writePartData(std::string &outfile_name, std::vector<PartData>& part_data_l
     outfile << part_data.ener << std::endl;
     outfile << part_data.num_ev << std::endl;
     outfile << part_data.t_start << ", " << part_data.x_start << "," << part_data.y_start << "," << part_data.z_start << std::endl;
-    writeVector(outfile, part_data.ener_loss_mech);
-    writeVector(outfile, part_data.num_ion_elem);
-    writeVector(outfile, part_data.num_sec_ener);
-    writeVector(outfile, part_data.dis_par_time);
-    writeVector(outfile, part_data.dis_perp_time);
-    writeVector(outfile, part_data.ener_time);
-    writeVector(outfile, part_data.ener_loss_time);
-    writeVector2d(outfile, part_data.ener_loss_dis2d);
+    if ( do_stat_list[0] ) writeVector(outfile, part_data.ener_loss_mech);
+    if ( do_stat_list[1] ) writeVector(outfile, part_data.num_ion_elem);
+    if ( do_stat_list[2] ) writeVector(outfile, part_data.num_sec_ener);
+    if ( do_stat_list[3] ) writeVector(outfile, part_data.dis_par_time);
+    if ( do_stat_list[4] ) writeVector(outfile, part_data.dis_perp_time);
+    if ( do_stat_list[5] ) writeVector(outfile, part_data.ener_time);
+    if ( do_stat_list[6] ) writeVector(outfile, part_data.ener_loss_time);
+    if ( do_stat_list[7] ) writeVector2d(outfile, part_data.ener_loss_dis2d);
   }
 
   outfile.close();
@@ -383,7 +413,7 @@ void writePartData(std::string &outfile_name, std::vector<PartData>& part_data_l
  * @param time_list           The list of time bins.
  * @param dis_list            The list of distance bins.    
  */
-void processFile(std::string& datafile_name, std::string& outfile_name, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list) {
+void processFile(std::string& datafile_name, std::string& outfile_name, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat) {
 
   // Open file
   std::ifstream datafile(datafile_name, std::ios::binary);
@@ -403,23 +433,23 @@ void processFile(std::string& datafile_name, std::string& outfile_name, size_t n
 
   size_t npart = 0;
   int current_id = -1;
-  std::vector<PartData> part_data_list(ener_list.size(), PartData(ener_sec_list.size(), time_list.size(), dis_par_list.size(), dis_perp_list.size()));
+  std::vector<PartData> part_data_list(ener_list.size(), PartData(ener_sec_list.size(), time_list.size(), dis_par_list.size(), dis_perp_list.size(), do_stat_list, do_stat_cat));
   
   while ( datafile.read(buffer.data(), chunk_size) ) {
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
       if ( event->id != current_id ) {
         if ( current_id != -1 ) {
-          postProcPartData(part_data_list);
-          writePartData(outfile_name, part_data_list);
+          postProcPartData(part_data_list, do_stat_list, do_stat_cat);
+          writePartData(outfile_name, part_data_list, do_stat_list);
         }
         for ( size_t j = 0; j < ener_list.size(); j++ ) {
-          part_data_list[j].reset(event->id, ener_list[j], ener_sec_list.size(), time_list.size(), dis_par_list.size(), dis_perp_list.size());
+          part_data_list[j].reset(event->id, ener_list[j], ener_sec_list.size(), time_list.size(), dis_par_list.size(), dis_perp_list.size(), do_stat_list, do_stat_cat);
         }
         current_id = event->id;
         npart++;
       } else {
-        processEvent(event, part_data_list, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list);
+        processEvent(event, part_data_list, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list, do_stat_list, do_stat_cat);
       }
     }
   }
@@ -433,16 +463,16 @@ void processFile(std::string& datafile_name, std::string& outfile_name, size_t n
         event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
         if ( event->id != current_id ) {
           if ( current_id != -1 ) {
-            postProcPartData(part_data_list);
-            writePartData(outfile_name, part_data_list);
+            postProcPartData(part_data_list, do_stat_list, do_stat_cat);
+            writePartData(outfile_name, part_data_list, do_stat_list);
           }
           for ( size_t j = 0; j < ener_list.size(); j++ ) {
-            part_data_list[j].reset(event->id, ener_list[j], ener_sec_list.size(), time_list.size(), dis_par_list.size(), dis_perp_list.size());
+            part_data_list[j].reset(event->id, ener_list[j], ener_sec_list.size(), time_list.size(), dis_par_list.size(), dis_perp_list.size(), do_stat_list, do_stat_cat);
           }
           current_id = event->id;
           npart++;
         } else {
-          processEvent(event, part_data_list, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list);
+          processEvent(event, part_data_list, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list, do_stat_list, do_stat_cat);
         }
       }
     }
