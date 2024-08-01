@@ -133,48 +133,36 @@ void clearFile(const std::string& file_name) {
 }
 
 /**
- * @brief Write a vector to a file.
+ * @brief Write a vector to a string stream.
  * 
- * @param file The open file object.
- * @param vec  The vector to write.
+ * @param oss The string stream.
+ * @param vec The vector to write.
  */
 template <typename T>
-void writeVector(std::ofstream& file, const std::vector<T>& vec) {
-
-  if ( !file.is_open() ) {
-    std::cerr << "File is not open." << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 1);
+void writeVector(std::ostringstream &oss, const std::vector<T>& vec) {
+  for (size_t i = 0; i < vec.size(); i++) {
+    oss << vec[i];
+    if (i != vec.size() - 1) oss << ",";
   }
-
-  for (size_t i = 0; i < vec.size(); ++i) {
-    file << vec[i];
-    if (i != vec.size() - 1) file << ",";
-  }
-  file << std::endl;
+  oss << std::endl;
 }
 
 /**
  * @brief Write a 2d vector to a file.
  * 
- * @param file The open file object.
- * @param vec  The vector to write.
+ * @param oss The string stream.
+ * @param vec The vector to write.
  */
 template <typename T>
-void writeVector2d(std::ofstream& file, const vector2d<T>& vec) {
-
-  if ( !file.is_open() ) {
-    std::cerr << "File is not open." << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-
+void writeVector2d(std::ostringstream &oss, const vector2d<T>& vec) {
   for (size_t i = 0; i < vec.size(); ++i) {
     for (size_t j = 0; j < vec[i].size(); j++) {
-      file << vec[i][j];
-      if (j != vec[i].size() - 1) file << ",";
+      oss << vec[i][j];
+      if (j != vec[i].size() - 1) oss << ",";
     }
-    if (i != vec.size() - 1) file << ";";
+    if (i != vec.size() - 1) oss << ";";
   }
-  file << std::endl;
+  oss << std::endl;
 }
 
 /**
@@ -189,60 +177,62 @@ void writeVector2d(std::ofstream& file, const vector2d<T>& vec) {
  */
 void writeInfo(std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list, size_t num_stat, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat) {
 
-  std::ofstream infofile(infofile_name);
+  std::ostringstream oss;
 
+  oss << "Thunderstorm post-processing" << std::endl;
+  oss << std::endl;
+
+  oss << "Post-processing parameters" << std::endl;
+  oss << "File number:        " << config["IO"]["num_file"] << std::endl;
+  oss << "Events per chunk:   " << config["IO"]["num_event_per_chunk"] << std::endl;
+  oss << "Number of energies: " << config["Energy"]["num"] << std::endl;
+  oss << "Number of lines:    " << (num_stat + 4) << std::endl;
+  oss << std::endl;
+
+  oss << "Variable lists" << std::endl;
+  oss << "Energy [eV]" << std::endl;  
+  writeVector(oss, ener_list);
+  if ( do_stat_cat[0] ) {
+    oss << "Secondary energy [eV]" << std::endl;  
+    writeVector(oss, ener_sec_list);
+  }
+  if ( do_stat_cat[1] ) {
+    oss << "Time [s]" << std::endl;
+    writeVector(oss, time_list);
+  }
+  if ( do_stat_cat[2] ) {
+    oss << "Distance (parallel) [cm]" << std::endl;
+    writeVector(oss, dis_par_list);
+  }
+  if ( do_stat_cat[3] ) {
+    oss << "Distance (perppendicular) [cm]" << std::endl;
+    writeVector(oss, dis_perp_list);
+  }
+  oss << std::endl;
+
+  size_t num_line = 1;
+  oss << "Post-processed data format" << std::endl;
+  oss << "1.  energy" << std::endl;
+  oss << "2.  number of events" << std::endl;
+  oss << "3.  start time [s] and start coordinates [cm]" << std::endl;
+  oss << "4.  death time [s] and death coordinates [cm]" << std::endl;
+  num_line = 5;
+
+  if ( do_stat_list[0] ) oss << num_line << ".  " << "energy loss [eV] for each mechanism" << std::endl, num_line++;
+  if ( do_stat_list[1] ) oss << num_line << ".  " << "number of ionizations per element" << std::endl, num_line++;
+  if ( do_stat_list[2] ) oss << num_line << ".  " << "number of secondary electrons per secondary energy bin" << std::endl, num_line++;
+  if ( do_stat_list[3] ) oss << num_line << ".  " << "average parallel distance [cm] for each time bin" << std::endl, num_line++;
+  if ( do_stat_list[4] ) oss << num_line << ".  " << "average perpendicular distance [cm] for each time bin" << std::endl, num_line++;
+  if ( do_stat_list[5] ) oss << num_line << ".  " << "average energy [eV] for each time bin" << std::endl, num_line++;
+  if ( do_stat_list[6] ) oss << num_line << ".  " << "energy loss [eV] per time bin" << std::endl, num_line++;
+  if ( do_stat_list[7] ) oss << num_line << ".  " << "energy loss [eV] per parallel and perpendicular distance bin" << std::endl, num_line++;
+
+  std::ofstream infofile(infofile_name);
   if ( !infofile ) {
     std::cerr << "Failed to open file " << infofile_name << " for writing." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-
-  infofile << "Thunderstorm post-processing" << std::endl;
-  infofile << std::endl;
-
-  infofile << "Post-processing parameters" << std::endl;
-  infofile << "File number:        " << config["IO"]["num_file"] << std::endl;
-  infofile << "Events per chunk:   " << config["IO"]["num_event_per_chunk"] << std::endl;
-  infofile << "Number of energies: " << config["Energy"]["num"] << std::endl;
-  infofile << "Number of lines:    " << (num_stat + 3) << std::endl;
-  infofile << std::endl;
-
-  infofile << "Variable lists" << std::endl;
-  infofile << "Energy [eV]" << std::endl;  
-  writeVector(infofile, ener_list);
-  if ( do_stat_cat[0] ) {
-    infofile << "Secondary energy [eV]" << std::endl;  
-    writeVector(infofile, ener_sec_list);
-  }
-  if ( do_stat_cat[1] ) {
-    infofile << "Time [s]" << std::endl;
-    writeVector(infofile, time_list);
-  }
-  if ( do_stat_cat[2] ) {
-    infofile << "Distance (parallel) [cm]" << std::endl;
-    writeVector(infofile, dis_par_list);
-  }
-  if ( do_stat_cat[3] ) {
-    infofile << "Distance (perppendicular) [cm]" << std::endl;
-    writeVector(infofile, dis_perp_list);
-  }
-  infofile << std::endl;
-
-  size_t num_line = 1;
-  infofile << "Post-processed data format" << std::endl;
-  infofile << "1.  energy" << std::endl;
-  infofile << "2.  number of events" << std::endl;
-  infofile << "3.  start time [s] and start coordinates [cm]" << std::endl;
-  num_line = 4;
-
-  if ( do_stat_list[0] ) infofile << num_line << ".  " << "energy loss [eV] for each mechanism" << std::endl, num_line++;
-  if ( do_stat_list[1] ) infofile << num_line << ".  " << "number of ionizations per element" << std::endl, num_line++;
-  if ( do_stat_list[2] ) infofile << num_line << ".  " << "number of secondary electrons per secondary energy bin" << std::endl, num_line++;
-  if ( do_stat_list[3] ) infofile << num_line << ".  " << "average parallel distance [cm] for each time bin" << std::endl, num_line++;
-  if ( do_stat_list[4] ) infofile << num_line << ".  " << "average perpendicular distance [cm] for each time bin" << std::endl, num_line++;
-  if ( do_stat_list[5] ) infofile << num_line << ".  " << "average energy [eV] for each time bin" << std::endl, num_line++;
-  if ( do_stat_list[6] ) infofile << num_line << ".  " << "energy loss [eV] per time bin" << std::endl, num_line++;
-  if ( do_stat_list[7] ) infofile << num_line << ".  " << "energy loss [eV] per parallel and perpendicular distance bin" << std::endl, num_line++;
-
+  infofile << oss.str();
   infofile.close();
   if ( !infofile.good() ) {
     std::cerr << "Error writing to file " << infofile_name << std::endl;
@@ -313,6 +303,12 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
     
     // compute interaction histograms
     switch ( event->interaction ) {
+      case flags::death:
+      part_data.t_end = t_rel;
+      part_data.x_end = x_rel;
+      part_data.y_end = y_rel;
+      part_data.z_end = z_rel;
+      break;
       case flags::brem:
       if ( do_stat_list[0] ) part_data.ener_loss_mech[0] += event->ener_loss;
       break;
@@ -358,6 +354,10 @@ void postProcPartData(std::vector<PartData>& part_data_list, const std::vector<b
           if ( do_stat_list[3] ) part_data.dis_par_time[j] /= part_data.num_ev_time[j];
           if ( do_stat_list[4] ) part_data.dis_perp_time[j] /= part_data.num_ev_time[j];
           if ( do_stat_list[5] ) part_data.ener_time[j] /= part_data.num_ev_time[j];
+        } else {
+          if ( do_stat_list[3] ) part_data.dis_par_time[j] = -1.;
+          if ( do_stat_list[4] ) part_data.dis_perp_time[j] = -1.;
+          if ( do_stat_list[5] ) part_data.ener_time[j] = -1.;
         }
       }
     }
@@ -371,30 +371,33 @@ void postProcPartData(std::vector<PartData>& part_data_list, const std::vector<b
  * @param part_data_list The list of particle data structs for each energy.
  */
 void writePartData(std::string &outfile_name, std::vector<PartData>& part_data_list, const std::vector<bool> &do_stat_list) {
-  
+
+  std::ostringstream oss;
+
+  for ( size_t i = 0; i < part_data_list.size(); i++ ) {
+    PartData &part_data = part_data_list[i];
+
+    oss << part_data.ener << std::endl;
+    oss << part_data.num_ev << std::endl;
+    oss << part_data.t_start << ", " << part_data.x_start << "," << part_data.y_start << "," << part_data.z_start << std::endl;
+    oss << part_data.t_end << ", " << part_data.x_end << "," << part_data.y_end << "," << part_data.z_end << std::endl;
+    if ( do_stat_list[0] ) writeVector(oss, part_data.ener_loss_mech);
+    if ( do_stat_list[1] ) writeVector(oss, part_data.num_ion_elem);
+    if ( do_stat_list[2] ) writeVector(oss, part_data.num_sec_ener);
+    if ( do_stat_list[3] ) writeVector(oss, part_data.dis_par_time);
+    if ( do_stat_list[4] ) writeVector(oss, part_data.dis_perp_time);
+    if ( do_stat_list[5] ) writeVector(oss, part_data.ener_time);
+    if ( do_stat_list[6] ) writeVector(oss, part_data.ener_loss_time);
+    if ( do_stat_list[7] ) writeVector2d(oss, part_data.ener_loss_dis2d);
+  }
+
   std::ofstream outfile(outfile_name, std::ios::app);
 
   if ( !outfile ) {
     std::cerr << "Failed to open file for writing." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
-
-  for ( size_t i = 0; i < part_data_list.size(); i++ ) {
-    PartData &part_data = part_data_list[i];
-
-    outfile << part_data.ener << std::endl;
-    outfile << part_data.num_ev << std::endl;
-    outfile << part_data.t_start << ", " << part_data.x_start << "," << part_data.y_start << "," << part_data.z_start << std::endl;
-    if ( do_stat_list[0] ) writeVector(outfile, part_data.ener_loss_mech);
-    if ( do_stat_list[1] ) writeVector(outfile, part_data.num_ion_elem);
-    if ( do_stat_list[2] ) writeVector(outfile, part_data.num_sec_ener);
-    if ( do_stat_list[3] ) writeVector(outfile, part_data.dis_par_time);
-    if ( do_stat_list[4] ) writeVector(outfile, part_data.dis_perp_time);
-    if ( do_stat_list[5] ) writeVector(outfile, part_data.ener_time);
-    if ( do_stat_list[6] ) writeVector(outfile, part_data.ener_loss_time);
-    if ( do_stat_list[7] ) writeVector2d(outfile, part_data.ener_loss_dis2d);
-  }
-
+  outfile << oss.str();
   outfile.close();
   if ( !outfile.good() ) {
     std::cerr << "Error writing to file." << std::endl;
@@ -413,7 +416,7 @@ void writePartData(std::string &outfile_name, std::vector<PartData>& part_data_l
  * @param time_list           The list of time bins.
  * @param dis_list            The list of distance bins.    
  */
-void processFile(std::string& datafile_name, std::string& outfile_name, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat) {
+int processFile(std::string& datafile_name, std::string& outfile_name, size_t num_event_per_chunk, const std::vector<double> &ener_list, const std::vector<double> &ener_sec_list, const std::vector<double> &time_list, const std::vector<double> &dis_par_list, const std::vector<double> &dis_perp_list, const std::vector<bool> &do_stat_list, const std::vector<bool> &do_stat_cat) {
 
   // Open file
   std::ifstream datafile(datafile_name, std::ios::binary);
@@ -431,7 +434,7 @@ void processFile(std::string& datafile_name, std::string& outfile_name, size_t n
   std::vector<char> buffer(chunk_size);
   Event* event;
 
-  size_t npart = 0;
+  int npart = 0;
   int current_id = -1;
   std::vector<PartData> part_data_list(ener_list.size(), PartData(ener_sec_list.size(), time_list.size(), dis_par_list.size(), dis_perp_list.size(), do_stat_list, do_stat_cat));
   
@@ -481,6 +484,7 @@ void processFile(std::string& datafile_name, std::string& outfile_name, size_t n
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   datafile.close();
+  return npart;
 }
 
 /**

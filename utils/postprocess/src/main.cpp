@@ -80,20 +80,26 @@ int main(int argc, char** argv) {
   int idx_file_max = std::min((rank + 1) * num_file_per_rank, num_file);
 
   MPI_Barrier(MPI_COMM_WORLD);
+  int count_loc = 0;
   for ( int i = idx_file_min; i < idx_file_max; i++ ) {
     std::string datafile_name = data_path + "/data.bin." + std::to_string(i);
     std::string outfile_name = config["IO"]["outpath"] + "/data.txt." + std::to_string(i);
     clearFile(outfile_name);
-    processFile(datafile_name, outfile_name, num_event_per_chunk, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list, do_stat_list, do_stat_cat);
+    count_loc += processFile(datafile_name, outfile_name, num_event_per_chunk, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list, do_stat_list, do_stat_cat);
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  // compute the particle number
+  int count_glob;
+  std::vector<int> count_loc_list(size);
+  MPI_Gather(&count_loc, 1, MPI_INT, count_loc_list.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&count_loc, &count_glob, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   if ( rank == 0 ) {
     concatenateFiles(config["IO"]["outpath"], num_file);
     auto now = std::chrono::steady_clock::now();
     auto tpp = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     std::cout << "Post processing complete." << std::endl;
-    std::cout << "Runtime [s]: " << tpp << std::endl;
+    std::cout << "Packet count: " << count_glob << std::endl;
+    std::cout << "Runtime [s]:  " << tpp << std::endl;
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
