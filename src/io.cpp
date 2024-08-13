@@ -77,7 +77,7 @@ void writeInfo(const std::string& infofile_name, int size, Config& config, const
 
   infofile << "Simulation parameters" << std::endl;
   infofile << "Number of MPI processes:         " << size << std::endl;
-  infofile << "Simulation duration [s]:         " << config["Simulation"]["tmax"] << std::endl;
+  infofile << "Simulation duration [s]:         " << config["Simulation"]["tsim"] << std::endl;
   infofile << "Density [g/cc]:                  " << config["Background"]["rho"] << std::endl;
   infofile << "Temperature [K]:                 " << config["Background"]["temp"] << std::endl;
   infofile << "Abundance time [day]:            " << config["Background"]["ab_time"] << std::endl;
@@ -86,7 +86,7 @@ void writeInfo(const std::string& infofile_name, int size, Config& config, const
   infofile << "Free elec number density [1/cc]: " << n_e_free << std::endl;
   infofile << "Debye length [cm]:               " << lam_deb << std::endl;
   infofile << "Particle energy [eV]:            " << config["Particle"]["ener"] << std::endl;
-  infofile << "Particle lifetime [s]:           " << config["Particle"]["tpart"] << std::endl;
+  infofile << "Particle lifetime [s]:           " << config["Particle"]["tmax"] << std::endl;
   infofile << "Turbulence injection scale [cm]: " << config["Bfield"]["L"] << std::endl;
   infofile << "Plasma beta:                     " << config["Bfield"]["beta"] << std::endl;
   infofile << "Coherent B-field amplitude [G]:  " << B0 << std::endl;

@@ -81,6 +81,8 @@ void Sim::kill() {
 */
 double Sim::calcSigTot() {
   double sig_tot = 0.0;
+  double sig_turb_par = fabs(part.cos_alpha()) / (rho * constants::N_A * L / (mach_A*mach_A*mach_A));
+  sig_tot += sig_turb_par;
   double sig_moller = do_ion ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i;
   for ( size_t i = 0; i < eedl.size(); i++ ) {
@@ -119,7 +121,10 @@ void Sim::move(double sig_tot, Event &event) {
     part.pos = part.pos + dis * part.cos_alpha() * part.Bvec.unit();
     if ( part.flag_turb_diff ) {
       double lam_turb = fabs(part.cos_alpha()) / (rho * constants::N_A * sig_tot * sig_turb_frac);
-      double rperp = calcTurbDiff(xi(), xi(), lam_turb, scale, rperp_max);
+      double rperp = 2.0 * rperp_max;
+      while ( fabs(rperp) > rperp_max ) {
+        calcTurbDiff(xi(), xi(), lam_turb, scale, rperp);
+      }
       part.pos = part.pos + randPerpVec(part.Bvec, rperp);
       part.flag_turb_diff = false;
     }
@@ -150,6 +155,9 @@ int Sim::choseElem() {
   }
   double sig_tot = 0.0;
   Vector1d sig_cum;
+  double sig_turb_par = fabs(part.cos_alpha()) / (rho * constants::N_A * L / (mach_A*mach_A*mach_A));
+  sig_tot += sig_turb_par;
+  sig_cum.push_back(sig_tot);
   double sig_moller = do_ion ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i;
   sig_cum.push_back(sig_tot);
@@ -165,11 +173,13 @@ int Sim::choseElem() {
   int idx_elem = findIdx(sig_tot * xi(), sig_cum);
   switch ( idx_elem ) { 
     case 0:
-    return flags_elem::moller;
+    return flags_elem::turb_par;
     case 1:
+    return flags_elem::moller;
+    case 2:
     return flags_elem::intermittancy;
     default:
-    return idx_elem - 1;
+    return idx_elem - 2;
   }
 }
 
@@ -230,6 +240,10 @@ void Sim::interact(Event &event) {
     case flags_elem::turb:
     event.interaction = flags::turb;
     part.flag_turb_diff = true;
+    break;
+    case flags_elem::turb_par:
+    event.interaction = flags::turb;
+    part.Bvec = randVec(part.Bvec.mag());
     break;
     case flags_elem::moller:
     event.interaction = flags::moller;

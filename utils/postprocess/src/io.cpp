@@ -50,7 +50,7 @@ PartData::PartData(size_t num_ener_sec, size_t num_time, size_t num_dis_par, siz
   for ( size_t i = 0; i < 118; i++ ) {
     num_ion_elem.push_back(0);
   }
-  if ( do_stat_list[0] ) {
+  if ( do_stat_cat[0] ) {
     for ( size_t i = 0; i < (num_ener_sec - 1); i++ ) {
       if ( do_stat_list[2] ) num_sec_ener.push_back(0);
     }
@@ -288,7 +288,7 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
     if ( do_stat_cat[3] ) idx_dis_perp = findIdx(dis_perp, dis_perp_list);
 
     // compute time histograms
-    if ( do_stat_cat[1] && idx_time > 0 && idx_time < time_list.size() ) {
+    if ( do_stat_cat[1] && (idx_time > 0) && (idx_time < time_list.size()) ) {
       part_data.num_ev_time[idx_time - 1] += 1;
       if ( do_stat_list[3] ) part_data.dis_par_time[idx_time - 1] += z_rel;
       if ( do_stat_list[4] ) part_data.dis_perp_time[idx_time - 1] += dis_perp;
@@ -297,7 +297,7 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
     }
 
     // compute 2d distance histograms
-    if ( do_stat_cat[2] && do_stat_cat[3] && idx_dis_par > 0 && idx_dis_par < dis_par_list.size() && idx_dis_perp > 0 && idx_dis_perp < dis_perp_list.size() ) {
+    if ( do_stat_cat[2] && (idx_dis_par > 0) && (idx_dis_par < dis_par_list.size()) && (idx_dis_perp > 0) && (idx_dis_par < dis_perp_list.size())) {
       if ( do_stat_list[7] ) part_data.ener_loss_dis2d[idx_dis_par - 1][idx_dis_perp - 1] += ener_loss;
     }
     
@@ -322,8 +322,8 @@ void processEvent(const Event* event, std::vector<PartData>& part_data_list, con
       // compute secondary energy histograms
       if ( do_stat_cat[0] ) {
         idx_ener_sec = findIdx(event->ener_sec, ener_sec_list);
-        if ( idx_ener_sec > 0 && idx_ener_sec < ener_sec_list.size() ) {
-          if ( do_stat_list[0] ) part_data.num_sec_ener[idx_ener_sec - 1] += 1;
+        if (idx_ener_sec > 0 && idx_ener_sec < ener_sec_list.size()) {
+          if ( do_stat_list[2] ) part_data.num_sec_ener[idx_ener_sec - 1] += 1;
         }
       }
 
@@ -349,7 +349,7 @@ void postProcPartData(std::vector<PartData>& part_data_list, const std::vector<b
   if ( do_stat_cat[1] ) {
     for ( size_t i = 0; i < part_data_list.size(); i++ ) {
       PartData &part_data = part_data_list[i];
-      for ( size_t j = 0; j < part_data.num_ev_time.size(); j++ ) {
+      for ( size_t j = 0; j < (part_data.num_ev_time.size() - 1); j++ ) {
         if ( part_data.num_ev_time[j] > 0 ) {
           if ( do_stat_list[3] ) part_data.dis_par_time[j] /= part_data.num_ev_time[j];
           if ( do_stat_list[4] ) part_data.dis_perp_time[j] /= part_data.num_ev_time[j];
@@ -522,13 +522,13 @@ void concatenateFiles(std::string out_path, int num_file) {
     }
 
     if ( std::remove(datafile_name.c_str()) != 0 ) {
-      std::perror("Error deleting file.");
+      std::cerr << "Error deleting file " << datafile_name << std::endl;
     }
   }
-
-  outfile.close();
+  
   if ( !outfile.good() ) {
-    std::cerr << "Error reading file " << outfile_name << std::endl;
+    std::cerr << "Error writing to file " << outfile_name << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
+  outfile.close();
 }

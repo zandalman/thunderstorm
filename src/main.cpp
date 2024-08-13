@@ -50,11 +50,12 @@ int main(int argc, char** argv) {
   if ( rank == 0 ) std::cout << "Read EEDL data." << std::endl;
 
   // read the config file
-  int tmax = std::stoi(config["Simulation"]["tmax"]);
+  int tsim = std::stoi(config["Simulation"]["tsim"]);
+  int count_max = std::stoi(config["Simulation"]["count_max"]);
   double ener_min = std::stod(config["Simulation"]["ener_min"]);
   bool cont = config["Simulation"]["continue"] == "true";
   double ener = std::stod(config["Particle"]["ener"]);
-  double tsim_part = std::stod(config["Particle"]["tpart"]);
+  double tmax = std::stod(config["Particle"]["tmax"]);
   double rho = std::stod(config["Background"]["rho"]);
   double temp = std::stod(config["Background"]["temp"]);
   double ion_state_avg = std::stod(config["Background"]["ion_state_avg"]);
@@ -105,7 +106,8 @@ int main(int argc, char** argv) {
       if ( sim.part.ener < ener_min ) { 
         sim.kill(); count_dead_loc++; 
       }
-      if ( tsim_part > 0. && sim.time > tsim_part ) break;
+      if ( tmax > 0. && sim.time > tmax ) break;
+      if (sim.nstep % 1000 == 0) std::cout << sim.part.ener << std::endl;
     }
     writeEvent(sim.outfile, sim.event_list);
     sim.event_list.clear();
@@ -113,9 +115,10 @@ int main(int argc, char** argv) {
     // check if the simulation is over
     count_loc++;
     auto now = std::chrono::steady_clock::now();
-    auto tsim = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     auto tpart = std::chrono::duration_cast<std::chrono::seconds>(now - start_part).count();  
-    if ( tsim >= (tmax - 1.5*tpart) ) break;
+    if ( runtime >= (tsim - 2.0 * tpart) ) break;
+    if ( count_loc >= count_max ) break;
   }
 
   // compute the packet counts

@@ -28,8 +28,9 @@ double calcPowerMoller(double ener, double gam, double beta, double n_e_free, do
 double calcSigMoller(double gam, double beta, double lam_deb, double cos_th_cut);
 void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta, double lam_deb, double cos_th_cut, double &cos_th, double &ener_loss);
 void calcStableParam(double L, double mach_A, double &scale, double &rperp_max);
-double calcTurbDiff(double xi1, double xi2, double lam, double scale, double rperp_max);
+void calcTurbDiff(double xi1, double xi2, double lam, double scale, double &rperp);
 double calcIntermittancyTrans(double xi1, double xi2, double lam_intermittancy, double dis, double cos_alpha);
 double calcLamIntermittancy(double m_i, double q_i, double gam, double vmag, double Brms, double L, double mach_A, double alpha);
+double calcTurbDiffPar(double xi1, double xi2, double L, double mach_A);
 
 #endif

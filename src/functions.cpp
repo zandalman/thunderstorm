@@ -303,14 +303,10 @@ void calcStableParam(double L, double mach_A, double &scale, double &rperp_max) 
  * @param rperp_max The truncation parameter of the stable distribution [cm].
  * @return The displacement perpendicular to the mean field due to turbulent diffusion [cm].
  */
-double calcTurbDiff(double xi1, double xi2, double lam, double scale, double rperp_max) {
-  double rperp = 2.0 * rperp_max;
+void calcTurbDiff(double xi1, double xi2, double lam, double scale, double &rperp) {
   double U = M_PI * (xi1 - 0.5);
   double W = -log(xi2);
-  while ( fabs(rperp) > rperp_max ) {
-    rperp = 2.0 * scale * pow(lam, 1.5) / sqrt(W) * sin(U / 3.0) * pow(2.0 * cos(2.0/3.0 * U) - 1.0, 3.0/2.0);
-  }
-  return rperp;
+  rperp = 2.0 * scale * pow(lam, 1.5) / sqrt(W) * sin(U / 3.0) * pow(2.0 * cos(2.0/3.0 * U) - 1.0, 3.0/2.0);
 }
 
 /**
@@ -342,7 +338,12 @@ double calcIntermittancyTrans(double xi1, double xi2, double lam_intermittancy, 
  */
 double calcLamIntermittancy(double m_i, double q_i, double gam, double vmag, double Brms, double L, double mach_A, double alpha) {
   double Leff;
-  Leff = mach_A < 1 ? L / (mach_A*mach_A*mach_A*mach_A) : L / (mach_A*mach_A*mach_A);
+  Leff = mach_A < 1.0 ? L / (mach_A*mach_A*mach_A*mach_A) : L / (mach_A*mach_A*mach_A);
   double r_gy = gam * m_i * vmag / (q_i * Brms);
   return r_gy * pow(mach_A * pow(r_gy / Leff, 2.0/3.0), 1.0 - alpha);
+}
+
+double calcTurbDiffPar(double xi1, double xi2, double L, double mach_A) {
+  double var = L*L / (mach_A*mach_A*mach_A*mach_A*mach_A*mach_A);
+  return sqrt(-2.0 * var * log(xi1)) * cos(2.0 * M_PI * xi2);
 }

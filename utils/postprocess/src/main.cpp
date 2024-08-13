@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
   std::vector<std::string> stat_list = {
     "ener_loss_mech",
     "num_ion_elem",
-    "num_ener_sec",
+    "num_sec_ener",
     "dis_par_time",
     "dis_perp_time",
     "ener_time",
@@ -91,6 +91,7 @@ int main(int argc, char** argv) {
   // compute the particle number
   int count_glob;
   std::vector<int> count_loc_list(size);
+  MPI_Barrier(MPI_COMM_WORLD);
   MPI_Gather(&count_loc, 1, MPI_INT, count_loc_list.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Reduce(&count_loc, &count_glob, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   if ( rank == 0 ) {
