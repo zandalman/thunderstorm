@@ -15,7 +15,8 @@ struct Event {
   int interaction;         // The interaction flag.
   int ion;                 // The ion index.
   double time;             // The event time [s].
-  double x, y, z;          // The event coordinates [cm].
+  double splus;            // The positive distance along the field line [cm].
+  double sminus;           // The negative distance along the field line [cm].
   double ener;             // The particle kinetic energy [eV].
   double cos_alpha;        // The particle pitch angle cosine.
   double cos_th;           // The cosine of the scattering angle.

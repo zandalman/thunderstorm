@@ -17,7 +17,8 @@ Event::Event(int id_, int nstep_)
   , interaction(-1)        // The interaction flag.
   , ion(-1)                // The ion index.
   , time(0.0)              // The event time [s].
-  , x(0.0), y(0.0), z(0.0) // The event coordinates [cm].
+  , splus(0.0)             // The positive distance along the field line [cm
+  , sminus(0.0)            // The negative distance along the field line [cm].
   , ener(0.0)              // The particle kinetic energy [eV].
   , cos_alpha(1.0)         // The particle pitch angle cosine.
   , cos_th(1.0)            // The cosine of the scattering angle.
@@ -87,12 +88,8 @@ void writeInfo(const std::string& infofile_name, int size, Config& config, const
   infofile << "Debye length [cm]:               " << lam_deb << std::endl;
   infofile << "Particle energy [eV]:            " << config["Particle"]["ener"] << std::endl;
   infofile << "Particle lifetime [s]:           " << config["Particle"]["tmax"] << std::endl;
-  infofile << "Turbulence injection scale [cm]: " << config["Bfield"]["L"] << std::endl;
   infofile << "Plasma beta:                     " << config["Bfield"]["beta"] << std::endl;
   infofile << "Coherent B-field amplitude [G]:  " << B0 << std::endl;
-  infofile << "Alfven Mach number:              " << config["Bfield"]["mach_A"] << std::endl;
-  infofile << "Turbulent cross section fraction " << config["Bfield"]["sig_turb_frac"] << std::endl;
-  infofile << "B-field curvature spectrum expon " << config["Bfield"]["alpha"] << std::endl;
   infofile << "Discrete Moller cos angle cutoff " << config["Simulation"]["cos_th_cut"] << std::endl;
   infofile << std::endl;
 

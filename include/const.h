@@ -2,10 +2,7 @@
 #define CONST_H
 
 namespace flags_elem {
-constexpr int turb = -1;
-constexpr int moller = -2;
-constexpr int intermittancy = -3;
-constexpr int turb_par = -4;
+constexpr int moller = -1;
 }
 
 namespace flags {

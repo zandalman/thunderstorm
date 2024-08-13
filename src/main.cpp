@@ -59,17 +59,13 @@ int main(int argc, char** argv) {
   double rho = std::stod(config["Background"]["rho"]);
   double temp = std::stod(config["Background"]["temp"]);
   double ion_state_avg = std::stod(config["Background"]["ion_state_avg"]);
-  double L = std::stod(config["Bfield"]["L"]);
   double beta = std::stod(config["Bfield"]["beta"]);
-  double mach_A = std::stod(config["Bfield"]["mach_A"]);
-  double sig_turb_frac = std::stod(config["Bfield"]["sig_turb_frac"]);
-  double alpha = std::stod(config["Bfield"]["alpha"]);
   double cos_th_cut = std::stod(config["Simulation"]["cos_th_cut"]);
 
   // compute useful quantities
   double n_i, n_e_free, lam_deb, B0;
   calcLamDeb(ab, rho, temp, ion_state_avg, n_i, n_e_free, lam_deb);
-  B0 = calcB0(n_i + n_e_free, temp, beta, mach_A);
+  B0 = calcB0(n_i + n_e_free, temp, beta);
   
   // clear files and write info file
   std::string infofile = config["IO"]["outpath"] + "/info.txt";
@@ -83,8 +79,10 @@ int main(int argc, char** argv) {
   }
 
   // initialize the simulation
-  Part part = Part(0, constants::m_e, constants::e, ener, B0);
-  Sim sim = Sim(part, eedl, ab, outfile, rho, temp, ion_state_avg, L, beta, mach_A, sig_turb_frac, alpha, cos_th_cut);
+  int id;
+  double cos_alpha;
+  Part part = Part(0, constants::m_e, constants::e, ener, 1.);
+  Sim sim = Sim(part, eedl, ab, outfile, rho, temp, ion_state_avg, B0, cos_th_cut);
   int count_loc = 0, count_dead_loc = 0;
   if ( rank == 0 ) {
     std::cout << "Starting simulation." << std::endl << std::endl;
@@ -96,8 +94,9 @@ int main(int argc, char** argv) {
     auto start_part = std::chrono::steady_clock::now();
     
     // reset the simulation with a new particle
-    int id = size * count_loc + rank;
-    Part part = Part(id, constants::m_e, constants::e, ener, B0);
+    id = size * count_loc + rank;
+    cos_alpha = 2.0 * xi() - 1.0;
+    Part part = Part(id, constants::m_e, constants::e, ener, cos_alpha);
     sim.reset(part);
 
     // run the simulation
@@ -107,7 +106,6 @@ int main(int argc, char** argv) {
         sim.kill(); count_dead_loc++; 
       }
       if ( tmax > 0. && sim.time > tmax ) break;
-      if (sim.nstep % 1000 == 0) std::cout << sim.part.ener << std::endl;
     }
     writeEvent(sim.outfile, sim.event_list);
     sim.event_list.clear();
@@ -117,7 +115,7 @@ int main(int argc, char** argv) {
     auto now = std::chrono::steady_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     auto tpart = std::chrono::duration_cast<std::chrono::seconds>(now - start_part).count();  
-    if ( runtime >= (tsim - 2.0 * tpart) ) break;
+    if ( runtime >= (tsim - 1.5 * tpart) ) break;
     if ( count_loc >= count_max ) break;
   }
 

@@ -117,8 +117,8 @@ void calcLamDeb(Vector1d ab, double rho, double temp, double ion_state_avg, doub
  * @param mach_A The Alfven Mach number.
  * @return The mean field amplitude [G].
  */
-double calcB0(double n, double temp, double beta, double mach_A) {
-  return sqrt(2.0 * n * constants::k_B * temp * beta / (1.0 + mach_A*mach_A));
+double calcB0(double n, double temp, double beta) {
+  return sqrt(2.0 * n * constants::k_B * temp * beta);
 }
 
 /**
@@ -172,9 +172,9 @@ double calcEnerLoss(double xi, double ener, const Vector1d &ener_list, const Vec
  * @param m_i       The particle mass [g].
  * @return The synchrotron power.
 */
-double calcPowerSync(double m_i, double q_i, double gam, double beta, double Bmag, double cos_alpha) {
-  return 2./3. * q_i*q_i*q_i*q_i * gam*gam * beta*beta
-         * (1 - cos_alpha*cos_alpha) * Bmag*Bmag
+double calcPowerSync(double m_i, double q_i, double gam, double beta, double B0, double cos_alpha) {
+  return 2.0/3.0 * q_i*q_i*q_i*q_i * gam*gam * beta*beta
+         * (1.0 - cos_alpha*cos_alpha) * B0*B0
          / (m_i*m_i * constants::c*constants::c*constants::c) / constants::eV;
 }
 
@@ -271,79 +271,4 @@ void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta
   double omx = 1. / (sig * xi / prefac + 1. / omxmin);
   cos_th = sqrt((2. - omx) * (1. + gam) / (2. * (1 + gam) + omx * (1. - gam)));
   ener_loss = ener * omx / 2.;
-}
-
-/**
- * @brief Calculate stable distribution parameters from MHD turbulence parameters.
- * 
- * @param L         The injection scale of the turbulence [cm].
- * @param mach_A    The Alfven Mach number.
- * @param scale     The scale parameter of the stable distribution, normalized by the turbulent mean free path to the power 3/2 [cm^(-1/2)].
- * @param rperp_max The truncation parameter of the stable distribution [cm].
- */
-void calcStableParam(double L, double mach_A, double &scale, double &rperp_max) {
-  double sig0 = 0.25; // width of stable distribution for scale = 1.0
-  double A = tgamma(5.0/3.0) * 0.1875 * sqrt(3.0) / M_PI;
-  if ( mach_A < 1.0 ) { // sub-Alfvenic turbulence
-    scale = sig0 / sqrt(L) * mach_A*mach_A;
-    rperp_max = pow(2.0 * A, -0.75) / sqrt(sig0) * L * mach_A*mach_A*mach_A*mach_A*mach_A;
-  } else { // super-Alfvenic turbulence
-    scale = sig0 / sqrt(L) * pow(mach_A, 1.5);
-    rperp_max = pow(2.0 * A, -0.75) / sqrt(sig0) * L / (mach_A*mach_A*mach_A);
-  }
-}
-
-/**
- * @brief Calculate the displacement perpendicular to the mean field due to turbulent diffusion.
- * Sample from a truncated stable distribution with stability parameter 2/3.
- *
- * @param xi1, xi2  Two random numbers.
- * @param lam       The turbulent mean free path.
- * @param scale     The scale parameter of the stable distribution, normalized by the turbulent mean free path to the power 3/2 [cm^(-1/2)].
- * @param rperp_max The truncation parameter of the stable distribution [cm].
- * @return The displacement perpendicular to the mean field due to turbulent diffusion [cm].
- */
-void calcTurbDiff(double xi1, double xi2, double lam, double scale, double &rperp) {
-  double U = M_PI * (xi1 - 0.5);
-  double W = -log(xi2);
-  rperp = 2.0 * scale * pow(lam, 1.5) / sqrt(W) * sin(U / 3.0) * pow(2.0 * cos(2.0/3.0 * U) - 1.0, 3.0/2.0);
-}
-
-/**
- * @brief Compute the effective transport distance in the presence of intermittancy.
- *
- * @param xi1, xi2          Two random numbers
- * @param lam_intermittancy The mean free path to an interaction with a region of high magnetic field curvature.
- * @param dis               The total transport distance.
- * @param cos_alpha         The pitch angle cosine.
- * @return The effective transport distance
- */
-double calcIntermittancyTrans(double xi1, double xi2, double lam_intermittancy, double dis, double cos_alpha) {
-  double var = lam_intermittancy * dis / fabs(cos_alpha);
-  return sqrt(-2.0 * var * log(xi1)) * cos(2.0 * M_PI * xi2);
-}
-
-/**
- * @brief Compute the mean free path to an interaction with a region of high magnetic field curvature.
- *
- * @param m_i The particle mass [g].
- * @param q_i The particle charge [esu].
- * @param gam The Lorentz factor.
- * @param vmag The magnitude of the velocity [cm/s].
- * @param Brms The RMS magnetic field amplitude [G].
- * @param L The injection scale of the turbulence [cm].
- * @param mach_A The Alfven Mach number.
- * @param alpha  The exponent of the magnetic field curvature spectrum.
- * @return The mean free path to an interaction with a region of high magnetic field curvature.
- */
-double calcLamIntermittancy(double m_i, double q_i, double gam, double vmag, double Brms, double L, double mach_A, double alpha) {
-  double Leff;
-  Leff = mach_A < 1.0 ? L / (mach_A*mach_A*mach_A*mach_A) : L / (mach_A*mach_A*mach_A);
-  double r_gy = gam * m_i * vmag / (q_i * Brms);
-  return r_gy * pow(mach_A * pow(r_gy / Leff, 2.0/3.0), 1.0 - alpha);
-}
-
-double calcTurbDiffPar(double xi1, double xi2, double L, double mach_A) {
-  double var = L*L / (mach_A*mach_A*mach_A*mach_A*mach_A*mach_A);
-  return sqrt(-2.0 * var * log(xi1)) * cos(2.0 * M_PI * xi2);
 }
