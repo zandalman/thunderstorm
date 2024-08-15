@@ -159,6 +159,7 @@ void processEvent(const Event* event, vector2d<Data>& data_grid) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
     
       Data &data = data_grid[i][j];
+      if ( data.fesc_min == 0.0 ) continue;
       
       // if energy is below starting energy, update start time and coordinates
       if ( event->ener > data.ener ) {
