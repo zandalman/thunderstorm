@@ -13,6 +13,11 @@
 #include "functions.h"
 #include "parser.h"
 #include "const.h"
+#include "process.h"
+
+// types
+template <typename T>
+using vector2d = std::vector<std::vector<T>>;
 
 int main(int argc, char** argv) {
 
@@ -32,46 +37,36 @@ int main(int argc, char** argv) {
   std::string configfile_name = "../config/config.ini";
   parseConfig(configfile_name, config);
   if ( rank == 0 ) std::cout << "Read config file." << std::endl;
+
+  const std::string outfile_name = config["IO"]["outpath"] + "/data.txt";
   const std::string data_path = config["IO"]["data_path"];
   const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
+  const double mach_A = std::stod(config["Bfield"]["mach_A"]);
+  const double L = std::stod(config["Bfield"]["L"]);
 
-  // get statistics list
-  size_t num_stat = 0;
-  bool do_stat;
-  std::vector<bool> do_stat_list, do_stat_cat;
-  std::vector<std::string> stat_list = {
-    "ener_loss_mech",
-    "num_ion_elem",
-    "num_sec_ener",
-    "dis_par_time",
-    "dis_perp_time",
-    "ener_time",
-    "ener_loss_time",
-    "ener_loss_dis2d"
-  };
-  for ( size_t i = 0; i < stat_list.size(); i++ ) {
-    do_stat = config["Statistics"][stat_list[i]] == "true";
-    do_stat_list.push_back(do_stat);
-    if ( do_stat ) num_stat += 1;
+  // read geometry
+  int geo;
+  std::string geo_str = std::string(config["Geometry"]["geo"]);
+  if ( geo_str == "plane" ) {
+    geo = geo_tag::plane;
+  } else if ( geo_str == "cylinder" ) {
+    geo = geo_tag::cylinder;
+  } else {
+    geo = geo_tag::none;
   }
-  do_stat_cat.push_back(do_stat_list[2]);
-  do_stat_cat.push_back(do_stat_list[3] || do_stat_list[4] || do_stat_list[5] || do_stat_list[6]);
-  do_stat_cat.push_back(do_stat_list[7]);
-  do_stat_cat.push_back(do_stat_list[7]);
 
   // make lists
-  size_t num_ener, num_ener_sec, num_time, num_dis_par, num_dis_perp;
-  std::vector<double> ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list;
-  makeList(config["Energy"], 1., num_ener, ener_list);
-  makeList(config["EnergySec"], 1., num_ener_sec, ener_sec_list);
-  makeList(config["Time"], constants::hr, num_time, time_list);
-  makeList(config["DistancePar"], constants::AU, num_dis_par, dis_par_list);
-  makeList(config["DistancePerp"], constants::AU, num_dis_perp, dis_perp_list);
+  size_t num_ener, num_escape, num_ener_sec, num_time;
+  std::vector<double> ener_list, escape_list, ener_sec_list, time_list;
+  makeList(config["Bin.Ener"], ener_list, num_ener);
+  makeList(config["Bin.Escape"], escape_list, num_escape);
+  makeList(config["Bin.EnerSec"], ener_sec_list, num_ener_sec);
+  makeList(config["Bin.Time"], time_list, num_time, constants::hr);
 
   // write info file
   if ( rank == 0 ) {
-    std::string infofile = config["IO"]["outpath"] + "/info.txt";
-    writeInfo(infofile, config, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list, num_stat, do_stat_list, do_stat_cat);
+    const std::string infofile = config["IO"]["outpath"] + "/info.txt";
+    writeInfo(infofile, config, ener_list, escape_list, ener_sec_list);
   }
 
   int num_file = std::stoi(config["IO"]["num_file"]);
@@ -81,26 +76,66 @@ int main(int argc, char** argv) {
 
   MPI_Barrier(MPI_COMM_WORLD);
   int count_loc = 0;
-  for ( int i = idx_file_min; i < idx_file_max; i++ ) {
-    std::string datafile_name = data_path + "/data.bin." + std::to_string(i);
-    std::string outfile_name = config["IO"]["outpath"] + "/data.txt." + std::to_string(i);
-    clearFile(outfile_name);
-    count_loc += processFile(datafile_name, outfile_name, num_event_per_chunk, ener_list, ener_sec_list, time_list, dis_par_list, dis_perp_list, do_stat_list, do_stat_cat);
+
+  // create a grid of data structs for each energy and escape length
+  std::vector<Data> data_list;
+  vector2d<Data> data_grid;
+  for ( size_t i = 0; i < num_ener; i++ ) {
+    data_list.clear();
+    for ( size_t j = 0; j < num_escape; j++ ) {
+        data_list.push_back(Data(ener_list[i], escape_list[j], mach_A, L, geo, ener_sec_list));
+    }
+    data_grid.push_back(data_list);
   }
 
-  // compute the particle number
+  // process files
+  for ( int i = idx_file_min; i < idx_file_max; i++ ) {
+    std::string datafile_name = data_path + "/data.bin." + std::to_string(i);
+    processFile(datafile_name, num_event_per_chunk, count_loc, data_grid);
+  }
+
+  // flatten the data
+  std::vector<double> ener_loss_mech_flat_loc, num_ion_elem_flat_loc, num_sec_ener_flat_loc;
+  getFlatData(data_grid, ener_loss_mech_flat_loc, num_ion_elem_flat_loc, num_sec_ener_flat_loc);
+  size_t ener_loss_mech_flat_size = num_ener * num_escape * num_mech;
+  size_t num_ion_elem_size = num_ener * num_escape * num_elem;
+  size_t num_sec_ener_flat_size = num_ener * num_escape * num_ener_sec;
+  std::vector<double> ener_loss_mech_flat(ener_loss_mech_flat_size);
+  std::vector<double> num_ion_elem_flat(num_ion_elem_size);
+  std::vector<double> num_sec_ener_flat(num_sec_ener_flat_size);
+
+  // collect the data on rank 0
   int count_glob;
-  std::vector<int> count_loc_list(size);
   MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Gather(&count_loc, 1, MPI_INT, count_loc_list.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if ( rank == 0 ) std::cout << "Collecting data on rank 0." << std::endl;
   MPI_Reduce(&count_loc, &count_glob, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(ener_loss_mech_flat_loc.data(), ener_loss_mech_flat.data(), ener_loss_mech_flat_size, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(num_ion_elem_flat_loc.data(),   num_ion_elem_flat.data(),   num_ion_elem_size,        MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(num_sec_ener_flat_loc.data(),   num_sec_ener_flat.data(),   num_sec_ener_flat_size,   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
   if ( rank == 0 ) {
-    concatenateFiles(config["IO"]["outpath"], num_file);
+
+    // normalize by particle count
+    normalize(ener_loss_mech_flat, static_cast<double>(count_glob));
+    normalize(num_ion_elem_flat,   static_cast<double>(count_glob));
+    normalize(num_sec_ener_flat,   static_cast<double>(count_glob));
+    
+    // write data
+    std::cout << "Writing data to output file." << std::endl << std::endl;
+    clearFile(outfile_name);
+    writeData(
+      outfile_name, 
+      ener_list, escape_list, 
+      num_ener_sec, 
+      ener_loss_mech_flat, num_ion_elem_flat, num_sec_ener_flat
+    );
+    
+    // compute runtime
     auto now = std::chrono::steady_clock::now();
-    auto tpp = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
+    auto time_pp = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     std::cout << "Post processing complete." << std::endl;
     std::cout << "Packet count: " << count_glob << std::endl;
-    std::cout << "Runtime [s]:  " << tpp << std::endl;
+    std::cout << "Runtime [s]:  " << time_pp << std::endl;
   }
 
   MPI_Barrier(MPI_COMM_WORLD);

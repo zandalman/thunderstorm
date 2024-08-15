@@ -27,8 +27,8 @@ std::string trim(const std::string &str) {
 /**
  * @brief Parse the configuration file.
  * 
- * @param filename The configuration file name.
- * @param config   The structure to store the parsed data.
+ * @param configfile_name The configuration file name.
+ * @param config          The structure to store the parsed data.
 */
 void parseConfig(const std::string &configfile_name, Config &config) {
   std::ifstream configfile(configfile_name);
@@ -61,31 +61,14 @@ void parseConfig(const std::string &configfile_name, Config &config) {
 };
 
 /**
- * @brief Split a string by a delimiter.
- *
- * @param str       The string to split.
- * @param delimiter The delimiter.
- * @return The list of strings.
- */
-std::vector<std::string> splitString(const std::string& str, char delimiter) {
-  std::vector<std::string> token_list;
-  std::string token;
-  std::stringstream ss(str);
-  while (std::getline(ss, token, delimiter)) {
-    token_list.push_back(token);
-  }
-  return token_list;
-}
-
-/**
  * @brief Make a list using data from the configuration file.
  * 
- * @param dict The dictionary containing the configuration file information.
- * @param unit The unit for the configuration file data.
- * @param num  The number of elements in the list.
+ * @param dict The dictionary containing the bin information.
  * @param list The vector to store the list.
+ * @param num  The number of elements in the list.
+ * @param unit The data unit.
  */
-void makeList(Dict &dict, double unit, size_t &num, std::vector<double> &list) {
+void makeList(Dict &dict, std::vector<double> &list, size_t &num, double unit) {
   double min = std::stod(dict["min"]) * unit;
   double max = std::stod(dict["max"]) * unit;
   bool log = dict["log"] == "true";

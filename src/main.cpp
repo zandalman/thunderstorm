@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     auto tpart = std::chrono::duration_cast<std::chrono::seconds>(now - start_part).count();  
     if ( runtime >= (tsim - 1.5 * tpart) ) break;
-    if ( count_loc >= count_max ) break;
+    if ( count_max > 0 && count_loc >= count_max ) break;
   }
 
   // compute the packet counts

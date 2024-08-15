@@ -1,6 +1,18 @@
 #ifndef CONST_H
 #define CONST_H
 
+// includes
+#include <string>
+
+constexpr size_t num_mech = 6;
+constexpr size_t num_elem = 118;
+
+namespace geo_tag {
+constexpr int none = 0;
+constexpr int plane = 1;
+constexpr int cylinder = 2;
+}
+
 namespace flags {
 constexpr int death = 0;
 constexpr int scat = 1;
