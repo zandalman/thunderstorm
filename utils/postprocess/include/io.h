@@ -51,8 +51,12 @@ void clearFile(const std::string& file_name);
 void writeInfo(const std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &escape_list, const std::vector<double> &ener_sec_list, const std::vector<Stat> &stat_list);
 void writeData(
   const std::string &outfile_name,
-  const vector2d<double> &bin_list, const std::vector<Stat> &stat_list,
-  const std::vector<double> &avg_stat_list_flat, const std::vector<double> &var_stat_list_flat
+  const vector2d<double> &bin_list, 
+  const std::vector<Stat> &stat_list,
+  const std::vector<double> &mean_stat_list_flat, 
+  const std::vector<double> &var_stat_list_flat,
+  const std::vector<double> &skew_stat_list_flat,
+  const std::vector<double> &kurt_stat_list_flat
 );
 
 #endif

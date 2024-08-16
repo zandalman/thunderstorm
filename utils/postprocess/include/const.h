@@ -17,6 +17,7 @@ namespace stat_tag {
 constexpr int ener_loss_mech = 0;
 constexpr int num_ion_elem = 1;
 constexpr int num_sec_ener = 2;
+constexpr int ener_loss_time = 3;
 }
 
 namespace bin_tag {

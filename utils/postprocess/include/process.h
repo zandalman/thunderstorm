@@ -29,8 +29,10 @@ struct Data {
   double varperp;                          // The standard deviation of perpendicular displacement [cm].
   double fesc_min;                         // The minimum survival fraction.
   vector2d<double> part_stat_list;
-  vector2d<double> avg_stat_list;
-  vector2d<double> var_stat_list;
+  vector2d<double> mean_stat_list;
+  vector2d<double> M2_stat_list;
+  vector2d<double> M3_stat_list;
+  vector2d<double> M4_stat_list;
 
   Data() = default;
   Data(double ener_, double escape_, double mach_A_, double L_, int geo_, const std::vector<Stat> &stat_list);
@@ -40,6 +42,6 @@ struct Data {
 
 void processEvent(const Event* event, const vector2d<double> &bin_list, const std::vector<Stat>& stat_list, vector2d<Data>& data_grid);
 void processFile(const std::string &datafile_name, size_t num_event_per_chunk, const vector2d<double> &bin_list, const std::vector<Stat>& stat_list, int &count, vector2d<Data>& data_grid);
-void getFlatData(const vector2d<Data>& data_grid, const std::vector<Stat> &stat_list, std::vector<double> &avg_stat_list_flat, std::vector<double> &var_stat_list_flat, size_t &size_flat);
+void getFlatData(const vector2d<Data>& data_grid, const std::vector<Stat> &stat_list, std::vector<double> &mean_stat_list_flat, std::vector<double> &M2_stat_list_flat, std::vector<double> &M3_stat_list_flat, std::vector<double> &M4_stat_list_flat, size_t &size_flat);
 
 #endif

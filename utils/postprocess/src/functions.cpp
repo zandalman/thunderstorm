@@ -156,13 +156,54 @@ void calcFesc(int geo, double escape, double rpar, double varpar, double varperp
   }
 }
 
-void addStat(size_t size_flat, int count_other, const std::vector<double> &avg_stat_list_flat_other, const std::vector<double> &var_stat_list_flat_other, int &count, std::vector<double> &avg_stat_list_flat, std::vector<double> &var_stat_list_flat) {
-  Stat stat;
-  double delta;
-  for ( size_t i = 0; i < size_flat; i++ ) {
-    delta = avg_stat_list_flat[i] - avg_stat_list_flat_other[i];
-    avg_stat_list_flat[i] = (count * avg_stat_list_flat[i] + count_other * avg_stat_list_flat_other[i]) / (count + count_other);
-    var_stat_list_flat[i] = var_stat_list_flat[i] + var_stat_list_flat_other[i] + delta*delta * count * count_other / (count + count_other);
+void addStat(
+  size_t size, 
+  int nB_int, 
+  const std::vector<double> &meanB, 
+  const std::vector<double> &M2B, 
+  const std::vector<double> &M3B,
+  const std::vector<double> &M4B,
+  int &nA_int, 
+  std::vector<double> &meanA, 
+  std::vector<double> &M2A,
+  std::vector<double> &M3A,
+  std::vector<double> &M4A
+) {
+  double nB = static_cast<double>(nB_int);
+  double nA = static_cast<double>(nA_int);
+  double nAB = nA + nB;
+  double delta, delta_nAB, delta_nAB_sq;
+  for ( size_t i = 0; i < size; i++ ) {
+    delta = meanB - meanA;
+    delta_nAB = delta / nAB;
+    delta_nAB_sq = delta_nAB*delta_nAB;
+    M4A[i] += M4B[i] + delta * delta_nAB * delta_nAB_sq * nA * nB * (nA*nA - nA*nB + nB*nB) \
+              + 6.0 * delta_nAB_sq * (nA*nA * M2B[i] + nB*nB * M2A[i]) \
+              + 4.0 * delta_nAB * (nA * M3B[i] - nB * M3A[i]);
+    M3A[i] += M3B[i] + delta * delta_nAB_sq * nA * nB * (nA - nB) \
+              + 3.0 * delta_nAB * (nA * M2B[i] - nB * M2A[i]);
+    M2A[i] += M2B[i] + delta * delta_nAB * nA * nB;
+    meanB[i] = (nA * meanA[i] + nB * meanB[i]) / nAB;
   }
-  count += count_other;
+  nA_int += nB_int;
+}
+
+void calcMoment(
+  size_t size,
+  int n_int,
+  const std::vector1d<double> &M2,
+  const std::vector1d<double> &M3,
+  const std::vector1d<double> &M4,
+  std::vector1d<double> &var,
+  std::vector1d<double> &skew,
+  std::vector1d<double> &kurt
+) {
+  double n = static_cast<double>(n_int);
+  double nm1 = n - 1.0;
+  for ( size_t i = 0; i < size; i++ ) {
+    var[i] = M2[i] / nm1;
+    skew[i] = n * sqrt(nm1) / (n - 2.0) * M3[i] / pow(M2[i], 1.5);
+    kurt[i] = n * (n + 1.0) * nm1 * M4[i] / ((n - 2.0) * (n - 3.0) * M2[i]*M2[i]) \
+              - 3.0 * nm1*nm1 / ((n - 2.0) * (n - 3.0));
+  }
 }

@@ -16,6 +16,28 @@ double arccothMod(double x);
 void calcParPerpFac(double mach_A_lpar, double &fac_par, double &fac_perp);
 void calcTransport(double mach_A, double L, double s, double dsplus, double dsminus, double &rpar, double &varpar, double &varperp);
 void calcFesc(int geo, double escape, double rpar, double varpar, double varperp, double &fesc);
-void addStat(size_t size_flat, int count_other, const std::vector<double> &avg_stat_list_flat_other, const std::vector<double> &var_stat_list_flat_other, int &count, std::vector<double> &avg_stat_list_flat, std::vector<double> &var_stat_list_flat);
+void addStat(
+  size_t size, 
+  int nB_int, 
+  const std::vector<double> &meanB, 
+  const std::vector<double> &M2B, 
+  const std::vector<double> &M3B,
+  const std::vector<double> &M4B,
+  int &nA_int, 
+  std::vector<double> &meanA, 
+  std::vector<double> &M2A,
+  std::vector<double> &M3A,
+  std::vector<double> &M4A
+);
+void calcMoment(
+  size_t size,
+  int n_int,
+  const std::vector1d<double> &M2,
+  const std::vector1d<double> &M3,
+  const std::vector1d<double> &M4,
+  std::vector1d<double> &var,
+  std::vector1d<double> &skew,
+  std::vector1d<double> &kurt
+)
 
 #endif

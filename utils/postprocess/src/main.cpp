@@ -78,6 +78,7 @@ int main(int argc, char** argv) {
   stat_list.push_back(Stat(num_mech, "num_ener_mech", "energy loss [eV] for each mechanism"));
   stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
   stat_list.push_back(Stat(num_ener_sec - 1, "num_sec_ener", "number of secondary electrons per secondary energy bin"));
+  stat_list.push_back(Stat(num_time - 1, "ener_loss_time", "energy loss [eV] per time bin"));
 
   // write info file
   if ( rank == 0 ) {
@@ -112,8 +113,8 @@ int main(int argc, char** argv) {
 
   // flatten the data
   size_t size_flat;
-  std::vector<double> avg_stat_list_flat, var_stat_list_flat;
-  getFlatData(data_grid, stat_list, avg_stat_list_flat, var_stat_list_flat, size_flat);
+  std::vector<double> mean_stat_list_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat;
+  getFlatData(data_grid, stat_list, mean_stat_list_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat, size_flat);
   
   // collect the data on rank 0
   MPI_Barrier(MPI_COMM_WORLD);
@@ -123,14 +124,18 @@ int main(int argc, char** argv) {
     std::cout << "Collected ranks: |";
     
     int count_other;
-    std::vector<double> avg_stat_list_flat_other(size_flat, 0.);
-    std::vector<double> var_stat_list_flat_other(size_flat, 0.);
+    std::vector<double> mean_stat_list_flat_other(size_flat, 0.);
+    std::vector<double> M2_stat_list_flat_other(size_flat, 0.);
+    std::vector<double> M3_stat_list_flat_other(size_flat, 0.);
+    std::vector<double> M4_stat_list_flat_other(size_flat, 0.);
     
     for (int i = 1; i < size; i++) {
       MPI_Recv(&count_other, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(avg_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(var_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      addStat(size_flat, count_other, avg_stat_list_flat_other, var_stat_list_flat_other, count, avg_stat_list_flat, var_stat_list_flat);
+      MPI_Recv(mean_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(M2_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(M3_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(M4_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      addStat(size_flat, count_other, mean_stat_list_flat_other, M2_stat_list_flat_other, M3_stat_list_flat_other, M4_stat_list_flat_other, count, mean_stat_list_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat);
       std::cout << "|";
     } 
     std::cout << std::endl << std::endl;
@@ -138,22 +143,24 @@ int main(int argc, char** argv) {
   } else {
     
     MPI_Send(&count, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-    MPI_Send(avg_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
-    MPI_Send(var_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
-    
+    MPI_Send(mean_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
+    MPI_Send(M2_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+    MPI_Send(M3_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD);
+    MPI_Send(M4_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 4, MPI_COMM_WORLD);
   }
 
   if ( rank == 0 ) {
 
-    // normalize variance by particle count
-    for ( size_t i = 0; i < size_flat; i++ ) {
-      var_stat_list_flat[i] = sqrt(var_stat_list_flat[i] / (count - 1));
-    }
+    // compute central moments
+    std::vector<double> var_stat_list_flat(size_flat, 0.0);
+    std::vector<double> skew_stat_list_flat(size_flat, 0.0);
+    std::vector<double> kurt_stat_list_flat(size_flat, 0.0);
+    calcMoment(size_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat, var_stat_list_flat, skew_stat_list_flat, kurt_stat_list_flat);
     
     // write data
     std::cout << "Writing data to output file." << std::endl << std::endl;
     clearFile(outfile_name);
-    writeData(outfile_name, bin_list, stat_list, avg_stat_list_flat, var_stat_list_flat);
+    writeData(outfile_name, bin_list, stat_list, mean_stat_list_flat, var_stat_list_flat, skew_stat_list_flat, kurt_stat_list_flat);
     
     // compute runtime
     auto now = std::chrono::steady_clock::now();

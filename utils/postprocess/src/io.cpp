@@ -93,7 +93,7 @@ void writeInfo(const std::string &infofile_name, Config &config, const std::vect
   oss << "Events per chunk:         " << config["IO"]["num_event_per_chunk"] << std::endl;
   oss << "Number of energies:       " << config["Bin.Ener"]["num"] << std::endl;
   oss << "Number of escape lengths: " << config["Bin.Escape"]["num"] << std::endl;
-  oss << "Number of lines:          " << 2 + 2 * stat_list.size() << std::endl;
+  oss << "Number of lines:          " << 2 + 4 * stat_list.size() << std::endl;
   oss << "Alfven Mach number:       " << config["Bfield"]["mach_A"] << std::endl;
   oss << "Turbulence scale [cm]:    " << config["Bfield"]["L"] << std::endl;
   oss << "Geometry:                 " << config["Geometry"]["geo"] << std::endl;
@@ -115,10 +115,11 @@ void writeInfo(const std::string &infofile_name, Config &config, const std::vect
   num_line = 3;
 
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
-    oss << num_line << ".  " << "mean " << stat_list[i].description << std::endl;
-    num_line++;
-    oss << num_line << ".  " << "variance " << stat_list[i].description << std::endl;
-    num_line++;
+    oss << num_line + 0 << ".  " << "mean " << stat_list[i].description << std::endl;
+    oss << num_line + 1 << ".  " << "variance " << stat_list[i].description << std::endl;
+    oss << num_line + 2 << ".  " << "skewness " << stat_list[i].description << std::endl;
+    oss << num_line + 3 << ".  " << "kurtosis " << stat_list[i].description << std::endl;
+    num_line += 4;
   }
 
   std::ofstream infofile(infofile_name);
@@ -145,8 +146,12 @@ void writeInfo(const std::string &infofile_name, Config &config, const std::vect
  */
 void writeData(
   const std::string &outfile_name,
-  const vector2d<double> &bin_list, const std::vector<Stat> &stat_list,
-  const std::vector<double> &avg_stat_list_flat, const std::vector<double> &var_stat_list_flat
+  const vector2d<double> &bin_list, 
+  const std::vector<Stat> &stat_list,
+  const std::vector<double> &mean_stat_list_flat, 
+  const std::vector<double> &var_stat_list_flat,
+  const std::vector<double> &skew_stat_list_flat,
+  const std::vector<double> &kurt_stat_list_flat
 ) {
   std::ostringstream oss; // data stream
   size_t idx = 0; // index in flat data vectors
@@ -158,8 +163,10 @@ void writeData(
       oss << bin_list[bin_tag::escape][j] << std::endl;
       for ( size_t k = 0; k < stat_list.size(); k++ ) {
         stat = stat_list[k];
-        writeVector(oss, avg_stat_list_flat, idx, idx + stat.size);
+        writeVector(oss, mean_stat_list_flat, idx, idx + stat.size);
         writeVector(oss, var_stat_list_flat, idx, idx + stat.size);
+        writeVector(oss, skew_stat_list_flat, idx, idx + stat.size);
+        writeVector(oss, kurt_stat_list_flat, idx, idx + stat.size);
         idx += stat.size; // increment the index
       }
     }
