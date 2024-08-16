@@ -12,6 +12,16 @@
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 
+/// @brief A structure to represent a statistics.
+struct Stat {
+  size_t size;
+  std::string name;
+  std::string description;
+
+  Stat() = default;
+  Stat(size_t size_, std::string name_, std::string description_);
+};
+
 /// @brief A structure to represent an event.
 struct Event {
   int id;                  // The particle ID.
@@ -38,12 +48,11 @@ struct Event {
 template <typename T>
 void writeVector(std::ostringstream &oss, const std::vector<T>& vec, size_t idx_start = 0, size_t idx_end = 0);
 void clearFile(const std::string& file_name);
-void writeInfo(const std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &escape_list, const std::vector<double> &ener_sec_list);
+void writeInfo(const std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &escape_list, const std::vector<double> &ener_sec_list, const std::vector<Stat> &stat_list);
 void writeData(
   const std::string &outfile_name,
-  const std::vector<double> &ener_list, const std::vector<double> &escape_list,
-  size_t num_ener_sec,
-  const std::vector<double> &ener_loss_mech_flat, const std::vector<double> &num_ion_elem_flat, const std::vector<double> &num_sec_ener_flat
+  const vector2d<double> &bin_list, const std::vector<Stat> &stat_list,
+  const std::vector<double> &avg_stat_list_flat, const std::vector<double> &var_stat_list_flat
 );
 
 #endif

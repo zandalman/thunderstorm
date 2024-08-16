@@ -13,15 +13,15 @@
 #include "const.h"
 #include "functions.h"
 #include "parser.h"
-#include "io.h"
 #include "process.h"
+#include "io.h"
 
 // types
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 
 /// @brief A constructor to initialize the Data structure.
-Data::Data(double ener_, double escape_, double mach_A_, double L_, int geo_, std::vector<double> ener_sec_list_)
+Data::Data(double ener_, double escape_, double mach_A_, double L_, int geo_, const std::vector<Stat> &stat_list)
   : ener(ener_)
   , escape(escape_)
   , mach_A(mach_A_)
@@ -37,16 +37,13 @@ Data::Data(double ener_, double escape_, double mach_A_, double L_, int geo_, st
   , varpar(0.)
   , varperp(0.)
   , fesc_min(1.0)
-  , ener_sec_list(ener_sec_list_)
  {
-  for ( size_t i = 0; i < num_mech; i++ ) {
-    ener_loss_mech.push_back(0.);
-  }
-  for ( size_t i = 0; i < num_elem; i++ ) {
-    num_ion_elem.push_back(0.);
-  }
-  for ( size_t i = 0; i < (ener_sec_list.size() - 1); i++ ) {
-    num_sec_ener.push_back(0.);
+  Stat stat;
+  for ( size_t i = 0; i < stat_list.size(); i++ ) {
+    stat = stat_list[i];
+    part_stat_list.push_back(std::vector<double>(stat.size, 0.0));
+    avg_stat_list.push_back(std::vector<double>(stat.size, 0.0));
+    var_stat_list.push_back(std::vector<double>(stat.size, 0.0));
   }
  }
 
@@ -62,6 +59,22 @@ void Data::reset() {
   varpar = 0.;
   varperp = 0.;
   fesc_min = 1.0;
+  for ( size_t i = 0; i < part_stat_list.size(); i++ ) {
+    std::fill(part_stat_list[i].begin(), part_stat_list[i].end(), 0.0);
+  }
+}
+
+void Data::calcStat(int count, const std::vector<Stat> &stat_list) {
+  Stat stat;
+  double old_mean;
+  for ( size_t i = 0; i < stat_list.size(); i++ ) {
+    stat = stat_list[i];
+    for ( size_t j = 0; j < stat.size; j++ ) {
+      old_mean = avg_stat_list[i][j];
+      avg_stat_list[i][j] += (part_stat_list[i][j] - old_mean) / count;
+      var_stat_list[i][j] += (part_stat_list[i][j] - old_mean) * (part_stat_list[i][j] - avg_stat_list[i][j]);
+    }
+  }
 }
 
 /**
@@ -72,7 +85,7 @@ void Data::reset() {
  * @param count               The particle count.
  * @param data_grid           The grid of data.  
  */
-void processFile(const std::string &datafile_name, size_t num_event_per_chunk, int &count, vector2d<Data>& data_grid) {
+void processFile(const std::string &datafile_name, size_t num_event_per_chunk, const vector2d<double> &bin_list, const std::vector<Stat>& stat_list, int &count, vector2d<Data>& data_grid) {
 
   // Open file
   std::ifstream datafile(datafile_name, std::ios::binary);
@@ -96,16 +109,16 @@ void processFile(const std::string &datafile_name, size_t num_event_per_chunk, i
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
       if ( event->id != current_id ) {
-        // if ( current_id != -1 ) MPI_Abort(MPI_COMM_WORLD, 1);
+        count++;
         for ( size_t j = 0; j < data_grid.size(); j++ ) {
           for ( size_t k = 0; k < data_grid[j].size(); k++ ) {
+            data_grid[j][k].calcStat(count, stat_list);
             data_grid[j][k].reset();
           }
         }
         current_id = event->id;
-        count++;
       } else {
-        processEvent(event, data_grid);
+        processEvent(event, bin_list, stat_list, data_grid);
       }
     }
   }
@@ -118,15 +131,16 @@ void processFile(const std::string &datafile_name, size_t num_event_per_chunk, i
       for ( size_t i = 0; i < num_event_last_chunk; i++ ) {
         event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
         if ( event->id != current_id ) {
+          count++;
           for ( size_t j = 0; j < data_grid.size(); j++ ) {
             for ( size_t k = 0; k < data_grid[j].size(); k++ ) {
+              data_grid[j][k].calcStat(count, stat_list);
               data_grid[j][k].reset();
             }
           }
           current_id = event->id;
-          count++;
         } else {
-          processEvent(event, data_grid);
+          processEvent(event, bin_list, stat_list, data_grid);
         }
       }
     }
@@ -143,7 +157,7 @@ void processFile(const std::string &datafile_name, size_t num_event_per_chunk, i
  * @param event     The event struct.
  * @param data_grid The grid of data.
  */
-void processEvent(const Event* event, vector2d<Data>& data_grid) {
+void processEvent(const Event* event, const vector2d<double> &bin_list, const std::vector<Stat>& stat_list, vector2d<Data>& data_grid) {
 
   if ( event == nullptr ) {
     std::cerr << "Error: Null event pointer." << std::endl;
@@ -199,29 +213,29 @@ void processEvent(const Event* event, vector2d<Data>& data_grid) {
       // compute interaction histograms
       switch ( event->interaction ) {
         case flags::brem:
-        data.ener_loss_mech[0] += fesc * event->ener_loss;
+        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::brem] += fesc * event->ener_loss;
         break;
         case flags::exc:
-        data.ener_loss_mech[1] += fesc * event->ener_loss;
+        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::exc] += fesc * event->ener_loss;
         break;
         case flags::ion:
-        data.ener_loss_mech[2] += fesc * event->ener_loss;
-        data.num_ion_elem[event->Zelem - 1] += fesc;
+        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::ion] += fesc * event->ener_loss;
+        data.part_stat_list[stat_tag::num_ion_elem][event->Zelem - 1] += fesc;
         // compute secondary energy histograms
-        idx_ener_sec = findIdx(event->ener_sec, data.ener_sec_list);
-        if (idx_ener_sec > 0 && idx_ener_sec < data.ener_sec_list.size()) {
-          data.num_sec_ener[idx_ener_sec - 1] += fesc;
+        idx_ener_sec = findIdx(event->ener_sec, bin_list[bin_tag::ener_sec]);
+        if (idx_ener_sec > 0 && idx_ener_sec < bin_list[bin_tag::ener_sec].size()) {
+          data.part_stat_list[stat_tag::num_sec_ener][idx_ener_sec - 1] += fesc;
         }
         break;
         case flags::moller:
         if ( !std::isnan(event->ener_loss) ) {
-          data.ener_loss_mech[3] += event->ener_loss;
+          data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += event->ener_loss;
         }
         break;
       }
-      data.ener_loss_mech[3] += event->ener_loss_moller;
-      data.ener_loss_mech[4] += event->ener_loss_sync;
-      data.ener_loss_mech[5] += event->ener_loss_cher;
+      data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += event->ener_loss_moller;
+      data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::sync] += event->ener_loss_sync;
+      data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += event->ener_loss_cher;
     }
   }
 }
@@ -234,18 +248,20 @@ void processEvent(const Event* event, vector2d<Data>& data_grid) {
  * @param num_ion_elem        The number of ionizations per element.
  * @param num_sec_ener        The number of secondary particles per energy bin.
  */
-void getFlatData(const vector2d<Data>& data_grid, std::vector<double> &ener_loss_mech_flat, std::vector<double> &num_ion_elem_flat, std::vector<double> &num_sec_ener_flat) {
+void getFlatData(const vector2d<Data>& data_grid, const std::vector<Stat> &stat_list, std::vector<double> &avg_stat_list_flat, std::vector<double> &var_stat_list_flat, size_t &size_flat) {
+  Data data;
+  Stat stat;
+  size_flat = 0;
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
-      Data data = data_grid[i][j];
-      for ( size_t k = 0; k < data.ener_loss_mech.size(); k++ ) { 
-        ener_loss_mech_flat.push_back(data.ener_loss_mech[k]);
-      }
-      for ( size_t k = 0; k < data.num_ion_elem.size(); k++ ) { 
-        num_ion_elem_flat.push_back(data.num_ion_elem[k]);
-      }
-      for ( size_t k = 0; k < data.num_sec_ener.size(); k++ ) { 
-        num_sec_ener_flat.push_back(data.num_sec_ener[k]);
+      data = data_grid[i][j];
+      for ( size_t k = 0; k < stat_list.size(); k++ ) {
+        stat = stat_list[k];
+        for ( size_t l = 0; l < stat.size; l++ ) {
+          avg_stat_list_flat.push_back(data.avg_stat_list[k][l]);
+          var_stat_list_flat.push_back(data.var_stat_list[k][l]);
+          size_flat += 1;
+        }
       }
     }
   }

@@ -19,6 +19,13 @@
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 
+/// @brief A constructor to initialize the Stat structure.
+Stat::Stat(size_t size_, std::string name_, std::string description_)
+  : size(size_)
+  , name(name_)
+  , description(description_)
+{}
+
 /// @brief A constructor to initialize the Event structure.
 Event::Event(int int_data[5], double double_data[11]) 
   : id(int_data[0])                   // The particle ID.
@@ -74,7 +81,7 @@ void writeVector(std::ostringstream &oss, const std::vector<T>& vec, size_t idx_
  * @param ener_list     The list of energy bins [eV].
  * @param ener_sec_list The list of secondary energy bins [eV].
  */
-void writeInfo(const std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &escape_list, const std::vector<double> &ener_sec_list) {
+void writeInfo(const std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &escape_list, const std::vector<double> &ener_sec_list, const std::vector<Stat> &stat_list) {
 
   std::ostringstream oss;
 
@@ -84,9 +91,9 @@ void writeInfo(const std::string &infofile_name, Config &config, const std::vect
   oss << "Post-processing parameters" << std::endl;
   oss << "File number:              " << config["IO"]["num_file"] << std::endl;
   oss << "Events per chunk:         " << config["IO"]["num_event_per_chunk"] << std::endl;
-  oss << "Number of energies:       " << config["Bin.Energy"]["num"] << std::endl;
+  oss << "Number of energies:       " << config["Bin.Ener"]["num"] << std::endl;
   oss << "Number of escape lengths: " << config["Bin.Escape"]["num"] << std::endl;
-  oss << "Number of lines:          " << 5 << std::endl;
+  oss << "Number of lines:          " << 2 + 2 * stat_list.size() << std::endl;
   oss << "Alfven Mach number:       " << config["Bfield"]["mach_A"] << std::endl;
   oss << "Turbulence scale [cm]:    " << config["Bfield"]["L"] << std::endl;
   oss << "Geometry:                 " << config["Geometry"]["geo"] << std::endl;
@@ -107,15 +114,10 @@ void writeInfo(const std::string &infofile_name, Config &config, const std::vect
   oss << "2.  escape length [cm]" << std::endl;
   num_line = 3;
 
-  // list of descriptions of each statistic
-  std::vector<std::string> stat_def_list = {
-    "energy loss [eV] for each mechanism",
-    "number of ionizations per element",
-    "number of secondary electrons per secondary energy bin"
-  };
-
-  for ( size_t i = 0; i < stat_def_list.size(); i++ ) {
-    oss << num_line << ".  " << stat_def_list[i] << std::endl;
+  for ( size_t i = 0; i < stat_list.size(); i++ ) {
+    oss << num_line << ".  " << "mean " << stat_list[i].description << std::endl;
+    num_line++;
+    oss << num_line << ".  " << "variance " << stat_list[i].description << std::endl;
     num_line++;
   }
 
@@ -135,31 +137,31 @@ void writeInfo(const std::string &infofile_name, Config &config, const std::vect
 /**
  * @brief Write processed data to an output file.
  * 
- * @param outfile_name        The name of the output file.
- * @param ener_list           The list of energies.
- * @param escape_list         The list of escape lengths.
- * @param num_ener_sec        The number of secondary energies.
- * @param ener_loss_mech_flat The flattened list of energy loss for each mechanism [eV]
- * @param num_ion_elem_flat   The flattened list of ionizations per element.
- * @param num_sec_ener_flat   The flattened list of secondary particles per energy bin.
+ * @param outfile_name       The name of the output file.
+ * @param bin_list           The list of bins.
+ * @param stat_list          The list of statistics.
+ * @param avg_stat_list_flat The flattened list of mean statistics.
+ * @param var_stat_list_flat The flattened list of variance statistics.
  */
 void writeData(
   const std::string &outfile_name,
-  const std::vector<double> &ener_list, const std::vector<double> &escape_list,
-  size_t num_ener_sec,
-  const std::vector<double> &ener_loss_mech_flat, const std::vector<double> &num_ion_elem_flat, const std::vector<double> &num_sec_ener_flat
+  const vector2d<double> &bin_list, const std::vector<Stat> &stat_list,
+  const std::vector<double> &avg_stat_list_flat, const std::vector<double> &var_stat_list_flat
 ) {
+  std::ostringstream oss; // data stream
+  size_t idx = 0; // index in flat data vectors
+  Stat stat;
 
-  // start the stream
-  std::ostringstream oss;
-
-  for ( size_t i = 0; i < ener_list.size(); i++ ) {
-    for ( size_t j = 0; j < escape_list.size(); j++ ) {
-      oss << ener_list[i] << std::endl;
-      oss << escape_list[j] << std::endl;
-      writeVector(oss, ener_loss_mech_flat, i * j * num_mech, (i * j + 1) * num_mech);
-      writeVector(oss, num_ion_elem_flat, i * j * num_elem, (i * j + 1) * num_elem);
-      writeVector(oss, num_sec_ener_flat, i * j * num_ener_sec, (i * j + 1) * num_ener_sec);
+  for ( size_t i = 0; i < bin_list[bin_tag::ener].size(); i++ ) {
+    for ( size_t j = 0; j < bin_list[bin_tag::escape].size(); j++ ) {
+      oss << bin_list[bin_tag::ener][i] << std::endl;
+      oss << bin_list[bin_tag::escape][j] << std::endl;
+      for ( size_t k = 0; k < stat_list.size(); k++ ) {
+        stat = stat_list[k];
+        writeVector(oss, avg_stat_list_flat, idx, idx + stat.size);
+        writeVector(oss, var_stat_list_flat, idx, idx + stat.size);
+        idx += stat.size; // increment the index
+      }
     }
   }
 

@@ -7,6 +7,11 @@
 // headers
 #include "functions.h"
 #include "const.h"
+#include "io.h"
+
+// types
+template <typename T>
+using vector2d = std::vector<std::vector<T>>;
 
 /**
  * @brief Make a linearly or logarithmically spaced list of values.
@@ -149,4 +154,15 @@ void calcFesc(int geo, double escape, double rpar, double varpar, double varperp
     fesc = 0.5 * (1.0 - exp(-escape*escape / (2.0 * sigperp*sigperp))) * (erf((escape - 2.0 * rpar) / (sqrt(8.0) * sigpar)) + erf((escape + 2.0 * rpar) / (sqrt(8.0) * sigpar)));
     break;
   }
+}
+
+void addStat(size_t size_flat, int count_other, const std::vector<double> &avg_stat_list_flat_other, const std::vector<double> &var_stat_list_flat_other, int &count, std::vector<double> &avg_stat_list_flat, std::vector<double> &var_stat_list_flat) {
+  Stat stat;
+  double delta;
+  for ( size_t i = 0; i < size_flat; i++ ) {
+    delta = avg_stat_list_flat[i] - avg_stat_list_flat_other[i];
+    avg_stat_list_flat[i] = (count * avg_stat_list_flat[i] + count_other * avg_stat_list_flat_other[i]) / (count + count_other);
+    var_stat_list_flat[i] = var_stat_list_flat[i] + var_stat_list_flat_other[i] + delta*delta * count * count_other / (count + count_other);
+  }
+  count += count_other;
 }
