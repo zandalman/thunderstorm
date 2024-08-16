@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     std::vector<double> var_stat_list_flat(size_flat, 0.0);
     std::vector<double> skew_stat_list_flat(size_flat, 0.0);
     std::vector<double> kurt_stat_list_flat(size_flat, 0.0);
-    calcMoment(size_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat, var_stat_list_flat, skew_stat_list_flat, kurt_stat_list_flat);
+    calcMoment(size_flat, count, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat, var_stat_list_flat, skew_stat_list_flat, kurt_stat_list_flat);
     
     // write data
     std::cout << "Writing data to output file." << std::endl << std::endl;

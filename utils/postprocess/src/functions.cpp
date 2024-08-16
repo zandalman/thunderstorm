@@ -174,7 +174,7 @@ void addStat(
   double nAB = nA + nB;
   double delta, delta_nAB, delta_nAB_sq;
   for ( size_t i = 0; i < size; i++ ) {
-    delta = meanB - meanA;
+    delta = meanB[i] - meanA[i];
     delta_nAB = delta / nAB;
     delta_nAB_sq = delta_nAB*delta_nAB;
     M4A[i] += M4B[i] + delta * delta_nAB * delta_nAB_sq * nA * nB * (nA*nA - nA*nB + nB*nB) \
@@ -183,7 +183,7 @@ void addStat(
     M3A[i] += M3B[i] + delta * delta_nAB_sq * nA * nB * (nA - nB) \
               + 3.0 * delta_nAB * (nA * M2B[i] - nB * M2A[i]);
     M2A[i] += M2B[i] + delta * delta_nAB * nA * nB;
-    meanB[i] = (nA * meanA[i] + nB * meanB[i]) / nAB;
+    meanA[i] = (nA * meanA[i] + nB * meanB[i]) / nAB;
   }
   nA_int += nB_int;
 }
@@ -191,12 +191,12 @@ void addStat(
 void calcMoment(
   size_t size,
   int n_int,
-  const std::vector1d<double> &M2,
-  const std::vector1d<double> &M3,
-  const std::vector1d<double> &M4,
-  std::vector1d<double> &var,
-  std::vector1d<double> &skew,
-  std::vector1d<double> &kurt
+  const std::vector<double> &M2,
+  const std::vector<double> &M3,
+  const std::vector<double> &M4,
+  std::vector<double> &var,
+  std::vector<double> &skew,
+  std::vector<double> &kurt
 ) {
   double n = static_cast<double>(n_int);
   double nm1 = n - 1.0;

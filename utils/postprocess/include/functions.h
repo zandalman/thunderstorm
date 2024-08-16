@@ -32,12 +32,12 @@ void addStat(
 void calcMoment(
   size_t size,
   int n_int,
-  const std::vector1d<double> &M2,
-  const std::vector1d<double> &M3,
-  const std::vector1d<double> &M4,
-  std::vector1d<double> &var,
-  std::vector1d<double> &skew,
-  std::vector1d<double> &kurt
-)
+  const std::vector<double> &M2,
+  const std::vector<double> &M3,
+  const std::vector<double> &M4,
+  std::vector<double> &var,
+  std::vector<double> &skew,
+  std::vector<double> &kurt
+);
 
 #endif
