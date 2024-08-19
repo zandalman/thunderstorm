@@ -156,6 +156,21 @@ void calcFesc(int geo, double escape, double rpar, double varpar, double varperp
   }
 }
 
+/**
+ * @brief Combine statistics between two datasets.
+ * 
+ * @param size   The size of the statistics vector.
+ * @param nB_int The number of elements in set B.
+ * @param meanB  The mean statistics in set B.
+ * @param M2B    The M2 statistics in set B.
+ * @param M3B    The M3 statistics in set B.
+ * @param M4B    The M4 statistics in set B.
+ * @param nA_int The number of elements in set A.
+ * @param meanA  The mean statistics in set A.
+ * @param M2A    The M2 statistics in set A.
+ * @param M3A    The M3 statistics in set A.
+ * @param M4A    The M4 statistics in set A.
+ */
 void addStat(
   size_t size, 
   int nB_int, 
@@ -188,6 +203,18 @@ void addStat(
   nA_int += nB_int;
 }
 
+/**
+ * @brief Compute central moments from mean, M2, M3, and M4 statistics.
+ * 
+ * @param size  The size of the statistics vector
+ * @param n_int The number of elements.
+ * @param M2    The M2 statistics.
+ * @param M3    The M3 statistics.
+ * @param M4    The M4 statistics.
+ * @param var   The variance.
+ * @param skew  The skewness.
+ * @param kurt  The kurtosis.
+ */
 void calcMoment(
   size_t size,
   int n_int,

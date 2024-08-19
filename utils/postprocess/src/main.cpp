@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
   // write info file
   if ( rank == 0 ) {
     const std::string infofile = config["IO"]["outpath"] + "/info.txt";
-    writeInfo(infofile, config, ener_list, escape_list, ener_sec_list, stat_list);
+    writeInfo(infofile, config, bin_list, stat_list);
   }
 
   // get data file indices

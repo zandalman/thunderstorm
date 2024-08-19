@@ -66,6 +66,12 @@ void Data::reset() {
   }
 }
 
+/**
+ * @brief Update the statistics with a new particle.
+ * 
+ * @param n_int     The current particle count.
+ * @param stat_list The list of statistics.
+ */
 void Data::calcStat(int n_int, const std::vector<Stat> &stat_list) {
   Stat stat;
   double delta, delta_np1, delta_np1_sq, term1;
@@ -91,14 +97,22 @@ void Data::calcStat(int n_int, const std::vector<Stat> &stat_list) {
  * 
  * @param datafile_name       The name of the binary data file.
  * @param num_event_per_chunk The number of events per chunk.
+ * @param bin_list            The list of bins.
+ * @param stat_list           The list of statistics.
  * @param count               The particle count.
  * @param data_grid           The grid of data.  
  */
-void processFile(const std::string &datafile_name, size_t num_event_per_chunk, const vector2d<double> &bin_list, const std::vector<Stat>& stat_list, int &count, vector2d<Data>& data_grid) {
+void processFile(
+  const std::string &datafile_name, 
+  size_t num_event_per_chunk, 
+  const vector2d<double> &bin_list,
+  const std::vector<Stat>& stat_list, 
+  int &count, 
+  vector2d<Data>& data_grid
+) {
 
   // Open file
   std::ifstream datafile(datafile_name, std::ios::binary);
-
   if ( !datafile.is_open() ) {
     std::cerr << "Failed to open file " << datafile_name << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
@@ -164,10 +178,17 @@ void processFile(const std::string &datafile_name, size_t num_event_per_chunk, c
  * @brief Process an event and add the post-processed data to the particle data.
  * 
  * @param event     The event struct.
+ * @param bin_list  The list of bins.
+ * @param stat_list The list of statistics.
  * @param data_grid The grid of data.
  */
-void processEvent(const Event* event, const vector2d<double> &bin_list, const std::vector<Stat>& stat_list, vector2d<Data>& data_grid) {
-
+void processEvent(
+  const Event* event, 
+  const vector2d<double> &bin_list, 
+  const std::vector<Stat>& stat_list, 
+  vector2d<Data>& data_grid
+) {
+  // throw error if event pointer is null.
   if ( event == nullptr ) {
     std::cerr << "Error: Null event pointer." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
@@ -263,11 +284,22 @@ void processEvent(const Event* event, const vector2d<double> &bin_list, const st
  * @brief Flatten the data so it can be communicated via MPI.
  * 
  * @param data_grid           The grid of data.
- * @param ener_loss_mech_flat The energy loss for each mechanism [eV].
- * @param num_ion_elem        The number of ionizations per element.
- * @param num_sec_ener        The number of secondary particles per energy bin.
+ * @param stat_list           The list of statistics.
+ * @param mean_stat_list_flat The flattened list of mean statistics.
+ * @param M2_stat_list_flat   The flattened list of M2 statistics.
+ * @param M3_stat_list_flat   The flattened list of M3 statistics.
+ * @param M4_stat_list_flat   The flattened list of M4 statistics.
+ * @param size_t              The size of the flattened list of statistics.
  */
-void getFlatData(const vector2d<Data>& data_grid, const std::vector<Stat> &stat_list, std::vector<double> &mean_stat_list_flat, std::vector<double> &M2_stat_list_flat, std::vector<double> &M3_stat_list_flat, std::vector<double> &M4_stat_list_flat, size_t &size_flat) {
+void getFlatData(
+  const vector2d<Data>& data_grid,
+  const std::vector<Stat> &stat_list, 
+  std::vector<double> &mean_stat_list_flat, 
+  std::vector<double> &M2_stat_list_flat, 
+  std::vector<double> &M3_stat_list_flat, 
+  std::vector<double> &M4_stat_list_flat, 
+  size_t &size_flat
+) {
   Data data;
   Stat stat;
   size_flat = 0;

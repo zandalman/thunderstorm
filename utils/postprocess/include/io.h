@@ -46,9 +46,19 @@ struct Event {
 };
 
 template <typename T>
-void writeVector(std::ostringstream &oss, const std::vector<T>& vec, size_t idx_start = 0, size_t idx_end = 0);
+void writeVector(
+  std::ostringstream &oss, 
+  const std::vector<T>& vec, 
+  size_t idx_start = 0, 
+  size_t idx_end = 0
+);
 void clearFile(const std::string& file_name);
-void writeInfo(const std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &escape_list, const std::vector<double> &ener_sec_list, const std::vector<Stat> &stat_list);
+void writeInfo(
+  const std::string &infofile_name, 
+  Config &config, 
+  const vector2d<double> &bin_list,
+  const std::vector<Stat> &stat_list
+);
 void writeData(
   const std::string &outfile_name,
   const vector2d<double> &bin_list, 

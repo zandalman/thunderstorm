@@ -60,11 +60,18 @@ void clearFile(const std::string& file_name) {
 /**
  * @brief Write a vector to a string stream.
  * 
- * @param oss The string stream.
- * @param vec The vector to write.
+ * @param oss       The string stream.
+ * @param vec       The vector to write.
+ * @param idx_start The index to start writing the vector.
+ * @param idx_end   The index to stop writing the vector.
  */
 template <typename T>
-void writeVector(std::ostringstream &oss, const std::vector<T>& vec, size_t idx_start, size_t idx_end) {
+void writeVector(
+  std::ostringstream &oss, 
+  const std::vector<T>& vec, 
+  size_t idx_start, 
+  size_t idx_end
+) {
   idx_end = idx_end == 0 ? vec.size() : idx_end;
   for (size_t i = idx_start; i < idx_end; i++) {
     oss << vec[i];
@@ -78,10 +85,15 @@ void writeVector(std::ostringstream &oss, const std::vector<T>& vec, size_t idx_
  * 
  * @param infofile_name The name of the information file.
  * @param config        The struct containing the configuration file information.
- * @param ener_list     The list of energy bins [eV].
- * @param ener_sec_list The list of secondary energy bins [eV].
+ * @param bin_list      The list of bins.
+ * @param stat_list     The list of statistics.
  */
-void writeInfo(const std::string &infofile_name, Config &config, const std::vector<double> &ener_list, const std::vector<double> &escape_list, const std::vector<double> &ener_sec_list, const std::vector<Stat> &stat_list) {
+void writeInfo(
+  const std::string &infofile_name, 
+  Config &config, 
+  const vector2d<double> &bin_list,
+  const std::vector<Stat> &stat_list
+) {
 
   std::ostringstream oss;
 
@@ -101,11 +113,13 @@ void writeInfo(const std::string &infofile_name, Config &config, const std::vect
 
   oss << "Variable lists" << std::endl;
   oss << "Energy [eV]" << std::endl;  
-  writeVector(oss, ener_list);
+  writeVector(oss, bin_list[bin_tag::ener]);
   oss << "Escape [cm]" << std::endl;
-  writeVector(oss, escape_list);
+  writeVector(oss, bin_list[bin_tag::escape]);
   oss << "Secondary energy [eV]" << std::endl;  
-  writeVector(oss, ener_sec_list);
+  writeVector(oss, bin_list[bin_tag::ener_sec]);
+  oss << "Time [s]" << std::endl;  
+  writeVector(oss, bin_list[bin_tag::time]);
   oss << std::endl;
 
   size_t num_line = 1;
