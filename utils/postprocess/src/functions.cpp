@@ -202,8 +202,13 @@ void calcMoment(
   double nm1 = n - 1.0;
   for ( size_t i = 0; i < size; i++ ) {
     var[i] = M2[i] / nm1;
-    skew[i] = n * sqrt(nm1) / (n - 2.0) * M3[i] / pow(M2[i], 1.5);
-    kurt[i] = n * (n + 1.0) * nm1 * M4[i] / ((n - 2.0) * (n - 3.0) * M2[i]*M2[i]) \
-              - 3.0 * nm1*nm1 / ((n - 2.0) * (n - 3.0));
+    if ( M2[i] == 0 ) {
+      skew[i] = 0.0;
+      kurt[i] = 0.0;
+    } else {
+      skew[i] = n * sqrt(nm1) / (n - 2.0) * M3[i] / pow(M2[i], 1.5);
+      kurt[i] = n * (n + 1.0) * nm1 * M4[i] / ((n - 2.0) * (n - 3.0) * M2[i]*M2[i]) \
+                - 3.0 * nm1*nm1 / ((n - 2.0) * (n - 3.0));
+    }
   }
 }

@@ -66,22 +66,22 @@ void Data::reset() {
   }
 }
 
-void Data::calcStat(int count, const std::vector<Stat> &stat_list) {
+void Data::calcStat(int n_int, const std::vector<Stat> &stat_list) {
   Stat stat;
-  double delta, countp1, delta_over_countp1, delta_over_countp1_sq, term1;
-  count = static_cast<double>(count);
-  countp1 = count + 1.0;
+  double delta, delta_np1, delta_np1_sq, term1;
+  double n = static_cast<double>(n_int);
+  double np1 = n + 1.0;
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
     stat = stat_list[i];
     for ( size_t j = 0; j < stat.size; j++ ) {
       delta = part_stat_list[i][j] - mean_stat_list[i][j];
-      delta_over_countp1 = delta / countp1;
-      delta_over_countp1_sq = delta_over_countp1*delta_over_countp1;
-      term1 = delta * delta_over_countp1 * count;
-      M4_stat_list[i][j] += term1 * delta_over_countp1_sq * (countp1*countp1 - 3.0 * countp1 + 3.0) + 6.0 * delta_over_countp1_sq * M2_stat_list[i][j] - 4.0 * delta_over_countp1 * M3_stat_list[i][j];
-      M3_stat_list[i][j] += term1 * delta_over_countp1 * (countp1 - 2.0) - 3.0 * delta_over_countp1 * M2_stat_list[i][j];
+      delta_np1 = delta / np1;
+      delta_np1_sq = delta_np1*delta_np1;
+      term1 = delta * delta_np1 * n;
+      M4_stat_list[i][j] += term1 * delta_np1_sq * (np1*np1 - 3.0 * np1 + 3.0) + 6.0 * delta_np1_sq * M2_stat_list[i][j] - 4.0 * delta_np1 * M3_stat_list[i][j];
+      M3_stat_list[i][j] += term1 * delta_np1 * (np1 - 2.0) - 3.0 * delta_np1 * M2_stat_list[i][j];
       M2_stat_list[i][j] += term1;
-      mean_stat_list[i][j] += delta_over_countp1;
+      mean_stat_list[i][j] += delta_np1;
     }
   }
 }

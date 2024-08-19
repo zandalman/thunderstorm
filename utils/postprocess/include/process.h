@@ -37,7 +37,7 @@ struct Data {
   Data() = default;
   Data(double ener_, double escape_, double mach_A_, double L_, int geo_, const std::vector<Stat> &stat_list);
   void reset();
-  void calcStat(int count, const std::vector<Stat> &stat_list);
+  void calcStat(int n_int, const std::vector<Stat> &stat_list);
 };
 
 void processEvent(const Event* event, const vector2d<double> &bin_list, const std::vector<Stat>& stat_list, vector2d<Data>& data_grid);
