@@ -1,6 +1,41 @@
 #ifndef CONST_H
 #define CONST_H
 
+// includes
+#include <string>
+
+constexpr size_t num_mech = 6;
+constexpr size_t num_elem = 118;
+
+namespace geo_tag {
+constexpr int none = 0;
+constexpr int plane = 1;
+constexpr int cylinder = 2;
+}
+
+namespace stat_tag {
+constexpr int ener_loss_mech = 0;
+constexpr int num_ion_elem = 1;
+constexpr int num_sec_ener = 2;
+constexpr int ener_loss_time = 3;
+}
+
+namespace bin_tag {
+constexpr int ener = 0;
+constexpr int escape = 1;
+constexpr int ener_sec = 2;
+constexpr int time = 3;
+}
+
+namespace mech_tag {
+constexpr int brem = 0;
+constexpr int exc = 1;
+constexpr int ion = 2;
+constexpr int moller = 3;
+constexpr int sync = 4;
+constexpr int cher = 5;
+}
+
 namespace flags {
 constexpr int death = 0;
 constexpr int scat = 1;

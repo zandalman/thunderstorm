@@ -3,14 +3,14 @@
 
 // includes
 #include <string>
-#include <unordered_map>
 #include <vector>
+#include <unordered_map>
 
 typedef std::unordered_map<std::string, std::string> Dict;
 typedef std::unordered_map<std::string, Dict> Config;
 
 std::string trim(const std::string &str);
 void parseConfig(const std::string &configfile_name, Config &config);
-void makeList(Dict &dict, double unit, size_t &num, std::vector<double> &list);
+void makeList(Dict &dict, std::vector<double> &list, size_t &num, double unit = 1.0);
 
 #endif
