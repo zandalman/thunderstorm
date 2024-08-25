@@ -18,6 +18,8 @@
 // types
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
+template <typename T>
+using vector3d = std::vector<vector2d<T>>;
 
 int main(int argc, char** argv) {
 
@@ -49,13 +51,11 @@ int main(int argc, char** argv) {
   const std::string data_path = config["IO"]["data_path"];
   const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
   
-  // get magnetic field configuration
-  const double mach_A = std::stod(config["Bfield"]["mach_A"]);
-  const double L = std::stod(config["Bfield"]["L"]);
-
-  // get geometry
+  // get parameters
   int geo;
-  std::string geo_str = std::string(config["Geometry"]["geo"]);
+  const double L = std::stod(config["Parameters"]["L"]);
+  const double ener_min = std::stod(config["Parameters"]["ener_min"]);
+  std::string geo_str = std::string(config["Parameters"]["geo"]);
   if ( geo_str == "plane" ) {
     geo = geo_tag::plane;
   } else if ( geo_str == "cylinder" ) {
@@ -65,20 +65,24 @@ int main(int argc, char** argv) {
   }
 
   // make bin list
-  size_t num_ener, num_escape, num_ener_sec, num_time;
-  std::vector<double> ener_list, escape_list, ener_sec_list, time_list;
+  size_t num_ener, num_escape, num_mach, num_ener_sec, num_time;
+  std::vector<double> ener_list, escape_list, mach_list, ener_sec_list, time_list;
   makeList(config["Bin.Ener"], ener_list, num_ener);
   makeList(config["Bin.Escape"], escape_list, num_escape);
+  makeList(config["Bin.Mach"], mach_list, num_mach);
   makeList(config["Bin.EnerSec"], ener_sec_list, num_ener_sec);
   makeList(config["Bin.Time"], time_list, num_time, constants::hr);
-  vector2d<double> bin_list = {ener_list, escape_list, ener_sec_list, time_list};
+  vector2d<double> bin_list = {mach_list, ener_list, escape_list, ener_sec_list, time_list};
 
   // define statistics
   std::vector<Stat> stat_list;
-  stat_list.push_back(Stat(num_mech, "num_ener_mech", "energy loss [eV] for each mechanism"));
+  stat_list.push_back(Stat(1, "eps_thm", "thermalization efficiency"));
+  stat_list.push_back(Stat(1, "surv_frac", "survival fraction"));
+  stat_list.push_back(Stat(num_mech, "ener_loss_mech", "energy loss [eV] for each mechanism"));
   stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
   stat_list.push_back(Stat(num_ener_sec - 1, "num_sec_ener", "number of secondary electrons per secondary energy bin"));
   stat_list.push_back(Stat(num_time - 1, "ener_loss_time", "energy loss [eV] per time bin"));
+  stat_list.push_back(Stat(num_ener - 1, "time_ener", "time [s] spent per energy bin"));
 
   // write info file
   if ( rank == 0 ) {
@@ -86,22 +90,24 @@ int main(int argc, char** argv) {
     writeInfo(infofile, config, bin_list, stat_list);
   }
 
+  // create a grid of data structs
+  vector3d<Data> data_grid;
+  data_grid.resize(num_mach);
+  for (size_t i = 0; i < num_mach; i++) {
+      data_grid[i].resize(num_ener);
+      for (size_t j = 0; j < num_ener; j++) {
+          data_grid[i][j].resize(num_escape);
+          for ( size_t k = 0; k < num_escape; k++ ) {
+            data_grid[i][j][k] = Data(mach_list[i], ener_list[j], escape_list[k], ener_min, L, geo, stat_list);
+          }
+      }
+  }
+
   // get data file indices
   int num_file = std::stoi(config["IO"]["num_file"]);
   int num_file_per_rank = static_cast<int>(ceil(num_file / size));
   int idx_file_min = std::min(rank * num_file_per_rank, num_file);
   int idx_file_max = std::min((rank + 1) * num_file_per_rank, num_file);
-
-  // create a grid of data structs for each energy and escape length
-  std::vector<Data> data_list;
-  vector2d<Data> data_grid;
-  for ( size_t i = 0; i < num_ener; i++ ) {
-    data_list.clear();
-    for ( size_t j = 0; j < num_escape; j++ ) {
-        data_list.push_back(Data(ener_list[i], escape_list[j], mach_A, L, geo, stat_list));
-    }
-    data_grid.push_back(data_list);
-  }
 
   // process files
   MPI_Barrier(MPI_COMM_WORLD);

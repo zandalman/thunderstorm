@@ -24,15 +24,19 @@ using vector2d = std::vector<std::vector<T>>;
  */
 void linspace(double vmin, double vmax, size_t num, bool log, std::vector<double> &list) {
   list.reserve(num);
-  if ( log ) {
-    vmin = log10(vmin);
-    vmax = log10(vmax);
-  }
-  double step = (vmax - vmin) / (num - 1);
-  for ( size_t i = 0; i < num; i++ ) {
-    double value = vmin + i * step;
-    if ( log ) value = pow(10.0, value);
-    list.push_back(value);
+  if ( num == 1 ) {
+    list.push_back(vmin);
+  } else {
+    if ( log ) {
+      vmin = log10(vmin);
+      vmax = log10(vmax);
+    }
+    double step = (vmax - vmin) / (num - 1);
+    for ( size_t i = 0; i < num; i++ ) {
+      double value = vmin + i * step;
+      if ( log ) value = pow(10.0, value);
+      list.push_back(value);
+    }
   }
 }
 
@@ -151,7 +155,7 @@ void calcFesc(int geo, double escape, double rpar, double varpar, double varperp
     fesc = 0.5 * (1.0 + erf((escape - rpar) / sqrt(2.0) / sigpar));
     break;
     case geo_tag::cylinder:
-    fesc = 0.5 * (1.0 - exp(-escape*escape / (2.0 * sigperp*sigperp))) * (erf((escape - 2.0 * rpar) / (sqrt(8.0) * sigpar)) + erf((escape + 2.0 * rpar) / (sqrt(8.0) * sigpar)));
+    fesc = 0.5 * (1.0 - exp(-escape*escape / (2.0 * sigperp*sigperp))) * (erf((escape - rpar) / (sqrt(2.0) * sigpar)) + erf((escape + rpar) / (sqrt(2.0) * sigpar)));
     break;
   }
 }

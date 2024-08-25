@@ -14,17 +14,21 @@ constexpr int cylinder = 2;
 }
 
 namespace stat_tag {
-constexpr int ener_loss_mech = 0;
-constexpr int num_ion_elem = 1;
-constexpr int num_sec_ener = 2;
-constexpr int ener_loss_time = 3;
+constexpr int eps_thm = 0;
+constexpr int surv_frac = 1;
+constexpr int ener_loss_mech = 2;
+constexpr int num_ion_elem = 3;
+constexpr int num_sec_ener = 4;
+constexpr int ener_loss_time = 5;
+constexpr int time_ener = 6;
 }
 
 namespace bin_tag {
-constexpr int ener = 0;
-constexpr int escape = 1;
-constexpr int ener_sec = 2;
-constexpr int time = 3;
+constexpr int mach = 0;
+constexpr int ener = 1;
+constexpr int escape = 2;
+constexpr int ener_sec = 3;
+constexpr int time = 4;
 }
 
 namespace mech_tag {

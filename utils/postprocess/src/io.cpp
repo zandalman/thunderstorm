@@ -103,15 +103,18 @@ void writeInfo(
   oss << "Post-processing parameters" << std::endl;
   oss << "File number:              " << config["IO"]["num_file"] << std::endl;
   oss << "Events per chunk:         " << config["IO"]["num_event_per_chunk"] << std::endl;
+  oss << "Number of Mach numbers:   " << config["Bin.Mach"]["num"] << std::endl;
   oss << "Number of energies:       " << config["Bin.Ener"]["num"] << std::endl;
   oss << "Number of escape lengths: " << config["Bin.Escape"]["num"] << std::endl;
-  oss << "Number of lines:          " << 2 + 4 * stat_list.size() << std::endl;
-  oss << "Alfven Mach number:       " << config["Bfield"]["mach_A"] << std::endl;
-  oss << "Turbulence scale [cm]:    " << config["Bfield"]["L"] << std::endl;
-  oss << "Geometry:                 " << config["Geometry"]["geo"] << std::endl;
+  oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
+  oss << "Minimum energy [eV]:      " << config["Parameters"]["ener_min"] << std::endl;
+  oss << "Turbulence scale [cm]:    " << config["Parameters"]["L"] << std::endl;
+  oss << "Geometry:                 " << config["Parameters"]["geo"] << std::endl;
   oss << std::endl;
 
   oss << "Variable lists" << std::endl;
+  oss << "Alfven Mach number" << std::endl;  
+  writeVector(oss, bin_list[bin_tag::mach]);
   oss << "Energy [eV]" << std::endl;  
   writeVector(oss, bin_list[bin_tag::ener]);
   oss << "Escape [cm]" << std::endl;
@@ -122,18 +125,36 @@ void writeInfo(
   writeVector(oss, bin_list[bin_tag::time]);
   oss << std::endl;
 
-  size_t num_line = 1;
-  oss << "Post-processed data format" << std::endl;
-  oss << "1.  energy [ev]" << std::endl;
-  oss << "2.  escape length [cm]" << std::endl;
+  size_t num_line;
+  std::array<std::string, 4> stattype_short_list = {"mean", "var", "skew", "kurt"};
+  std::array<std::string, 4> stattype_list = {"mean", "variance", "skewness", "kurtosis"};
+
+  oss << "Post-processed data names" << std::endl;
+  oss << "1.  mach_A" << std::endl;
+  oss << "2.  ener" << std::endl;
+  oss << "3.  escape" << std::endl;
+  num_line = 4;
+  for ( size_t i = 0; i < stat_list.size(); i++ ) {
+    for ( size_t j = 0; j < 4; j++ ) {
+      std::string space = num_line < 10 ? ".  " : ". ";
+      oss << num_line + 0 << space << stat_list[i].name << "_" << stattype_short_list[j] << std::endl;
+      num_line++;
+    }
+  }
+  oss << std::endl;
+
+  oss << "Post-processed data descriptions" << std::endl;
+  oss << "1.  Alfven Mach number" << std::endl;
+  oss << "2.  energy [ev]" << std::endl;
+  oss << "3.  escape length [cm]" << std::endl;
   num_line = 3;
 
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
-    oss << num_line + 0 << ".  " << "mean " << stat_list[i].description << std::endl;
-    oss << num_line + 1 << ".  " << "variance " << stat_list[i].description << std::endl;
-    oss << num_line + 2 << ".  " << "skewness " << stat_list[i].description << std::endl;
-    oss << num_line + 3 << ".  " << "kurtosis " << stat_list[i].description << std::endl;
-    num_line += 4;
+    for ( size_t j = 0; j < 4; j++ ) {
+      std::string space = num_line < 10 ? ".  " : ". ";
+      oss << num_line + 0 << space << stattype_list[j] << " " << stat_list[i].description << std::endl;
+      num_line++;
+    }
   }
 
   std::ofstream infofile(infofile_name);
@@ -169,19 +190,21 @@ void writeData(
 ) {
   std::ostringstream oss; // data stream
   size_t idx = 0; // index in flat data vectors
-  Stat stat;
 
-  for ( size_t i = 0; i < bin_list[bin_tag::ener].size(); i++ ) {
-    for ( size_t j = 0; j < bin_list[bin_tag::escape].size(); j++ ) {
-      oss << bin_list[bin_tag::ener][i] << std::endl;
-      oss << bin_list[bin_tag::escape][j] << std::endl;
-      for ( size_t k = 0; k < stat_list.size(); k++ ) {
-        stat = stat_list[k];
-        writeVector(oss, mean_stat_list_flat, idx, idx + stat.size);
-        writeVector(oss, var_stat_list_flat, idx, idx + stat.size);
-        writeVector(oss, skew_stat_list_flat, idx, idx + stat.size);
-        writeVector(oss, kurt_stat_list_flat, idx, idx + stat.size);
-        idx += stat.size; // increment the index
+  for ( size_t i = 0; i < bin_list[bin_tag::mach].size(); i++ ) {
+    for ( size_t j = 0; j < bin_list[bin_tag::ener].size(); j++ ) {
+      for ( size_t k = 0; k < bin_list[bin_tag::escape].size(); k++ ) {
+        oss << bin_list[bin_tag::mach][i] << std::endl;
+        oss << bin_list[bin_tag::ener][j] << std::endl;
+        oss << bin_list[bin_tag::escape][k] << std::endl;
+        for ( size_t l = 0; l < stat_list.size(); l++ ) {
+          const Stat &stat = stat_list[l];
+          writeVector(oss, mean_stat_list_flat, idx, idx + stat.size);
+          writeVector(oss, var_stat_list_flat, idx, idx + stat.size);
+          writeVector(oss, skew_stat_list_flat, idx, idx + stat.size);
+          writeVector(oss, kurt_stat_list_flat, idx, idx + stat.size);
+          idx += stat.size; // increment the index
+        }
       }
     }
   }

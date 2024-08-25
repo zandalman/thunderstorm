@@ -19,20 +19,25 @@
 // types
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
+template <typename T>
+using vector3d = std::vector<vector2d<T>>;
 
 /// @brief A constructor to initialize the Data structure.
-Data::Data(double ener_, double escape_, double mach_A_, double L_, int geo_, const std::vector<Stat> &stat_list)
-  : ener(ener_)
+Data::Data(double mach_A_, double ener_, double escape_, double ener_min_, double L_, int geo_, const std::vector<Stat> &stat_list)
+  : mach_A(mach_A_)
+  , ener(ener_)
   , escape(escape_)
-  , mach_A(mach_A_)
+  , ener_min(ener_min_)
   , L(L_)
   , geo(geo_)
+  , ener_start(ener_)
   , time_start(0.0)
   , splus_start(0.0)
   , sminus_start(0.0)
-  , time(0.)
-  , splus(0.)
-  , sminus(0.)
+  , ener_prev(ener_)
+  , time_prev(0.)
+  , splus_prev(0.)
+  , sminus_prev(0.)
   , rpar(0.)
   , varpar(0.)
   , varperp(0.)
@@ -51,12 +56,14 @@ Data::Data(double ener_, double escape_, double mach_A_, double L_, int geo_, co
 
 /// @brief Reset the particle data.
 void Data::reset() {
+  ener_start = ener;
   time_start = 0.;
   splus_start = 0.;
   sminus_start = 0.;
-  time = 0.;
-  splus = 0.;
-  sminus = 0.;
+  ener_prev = ener;
+  time_prev = 0.;
+  splus_prev = 0.;
+  sminus_prev = 0.;
   rpar = 0.;
   varpar = 0.;
   varperp = 0.;
@@ -73,21 +80,24 @@ void Data::reset() {
  * @param stat_list The list of statistics.
  */
 void Data::calcStat(int n_int, const std::vector<Stat> &stat_list) {
-  Stat stat;
   double delta, delta_np1, delta_np1_sq, term1;
   double n = static_cast<double>(n_int);
   double np1 = n + 1.0;
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
-    stat = stat_list[i];
+    const Stat &stat = stat_list[i];
     for ( size_t j = 0; j < stat.size; j++ ) {
-      delta = part_stat_list[i][j] - mean_stat_list[i][j];
-      delta_np1 = delta / np1;
-      delta_np1_sq = delta_np1*delta_np1;
-      term1 = delta * delta_np1 * n;
-      M4_stat_list[i][j] += term1 * delta_np1_sq * (np1*np1 - 3.0 * np1 + 3.0) + 6.0 * delta_np1_sq * M2_stat_list[i][j] - 4.0 * delta_np1 * M3_stat_list[i][j];
-      M3_stat_list[i][j] += term1 * delta_np1 * (np1 - 2.0) - 3.0 * delta_np1 * M2_stat_list[i][j];
-      M2_stat_list[i][j] += term1;
-      mean_stat_list[i][j] += delta_np1;
+      if ( n_int == 0 ) {
+        mean_stat_list[i][j] = part_stat_list[i][j];
+      } else {
+        delta = part_stat_list[i][j] - mean_stat_list[i][j];
+        delta_np1 = delta / np1;
+        delta_np1_sq = delta_np1*delta_np1;
+        term1 = delta * delta_np1 * n;
+        M4_stat_list[i][j] += term1 * delta_np1_sq * (np1*np1 - 3.0 * np1 + 3.0) + 6.0 * delta_np1_sq * M2_stat_list[i][j] - 4.0 * delta_np1 * M3_stat_list[i][j];
+        M3_stat_list[i][j] += term1 * delta_np1 * (np1 - 2.0) - 3.0 * delta_np1 * M2_stat_list[i][j];
+        M2_stat_list[i][j] += term1;
+        mean_stat_list[i][j] += delta_np1;
+      }
     }
   }
 }
@@ -108,7 +118,7 @@ void processFile(
   const vector2d<double> &bin_list,
   const std::vector<Stat>& stat_list, 
   int &count, 
-  vector2d<Data>& data_grid
+  vector3d<Data>& data_grid
 ) {
 
   // Open file
@@ -131,17 +141,14 @@ void processFile(
   while ( datafile.read(buffer.data(), chunk_size) ) {
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
-      if ( event->id != current_id ) {
-        count++;
-        for ( size_t j = 0; j < data_grid.size(); j++ ) {
-          for ( size_t k = 0; k < data_grid[j].size(); k++ ) {
-            data_grid[j][k].calcStat(count, stat_list);
-            data_grid[j][k].reset();
-          }
-        }
+      if ( event->id == -1 ) {
         current_id = event->id;
+      } else if ( event->id == current_id ) {
+        processEvent(event, bin_list, data_grid);
       } else {
-        processEvent(event, bin_list, stat_list, data_grid);
+        postProcPart(count, stat_list, data_grid);
+        current_id = event->id;
+        count++;
       }
     }
   }
@@ -153,17 +160,14 @@ void processFile(
       size_t num_event_last_chunk = bytes_read / event_size;
       for ( size_t i = 0; i < num_event_last_chunk; i++ ) {
         event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
-        if ( event->id != current_id ) {
-          count++;
-          for ( size_t j = 0; j < data_grid.size(); j++ ) {
-            for ( size_t k = 0; k < data_grid[j].size(); k++ ) {
-              data_grid[j][k].calcStat(count, stat_list);
-              data_grid[j][k].reset();
-            }
-          }
+        if ( event->id == -1 ) {
           current_id = event->id;
+        } else if ( event->id == current_id ) {
+          processEvent(event, bin_list, data_grid);
         } else {
-          processEvent(event, bin_list, stat_list, data_grid);
+          postProcPart(count, stat_list, data_grid);
+          current_id = event->id;
+          count++;
         }
       }
     }
@@ -175,18 +179,45 @@ void processFile(
 }
 
 /**
+ * @brief Post-process event data for a single particle and reset the data grid.
+ * 
+ * @param count     The particle count.
+ * @param stat_list The list of statistics.
+ * @param data_grid The grid of data.
+ */
+void postProcPart(
+  int count,
+  const std::vector<Stat> &stat_list, 
+  vector3d<Data> &data_grid
+) {
+  for ( size_t i = 0; i < data_grid.size(); i++ ) {
+    for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
+      for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
+        Data &data = data_grid[i][j][k];
+        // compute thermalization efficiency
+        data.part_stat_list[stat_tag::eps_thm][0] += data.ener_prev * data.fesc_min;
+        data.part_stat_list[stat_tag::eps_thm][0] /= data.ener_start;
+        data.part_stat_list[stat_tag::eps_thm][0] = fmin(data.part_stat_list[stat_tag::eps_thm][0], 1.0);
+        // aggregate statistics and reset
+        data.calcStat(count, stat_list);
+        data.reset();
+      }
+    }
+  }
+}
+
+/**
  * @brief Process an event and add the post-processed data to the particle data.
  * 
  * @param event     The event struct.
  * @param bin_list  The list of bins.
- * @param stat_list The list of statistics.
+ * @param ener_min  The minimum energy [eV].
  * @param data_grid The grid of data.
  */
 void processEvent(
   const Event* event, 
   const vector2d<double> &bin_list, 
-  const std::vector<Stat>& stat_list, 
-  vector2d<Data>& data_grid
+  vector3d<Data>& data_grid
 ) {
   // throw error if event pointer is null.
   if ( event == nullptr ) {
@@ -197,85 +228,96 @@ void processEvent(
   double time_rel, splus_rel, sminus_rel, s_rel;
   double dt, dsplus, dsminus;
   double fesc, ener_loss;
-  size_t idx_ener_sec, idx_time;
+  size_t idx_ener_sec, idx_time, idx_ener;
   
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
+      for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
     
-      Data &data = data_grid[i][j];
-      if ( data.fesc_min == 0.0 ) continue;
-      
-      // if energy is below starting energy, update start time and coordinates
-      if ( event->ener > data.ener ) {
-        data.time_start = event->time;
-        data.splus_start = event->splus;
-        data.sminus_start = event->sminus;
-        data.time = event->time;
-        data.splus = event->splus;
-        data.sminus = event->sminus;
-        continue;
-      }
-
-      // compute useful quantities
-      time_rel = event->time - data.time_start;
-      splus_rel = event->splus - data.splus_start;
-      sminus_rel = event->sminus - data.sminus_start;
-      s_rel = splus_rel + sminus_rel;
-
-      ener_loss = event->ener_loss_moller + event->ener_loss_sync + event->ener_loss_cher;
-      if ( !std::isnan(event->ener_loss) ) {
-        ener_loss += event->ener_loss;
-      }
-
-      // compute transport
-      dt = event->time - data.time;
-      dsplus = event->splus - data.splus;
-      dsminus = event->sminus - data.sminus;
-      calcTransport(data.mach_A, data.L, s_rel, dsplus, dsminus, data.rpar, data.varpar, data.varperp);
-      calcFesc(data.geo, data.escape, data.rpar, data.varpar, data.varperp, fesc);
-      if ( fesc < data.fesc_min ) {
-        data.fesc_min = fesc;
-      } else {
-        fesc = data.fesc_min;
-      }
-
-      // update time and distance
-      data.time = event->time;
-      data.splus = event->splus;
-      data.sminus = event->sminus;
-
-      // compute time histograms
-      idx_time = findIdx(time_rel, bin_list[bin_tag::time]);
-      if ( idx_time > 0 && idx_time < bin_list[bin_tag::time].size() ) {
-        data.part_stat_list[stat_tag::ener_loss_time][idx_time - 1] += fesc * ener_loss;
-      }
-      
-      // compute interaction histograms
-      switch ( event->interaction ) {
-        case flags::brem:
-        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::brem] += fesc * event->ener_loss;
-        break;
-        case flags::exc:
-        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::exc] += fesc * event->ener_loss;
-        break;
-        case flags::ion:
-        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::ion] += fesc * event->ener_loss;
-        data.part_stat_list[stat_tag::num_ion_elem][event->Zelem - 1] += fesc;
-        // compute secondary energy histograms
-        idx_ener_sec = findIdx(event->ener_sec, bin_list[bin_tag::ener_sec]);
-        if (idx_ener_sec > 0 && idx_ener_sec < bin_list[bin_tag::ener_sec].size()) {
-          data.part_stat_list[stat_tag::num_sec_ener][idx_ener_sec - 1] += fesc;
+        Data &data = data_grid[i][j][k];
+        if ( data.fesc_min == 0.0 ) continue;
+        
+        // if energy is above starting energy, update start time and coordinates
+        if ( event->ener > data.ener ) {
+          data.ener_start = event->ener;
+          data.time_start = event->time;
+          data.splus_start = event->splus;
+          data.sminus_start = event->sminus;
+          data.ener_prev = event->ener;
+          data.time_prev = event->time;
+          data.splus_prev = event->splus;
+          data.sminus_prev = event->sminus;
+          continue;
         }
-        break;
-        case flags::moller:
-        if ( !std::isnan(event->ener_loss) ) {
-          data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += fesc * event->ener_loss;
+
+        if ( event->ener < data.ener_min ) continue;
+
+        // compute useful quantities
+        ener_loss = data.ener_prev - event->ener;
+        time_rel = event->time - data.time_start;
+        splus_rel = event->splus - data.splus_start;
+        sminus_rel = event->sminus - data.sminus_start;
+        s_rel = splus_rel + sminus_rel;
+
+        // compute transport
+        dt = event->time - data.time_prev;
+        dsplus = event->splus - data.splus_prev;
+        dsminus = event->sminus - data.sminus_prev;
+        calcTransport(data.mach_A, data.L, s_rel, dsplus, dsminus, data.rpar, data.varpar, data.varperp);
+        calcFesc(data.geo, data.escape, data.rpar, data.varpar, data.varperp, fesc);
+        if ( fesc < data.fesc_min ) {
+          data.fesc_min = fesc;
+        } else {
+          fesc = data.fesc_min;
         }
-        break;
+        data.part_stat_list[stat_tag::surv_frac][0] = fesc;
+
+        // update time and distance
+        data.ener_prev = event->ener;
+        data.time_prev = event->time;
+        data.splus_prev = event->splus;
+        data.sminus_prev = event->sminus;
+
+        // compute energy histograms
+        idx_ener = findIdx(event->ener, bin_list[bin_tag::ener]);
+        if ( idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size() ) {
+          data.part_stat_list[stat_tag::time_ener][idx_ener - 1] += fesc * dt;
+        }
+        
+        // compute time histograms
+        idx_time = findIdx(time_rel, bin_list[bin_tag::time]);
+        if ( idx_time > 0 && idx_time < bin_list[bin_tag::time].size() ) {
+          data.part_stat_list[stat_tag::ener_loss_time][idx_time - 1] += fesc * ener_loss;
+        }
+        data.part_stat_list[stat_tag::eps_thm][0] += fesc * ener_loss;
+        
+        // compute interaction histograms
+        switch ( event->interaction ) {
+          case flags::brem:
+          data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::brem] += fesc * event->ener_loss;
+          break;
+          case flags::exc:
+          data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::exc] += fesc * event->ener_loss;
+          break;
+          case flags::ion:
+          data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::ion] += fesc * event->ener_loss;
+          data.part_stat_list[stat_tag::num_ion_elem][event->Zelem - 1] += fesc;
+          // compute secondary energy histograms
+          idx_ener_sec = findIdx(event->ener_sec, bin_list[bin_tag::ener_sec]);
+          if (idx_ener_sec > 0 && idx_ener_sec < bin_list[bin_tag::ener_sec].size()) {
+            data.part_stat_list[stat_tag::num_sec_ener][idx_ener_sec - 1] += fesc;
+          }
+          break;
+          case flags::moller:
+          if ( !std::isnan(event->ener_loss) ) {
+            data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += fesc * event->ener_loss;
+          }
+          break;
+        }
+        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += fesc * event->ener_loss_moller;
+        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::sync] += fesc * event->ener_loss_sync;
+        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += fesc * event->ener_loss_cher;
       }
-      data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += fesc * event->ener_loss_moller;
-      data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::sync] += fesc * event->ener_loss_sync;
-      data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += fesc * event->ener_loss_cher;
     }
   }
 }
@@ -292,7 +334,7 @@ void processEvent(
  * @param size_t              The size of the flattened list of statistics.
  */
 void getFlatData(
-  const vector2d<Data>& data_grid,
+  const vector3d<Data>& data_grid,
   const std::vector<Stat> &stat_list, 
   std::vector<double> &mean_stat_list_flat, 
   std::vector<double> &M2_stat_list_flat, 
@@ -300,20 +342,20 @@ void getFlatData(
   std::vector<double> &M4_stat_list_flat, 
   size_t &size_flat
 ) {
-  Data data;
-  Stat stat;
   size_flat = 0;
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
-      data = data_grid[i][j];
-      for ( size_t k = 0; k < stat_list.size(); k++ ) {
-        stat = stat_list[k];
-        for ( size_t l = 0; l < stat.size; l++ ) {
-          mean_stat_list_flat.push_back(data.mean_stat_list[k][l]);
-          M2_stat_list_flat.push_back(data.M2_stat_list[k][l]);
-          M3_stat_list_flat.push_back(data.M2_stat_list[k][l]);
-          M4_stat_list_flat.push_back(data.M2_stat_list[k][l]);
-          size_flat += 1;
+      for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
+        const Data &data = data_grid[i][j][k];
+        for ( size_t l = 0; l < stat_list.size(); l++ ) {
+          const Stat &stat = stat_list[l];
+          for ( size_t m = 0; m < stat.size; m++ ) {
+            mean_stat_list_flat.push_back(data.mean_stat_list[l][m]);
+            M2_stat_list_flat.push_back(data.M2_stat_list[l][m]);
+            M3_stat_list_flat.push_back(data.M2_stat_list[l][m]);
+            M4_stat_list_flat.push_back(data.M2_stat_list[l][m]);
+            size_flat += 1;
+          }
         }
       }
     }
