@@ -78,6 +78,7 @@ int main(int argc, char** argv) {
   std::vector<Stat> stat_list;
   stat_list.push_back(Stat(1, "eps_thm", "thermalization efficiency"));
   stat_list.push_back(Stat(1, "surv_frac", "survival fraction"));
+  stat_list.push_back(Stat(num_inter, "num_ev_inter", "number of events for each interaction"));
   stat_list.push_back(Stat(num_mech, "ener_loss_mech", "energy loss [eV] for each mechanism"));
   stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
   stat_list.push_back(Stat(num_ener_sec - 1, "num_sec_ener", "number of secondary electrons per secondary energy bin"));

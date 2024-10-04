@@ -4,6 +4,7 @@
 // includes
 #include <string>
 
+constexpr size_t num_inter = 6;
 constexpr size_t num_mech = 6;
 constexpr size_t num_elem = 118;
 
@@ -16,11 +17,12 @@ constexpr int cylinder = 2;
 namespace stat_tag {
 constexpr int eps_thm = 0;
 constexpr int surv_frac = 1;
-constexpr int ener_loss_mech = 2;
-constexpr int num_ion_elem = 3;
-constexpr int num_sec_ener = 4;
-constexpr int ener_loss_time = 5;
-constexpr int time_ener = 6;
+constexpr int num_ev_inter = 2;
+constexpr int ener_loss_mech = 3;
+constexpr int num_ion_elem = 4;
+constexpr int num_sec_ener = 5;
+constexpr int ener_loss_time = 6;
+constexpr int time_ener = 7;
 }
 
 namespace bin_tag {
@@ -29,6 +31,14 @@ constexpr int ener = 1;
 constexpr int escape = 2;
 constexpr int ener_sec = 3;
 constexpr int time = 4;
+}
+
+namespace inter_tag {
+constexpr int brem = 0;
+constexpr int exc = 1;
+constexpr int ion = 2;
+constexpr int moller = 3;
+constexpr int scat = 4;
 }
 
 namespace mech_tag {
@@ -47,7 +57,6 @@ constexpr int brem = 2;
 constexpr int exc = 3;
 constexpr int ion = 4;
 constexpr int moller = 5;
-constexpr int turb = 6;
 }
 
 namespace constants {

@@ -293,13 +293,19 @@ void processEvent(
         
         // compute interaction histograms
         switch ( event->interaction ) {
+          case flags::scat:
+          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::scat] += fesc;
+          break;
           case flags::brem:
+          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::brem] += fesc;
           data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::brem] += fesc * event->ener_loss;
           break;
           case flags::exc:
+          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::exc] += fesc;
           data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::exc] += fesc * event->ener_loss;
           break;
           case flags::ion:
+          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::ion] += fesc;
           data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::ion] += fesc * event->ener_loss;
           data.part_stat_list[stat_tag::num_ion_elem][event->Zelem - 1] += fesc;
           // compute secondary energy histograms
@@ -309,6 +315,7 @@ void processEvent(
           }
           break;
           case flags::moller:
+          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::moller] += fesc;
           if ( !std::isnan(event->ener_loss) ) {
             data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += fesc * event->ener_loss;
           }
