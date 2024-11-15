@@ -11,18 +11,17 @@ constexpr size_t num_elem = 118;
 namespace geo_tag {
 constexpr int none = 0;
 constexpr int plane = 1;
-constexpr int cylinder = 2;
+constexpr int sphere = 2;
 }
 
 namespace stat_tag {
 constexpr int eps_thm = 0;
-constexpr int surv_frac = 1;
-constexpr int num_ev_inter = 2;
-constexpr int ener_loss_mech = 3;
-constexpr int num_ion_elem = 4;
-constexpr int num_sec_ener = 5;
-constexpr int ener_loss_time = 6;
-constexpr int time_ener = 7;
+constexpr int num_ev_inter = 1;
+constexpr int ener_loss_mech = 2;
+constexpr int num_ion_elem = 3;
+constexpr int num_sec_ener = 4;
+constexpr int ener_loss_time = 5;
+constexpr int time_ener = 6;
 }
 
 namespace bin_tag {

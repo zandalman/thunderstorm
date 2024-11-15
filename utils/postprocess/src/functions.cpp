@@ -8,6 +8,8 @@
 #include "functions.h"
 #include "const.h"
 #include "io.h"
+#include "vec.h"
+#include "random.h"
 
 // types
 template <typename T>
@@ -65,99 +67,37 @@ void normalize(std::vector<double>& vec, const double norm) {
 }
 
 /**
- * @brief Modified inverse hyperbolic cotangent function.
- * The domain of the inverse hyperbolic cotangent is extended by taking the maximum of x and 1/x.
- * 
- * @param x The argument of the function.
- * @return The modified inverse hyperbolic cotangent.
- */
-double arccothMod(double x) {
-  double x_mod = fmax(x, 1.0 / x);
-  return 0.5 * log((x_mod + 1.0) / (x_mod - 1.0));
-}
-
-/**
- * @brief Calculate parallel and perpendicular diffusion factors.
- * 
- * @param mach_A_lpar The parallel scale-dependent Alfven Mach number.
- * @param fac_par     The parallel diffusion factor.
- * @param fac_perp    The perpendicular diffusion factor.
- */
-void calcParPerpFac(double mach_A_lpar, double &fac_par, double &fac_perp) {
-  if ( mach_A_lpar == 0.0 ) {
-    fac_par = 0.; fac_perp = 0.;
-  } else if ( mach_A_lpar == 1.0 ) {
-    fac_par = 0.5; fac_perp = 0.5;
-  } else {
-    double mach_A_lpar_sqm1 = mach_A_lpar*mach_A_lpar - 1.0;
-    double fac = mach_A_lpar_sqm1*mach_A_lpar_sqm1 * arccothMod(mach_A_lpar) / (4.0 * mach_A_lpar);
-    fac_par = fac - (mach_A_lpar_sqm1 - 2.0) / 4.0;
-    fac_perp = -fac + (mach_A_lpar_sqm1 + 2.0) / 4.0;
-  }
-}
-
-/**
- * @brief Calculate the parallel and perpendicular transport.
- * 
- * @param mach_A  The Alfven mach number.
- * @param L       The turbulence injection scale [cm].
- * @param s       The arclength along the field line [cm].
- * @param dsplus  The differential postive arclength along the field line [cm].
- * @param dsminus The differential negative arclength along the field line [cm].
- * @param rpar    The mean parallel displacement [cm].
- * @param sigpar  The standard deviation of the parallel displacement [cm].
- * @param sigperp The standard deviation of the perpendicular displacement [cm].
- */
-void calcTransport(double mach_A, double L, double s, double dsplus, double dsminus, double &rpar, double &varpar, double &varperp) {
-  double ds, sgn, lcorr;
-  double mach_A_lpar, drpar_ds, fac_par, fac_perp;
-  // compute ds magnitude and sign
-  ds = dsplus + dsminus;
-  sgn = dsplus > 0.0 ? 1.0 : -1.0;
-  // compute the scale-dependent Mach number
-  if ( s >= L ) {
-    mach_A_lpar = mach_A;
-  } else if ( mach_A < 1 ) {
-    mach_A_lpar = mach_A*mach_A * sqrt(s / L);
-  } else if ( s >= L / (mach_A*mach_A*mach_A) ) {
-    mach_A_lpar = mach_A * pow(s / L, 1.0/3.0);
-  } else {
-    mach_A_lpar = pow(mach_A, 3.0/2.0) * sqrt(s / L);
-  }
-  // compute useful quantities
-  lcorr = s >= L ? L : s;
-  drpar_ds = mach_A_lpar >= 1 ? 2.0/3.0 / mach_A_lpar : 1.0 - mach_A_lpar*mach_A_lpar / 3.0;
-  calcParPerpFac(mach_A_lpar, fac_par, fac_perp);
-  // increment rpar, sigpar, and sigperp
-  rpar += sgn * ds * drpar_ds;
-  varpar += fmax(0.0, ds * lcorr * (fac_par - drpar_ds*drpar_ds));
-  varperp += fmax(0.0, ds * lcorr * fac_perp);
-}
-
-/**
- * @brief Compute the survival fraction.
+ * @brief Determine whether a particle has escaped.
  * 
  * @param geo     The geometry tag.
  * @param escape  The escape distance [cm].
- * @param rpar    The mean parallel displacement [cm].
- * @param sigpar  The standard deviation of the parallel displacement [cm].
- * @param sigperp The standard deviation of the perpendicular displacement [cm].
- * @param fesc    The survival fraction.
+ * @param pos     The particle position [cm].
+ * @return Whether the particle escaped or not.    
  */
-void calcFesc(int geo, double escape, double rpar, double varpar, double varperp, double &fesc) {
-  double sigpar = sqrt(varpar);
-  double sigperp = sqrt(varperp);
+bool didEscape(int geo, double escape, Vec pos) {
   switch ( geo ) {
     case geo_tag::none:
-    fesc = 1.;
+    return false;
     break;
     case geo_tag::plane:
-    fesc = 0.5 * (1.0 + erf((escape - rpar) / sqrt(2.0) / sigpar));
+    return pos.z > escape;
     break;
-    case geo_tag::cylinder:
-    fesc = 0.5 * (1.0 - exp(-escape*escape / (2.0 * sigperp*sigperp))) * (erf((escape - rpar) / (sqrt(2.0) * sigpar)) + erf((escape + rpar) / (sqrt(2.0) * sigpar)));
+    case geo_tag::sphere:
+    return pos.mag() > escape;
     break;
   }
+  return false;
+}
+
+Vec calcRandVec(double mach_A) {
+  Vec rand_vec = Vec(0.0, 0.0, 0.0);
+  double cos_th = 2.0 * xi() - 1.0;
+  double sin_th = sqrt(1.0 - cos_th*cos_th);
+  double phi = 2.0 * M_PI * xi();
+  rand_vec.x = mach_A * sin_th * cos(phi);
+  rand_vec.y = mach_A * sin_th * sin(phi);
+  rand_vec.z = mach_A * cos_th + 1.0;
+  return rand_vec.unit();
 }
 
 /**

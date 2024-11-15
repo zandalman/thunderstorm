@@ -6,6 +6,7 @@
 
 // headers
 #include "io.h"
+#include "vec.h"
 
 // types
 template <typename T>
@@ -22,17 +23,16 @@ struct Data {
   double L;                        // The turbulence injection scale [cm].
   int geo;                         // The geometry tag.
   double ener_start;               // The start energy [eV].
+  bool escaped;                    // Whether the particle has escpaed.
   double time_start;               // The start time [s].
-  double splus_start;              // The start positive distance along the field line [cm].
-  double sminus_start;             // The start negative distance along the field line [cm].
   double ener_prev;                // The energy [eV].
   double time_prev;                // The time [s].
   double splus_prev;               // The positive distance along the field line [cm].
   double sminus_prev;              // The negative distance along the field line [cm].
-  double rpar;                     // The mean parallel displacement [cm].
-  double varpar;                   // The standard deviation of parallel displacement [cm].
-  double varperp;                  // The standard deviation of perpendicular displacement [cm].
-  double fesc_min;                 // The minimum survival fraction.
+  double lam_scat;                 // The mean free path along a field line before scattering [cm].
+  double s_scat;                   // The distance remaining along a field line before scattering [cm].
+  Vec pos;                         // The particle position [cm].
+  Vec Bhat;                        // The particle B-field direction.
   vector2d<double> part_stat_list; // The statistics for a single particle.
   vector2d<double> mean_stat_list; // The mean statistics
   vector2d<double> M2_stat_list;   // The M2 statistics

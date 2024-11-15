@@ -58,8 +58,8 @@ int main(int argc, char** argv) {
   std::string geo_str = std::string(config["Parameters"]["geo"]);
   if ( geo_str == "plane" ) {
     geo = geo_tag::plane;
-  } else if ( geo_str == "cylinder" ) {
-    geo = geo_tag::cylinder;
+  } else if ( geo_str == "sphere" ) {
+    geo = geo_tag::sphere;
   } else {
     geo = geo_tag::none;
   }
@@ -77,7 +77,6 @@ int main(int argc, char** argv) {
   // define statistics
   std::vector<Stat> stat_list;
   stat_list.push_back(Stat(1, "eps_thm", "thermalization efficiency"));
-  stat_list.push_back(Stat(1, "surv_frac", "survival fraction"));
   stat_list.push_back(Stat(num_inter, "num_ev_inter", "number of events for each interaction"));
   stat_list.push_back(Stat(num_mech, "ener_loss_mech", "energy loss [eV] for each mechanism"));
   stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
