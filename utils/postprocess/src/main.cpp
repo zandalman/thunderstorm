@@ -50,7 +50,8 @@ int main(int argc, char** argv) {
   const std::string outfile_name = config["IO"]["outpath"] + "/data.txt";
   const std::string data_path = config["IO"]["data_path"];
   const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
-  
+  const int num_hist = std::stoi(config["IO"]["num_hist"]);
+
   // get parameters
   int geo;
   const double L = std::stod(config["Parameters"]["L"]);
