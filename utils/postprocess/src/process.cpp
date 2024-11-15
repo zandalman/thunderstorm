@@ -197,9 +197,10 @@ void postProcPart(
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
         Data &data = data_grid[i][j][k];
         // compute thermalization efficiency
-        if ( !data.escaped ) {
-          data.part_stat_list[stat_tag::eps_thm][0] += data.ener_prev;
-          data.part_stat_list[stat_tag::eps_thm][0] /= data.ener_start;
+        if ( data.escaped ) {
+          data.part_stat_list[stat_tag::eps_thm][0] += (data.ener_prev / data.ener_start);
+        } else {
+          data.part_stat_list[stat_tag::eps_thm][0] += 1.0;
         }
         // aggregate statistics and reset
         data.calcStat(count, stat_list);

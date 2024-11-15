@@ -7,6 +7,7 @@
 #include <vector>
 #include <cmath>
 #include <cstdio>
+#include <array>
 #include <mpi.h>
 
 // headers
