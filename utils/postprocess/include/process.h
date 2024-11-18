@@ -2,6 +2,9 @@
 #define PROCESS_H
 
 // includes
+#include <fstream>
+#include <sstream>
+#include <iostream>
 #include <vector>
 
 // headers
@@ -33,6 +36,7 @@ struct Data {
   double s_scat;                   // The distance remaining along a field line before scattering [cm].
   Vec pos;                         // The particle position [cm].
   Vec Bhat;                        // The particle B-field direction.
+  std::ostringstream oss;          // The string stream.
   vector2d<double> part_stat_list; // The statistics for a single particle.
   vector2d<double> mean_stat_list; // The mean statistics
   vector2d<double> M2_stat_list;   // The M2 statistics
@@ -60,6 +64,7 @@ void postProcPart(
 );
 void processEvent(
   const Event* event, 
+  bool do_hist,
   const vector2d<double> &bin_list, 
   vector3d<Data>& data_grid
 );
@@ -68,6 +73,9 @@ void processFile(
   size_t num_event_per_chunk, 
   const vector2d<double> &bin_list, 
   const std::vector<Stat>& stat_list, 
+  const std::string &histdir_name,
+  int idx_hist_min,
+  int idx_hist_max,
   int &count, 
   vector3d<Data>& data_grid
 );

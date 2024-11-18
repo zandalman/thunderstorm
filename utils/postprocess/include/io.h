@@ -11,6 +11,10 @@
 // types
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
+template <typename T>
+using vector3d = std::vector<vector2d<T>>;
+
+struct Data;
 
 /// @brief A structure to represent a statistics.
 struct Stat {
@@ -67,6 +71,15 @@ void writeData(
   const std::vector<double> &var_stat_list_flat,
   const std::vector<double> &skew_stat_list_flat,
   const std::vector<double> &kurt_stat_list_flat
+);
+void writeHist(
+  const std::string &histfile_name,
+  const vector2d<double> &bin_list,
+  vector3d<Data>& data_grid
+);
+void writeOss(
+  std::ofstream &outfile, 
+  const std::ostringstream &oss
 );
 
 #endif
