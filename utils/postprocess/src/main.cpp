@@ -20,8 +20,6 @@ template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 template <typename T>
 using vector3d = std::vector<vector2d<T>>;
-template <typename T>
-using vector4d = std::vector<vector3d<T>>;
 
 int main(int argc, char** argv) {
 
@@ -69,15 +67,14 @@ int main(int argc, char** argv) {
   }
 
   // make bin list
-  size_t num_rho, num_ener, num_escape, num_mach, num_ener_sec, num_time;
-  std::vector<double> rho_list, ener_list, escape_list, mach_list, ener_sec_list, time_list;
-  makeList(config["Grid.Rho"], rho_list, num_rho);
-  makeList(config["Grid.Ener"], ener_list, num_ener);
-  makeList(config["Grid.Escape"], escape_list, num_escape);
-  makeList(config["Grid.Mach"], mach_list, num_mach);
+  size_t num_ener, num_escape, num_mach, num_ener_sec, num_time;
+  std::vector<double> ener_list, escape_list, mach_list, ener_sec_list, time_list;
+  makeList(config["Bin.Ener"], ener_list, num_ener);
+  makeList(config["Bin.Escape"], escape_list, num_escape);
+  makeList(config["Bin.Mach"], mach_list, num_mach);
   makeList(config["Bin.EnerSec"], ener_sec_list, num_ener_sec);
   makeList(config["Bin.Time"], time_list, num_time, constants::hr);
-  vector2d<double> bin_list = {rho_list, mach_list, ener_list, escape_list, ener_sec_list, time_list};
+  vector2d<double> bin_list = {mach_list, ener_list, escape_list, ener_sec_list, time_list};
 
   // define statistics
   std::vector<Stat> stat_list;
@@ -96,17 +93,14 @@ int main(int argc, char** argv) {
   }
 
   // create a grid of data structs
-  vector4d<Data> data_grid;
-  data_grid.resize(num_rho);
-  for (size_t i1 = 0; i1 < num_rho; i1++) {
-    data_grid[i1].resize(num_mach);
-    for (size_t i2 = 0; i2 < num_mach; i2++) {
-      data_grid[i1][i2].resize(num_ener);
-      for (size_t i3 = 0; i3 < num_ener; i3++) {
-        data_grid[i1][i2][i3].resize(num_escape);
-        for ( size_t i4 = 0; i4 < num_escape; i4++ ) {
-          data_grid[i1][i2][i3][i4] = Data(rho_list[i], mach_list[i], ener_list[j], escape_list[k], ener_min, L, geo, stat_list);
-        }
+  vector3d<Data> data_grid;
+  data_grid.resize(num_mach);
+  for (size_t i = 0; i < num_mach; i++) {
+    data_grid[i].resize(num_ener);
+    for (size_t j = 0; j < num_ener; j++) {
+      data_grid[i][j].resize(num_escape);
+      for ( size_t k = 0; k < num_escape; k++ ) {
+        data_grid[i][j][k] = Data(mach_list[i], ener_list[j], escape_list[k], ener_min, L, geo, stat_list);
       }
     }
   }

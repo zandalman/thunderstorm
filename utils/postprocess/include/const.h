@@ -25,12 +25,11 @@ constexpr int time_ener = 6;
 }
 
 namespace bin_tag {
-constexpr int rho = 0;
-constexpr int mach = 1;
-constexpr int ener = 2;
-constexpr int escape = 3;
-constexpr int ener_sec = 4;
-constexpr int time = 5;
+constexpr int mach = 0;
+constexpr int ener = 1;
+constexpr int escape = 2;
+constexpr int ener_sec = 3;
+constexpr int time = 4;
 }
 
 namespace inter_tag {

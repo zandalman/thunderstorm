@@ -108,19 +108,16 @@ void writeInfo(
   oss << "File number:              " << config["IO"]["num_file"] << std::endl;
   oss << "Events per chunk:         " << config["IO"]["num_event_per_chunk"] << std::endl;
   oss << "Number of histories:      " << config["IO"]["num_hist"] << std::endl;
-  oss << "Number of densities:      " << config["Grid.Rho"]["num"] << std::endl;
-  oss << "Number of Mach numbers:   " << config["Grid.Mach"]["num"] << std::endl;
-  oss << "Number of energies:       " << config["Grid.Ener"]["num"] << std::endl;
-  oss << "Number of escape lengths: " << config["Grid.Escape"]["num"] << std::endl;
-  oss << "Number of lines:          " << 4 + 4 * stat_list.size() << std::endl;
+  oss << "Number of Mach numbers:   " << config["Bin.Mach"]["num"] << std::endl;
+  oss << "Number of energies:       " << config["Bin.Ener"]["num"] << std::endl;
+  oss << "Number of escape lengths: " << config["Bin.Escape"]["num"] << std::endl;
+  oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
   oss << "Minimum energy [eV]:      " << config["Parameters"]["ener_min"] << std::endl;
   oss << "Turbulence scale [cm]:    " << config["Parameters"]["L"] << std::endl;
   oss << "Geometry:                 " << config["Parameters"]["geo"] << std::endl;
   oss << std::endl;
 
   oss << "Variable lists" << std::endl;
-  oss << "Density" << std::endl;  
-  writeVector(oss, bin_list[bin_tag::rho]);
   oss << "Alfven Mach number" << std::endl;  
   writeVector(oss, bin_list[bin_tag::mach]);
   oss << "Energy [eV]" << std::endl;  
@@ -138,11 +135,10 @@ void writeInfo(
   std::array<std::string, 4> stattype_list = {"mean", "variance", "skewness", "kurtosis"};
 
   oss << "Post-processed data names" << std::endl;
-  oss << "1.  rho" << std::endl;
-  oss << "2.  mach_A" << std::endl;
-  oss << "3.  ener" << std::endl;
-  oss << "4.  escape" << std::endl;
-  num_line = 5;
+  oss << "1.  mach_A" << std::endl;
+  oss << "2.  ener" << std::endl;
+  oss << "3.  escape" << std::endl;
+  num_line = 4;
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
     for ( size_t j = 0; j < 4; j++ ) {
       std::string space = num_line < 10 ? ".  " : ". ";
@@ -153,11 +149,10 @@ void writeInfo(
   oss << std::endl;
 
   oss << "Post-processed data descriptions" << std::endl;
-  oss << "1.  Density" << std::endl;
-  oss << "2.  Alfven Mach number" << std::endl;
-  oss << "3.  energy [ev]" << std::endl;
-  oss << "4.  escape length [cm]" << std::endl;
-  num_line = 5;
+  oss << "1.  Alfven Mach number" << std::endl;
+  oss << "2.  energy [ev]" << std::endl;
+  oss << "3.  escape length [cm]" << std::endl;
+  num_line = 4;
 
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
     for ( size_t j = 0; j < 4; j++ ) {
@@ -168,7 +163,16 @@ void writeInfo(
   }
 
   std::ofstream infofile(infofile_name);
-  writeOss(infofile, oss);
+  if ( !infofile ) {
+    std::cerr << "Failed to open file " << infofile_name << " for writing." << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+  infofile << oss.str();
+  infofile.close();
+  if ( !infofile.good() ) {
+    std::cerr << "Error writing to file " << infofile_name << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
 }
 
 /**
