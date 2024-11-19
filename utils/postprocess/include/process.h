@@ -16,9 +16,12 @@ template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 template <typename T>
 using vector3d = std::vector<vector2d<T>>;
+template <typename T>
+using vector4d = std::vector<vector3d<T>>;
 
 /// @brief A structure to represent data.
 struct Data {
+  double rho;                      // The dimensionless density.
   double mach_A;                   // The Alfven Mach number.
   double ener;                     // The particle energy [eV].
   double escape;                   // The escape legnth [cm].
@@ -45,6 +48,7 @@ struct Data {
 
   Data() = default;
   Data(
+    double rho_,
     double mach_A_, 
     double ener_, 
     double escape_, 
@@ -60,13 +64,13 @@ struct Data {
 void postProcPart(
   int count,
   const std::vector<Stat> &stat_list, 
-  vector3d<Data> &data_grid
+  vector4d<Data> &data_grid
 );
 void processEvent(
   const Event* event, 
   bool do_hist,
   const vector2d<double> &bin_list, 
-  vector3d<Data>& data_grid
+  vector4d<Data>& data_grid
 );
 void processFile(
   const std::string &datafile_name, 
@@ -77,10 +81,10 @@ void processFile(
   int idx_hist_min,
   int idx_hist_max,
   int &count, 
-  vector3d<Data>& data_grid
+  vector4d<Data>& data_grid
 );
 void getFlatData(
-  const vector3d<Data>& data_grid, 
+  const vector4d<Data>& data_grid, 
   const std::vector<Stat> &stat_list, 
   std::vector<double> &mean_stat_list_flat,
   std::vector<double> &M2_stat_list_flat, 
