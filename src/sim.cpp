@@ -13,20 +13,7 @@
 #include "io.h"
 
 /// @brief A constructor to initial to the Sim structure.
-Sim::Sim(
-  Part part_, 
-  const EEDLData& eedl_, 
-  const Vector1d& ab_, 
-  std::string outfile_, 
-  double rho_, 
-  double temp_,
-  double ion_state_avg_, 
-  double B0_, 
-  double cos_th_cut_,
-  bool do_moller_,
-  bool do_cerenkov_,
-  bool do_sync_
-)
+Sim::Sim(Part part_, const EEDLData& eedl_, const Vector1d& ab_, std::string outfile_, double rho_, double temp_, double ion_state_avg_, double B0_, double cos_th_cut_)
   : part(part_)                   // The particle object.
   , eedl(eedl_)                   // Data from the EEDL database.
   , ab(ab_)                       // A vector of elemental abundances.
@@ -41,9 +28,7 @@ Sim::Sim(
   , n_e_free(0.0)                 // The free electron number density [1/cc].
   , lam_deb(0.0)                  // The Debye length [1/cc].
   , B0(B0_)                       // The coherent magnetic field amplitude [G].
-  , do_moller(do_moller_)         // Do moller scattering and energy losses.
-  , do_cerenkov(do_cerenkov_)     // Do Cerenkov energy losses.
-  , do_sync(do_sync_)             // Do synchrotron energy losses.
+  , do_ion(ion_state_avg_ > 0.)   // Whether the atoms are ionized.
   {
     calcLamDeb(ab, rho, temp, ion_state_avg, n_i, n_e_free, lam_deb);
   }
@@ -81,7 +66,7 @@ void Sim::kill() {
 */
 double Sim::calcSigTot() {
   double sig_tot = 0.0;
-  double sig_moller = do_moller ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
+  double sig_moller = do_ion ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i;
   for ( size_t i = 0; i < eedl.size(); i++ ) {
     SpecData spec_data = eedl[i];
@@ -109,10 +94,11 @@ void Sim::move(double sig_tot, Event &event) {
     part.sminus += -dis * part.cos_alpha;
   }
   // calculate energy loss in transport
-  if ( do_sync ) event.ener_loss_sync = calcPowerSync(part.m_i, part.q_i, part.gam(), part.beta(), B0, part.cos_alpha) * dt;
-  if ( do_cerenkov ) event.ener_loss_cher = calcPowerCerenkov(part.beta(), temp, n_e_free) * dt;
-  if ( do_moller ) event.ener_loss_moller = calcPowerMoller(part.ener, part.gam(), part.beta(), n_e_free, lam_deb, cos_th_cut) * dt;
-
+  event.ener_loss_sync = calcPowerSync(part.m_i, part.q_i, part.gam(), part.beta(), B0, part.cos_alpha) * dt;
+  if ( do_ion ) {
+    event.ener_loss_cher = calcPowerCher(part.beta(), temp, n_e_free) * dt;
+    event.ener_loss_moller = calcPowerMoller(part.ener, part.gam(), part.beta(), n_e_free, lam_deb, cos_th_cut) * dt;
+  }
   part.loseEner(event.ener_loss_sync + event.ener_loss_cher + event.ener_loss_moller);
   // update event
   event.time = time;
@@ -128,7 +114,7 @@ void Sim::move(double sig_tot, Event &event) {
 int Sim::choseElem() {
   double sig_tot = 0.0;
   Vector1d sig_cum;
-  double sig_moller = do_moller ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
+  double sig_moller = do_ion ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i;
   sig_cum.push_back(sig_tot);
   for ( size_t i = 0; i < eedl.size(); i++ ) {

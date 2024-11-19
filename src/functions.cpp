@@ -191,7 +191,7 @@ double calcPowerSync(double m_i, double q_i, double gam, double beta, double B0,
  * @param n_e_free The free electron density [1/cc].
  * @return The Cherenkov power.
  */
-double calcPowerCerenkov(double beta, double temp, double n_e_free) {
+double calcPowerCher(double beta, double temp, double n_e_free) {
   double vel_th = sqrt(3. * constants::k_B * temp / (2. * constants::m_e)); // thermal velocity
   double omega_p = sqrt(4.*M_PI * n_e_free * constants::e*constants::e / constants::m_e); // plasma frequency
   bool subthermal = beta*beta * constants::c*constants::c < 2. * vel_th*vel_th;

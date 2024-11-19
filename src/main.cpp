@@ -61,15 +61,6 @@ int main(int argc, char** argv) {
   double ion_state_avg = std::stod(config["Background"]["ion_state_avg"]);
   double beta = std::stod(config["Bfield"]["beta"]);
   double cos_th_cut = std::stod(config["Simulation"]["cos_th_cut"]);
-  
-  // Set physics
-  bool do_moller = config["Physics"]["moller"] == "true";
-  bool do_cerenkov = config["Physics"]["cerenkov"] == "true";
-  bool do_sync = config["Physics"]["sync"] == "true";
-  if ( ion_state_avg == 0.0 ) {
-    do_moller = false;
-    do_cerenkov = false;
-  }
 
   // compute useful quantities
   double n_i, n_e_free, lam_deb, B0;
@@ -90,21 +81,8 @@ int main(int argc, char** argv) {
   // initialize the simulation
   int id;
   double cos_alpha;
-  Part part = Part(0, constants::m_e, constants::e, ener, 1.0);
-  Sim sim = Sim(
-    part, 
-    eedl, 
-    ab, 
-    outfile, 
-    rho, 
-    temp, 
-    ion_state_avg,
-    B0, 
-    cos_th_cut, 
-    do_moller, 
-    do_cerenkov, 
-    do_sync
-  );
+  Part part = Part(0, constants::m_e, constants::e, ener, 1.);
+  Sim sim = Sim(part, eedl, ab, outfile, rho, temp, ion_state_avg, B0, cos_th_cut);
   int count_loc = 0, count_dead_loc = 0;
   if ( rank == 0 ) {
     std::cout << "Starting simulation." << std::endl << std::endl;

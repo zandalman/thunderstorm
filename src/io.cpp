@@ -79,9 +79,6 @@ void writeInfo(const std::string& infofile_name, int size, Config& config, const
   infofile << "Simulation parameters" << std::endl;
   infofile << "Number of MPI processes:         " << size << std::endl;
   infofile << "Simulation duration [s]:         " << config["Simulation"]["tsim"] << std::endl;
-  infofile << "Moller scattering and losses?:   " << config["Physics"]["moller"];
-  infofile << "Cerenkov losses?:                " << config["Physics"]["cerenkov"];
-  infofile << "Synchrotron losses?:             " << config["Physics"]["sync"];
   infofile << "Density [g/cc]:                  " << config["Background"]["rho"] << std::endl;
   infofile << "Temperature [K]:                 " << config["Background"]["temp"] << std::endl;
   infofile << "Abundance time [day]:            " << config["Background"]["ab_time"] << std::endl;
