@@ -22,7 +22,7 @@ double calcCosThScat(double xi, double ener, const Vector1d &ener_list, const Ve
 double calcEnerLoss(double xi, double ener, const Vector1d &ener_list, const Vector2d &ener_loss_arr_list, const Vector2d &ener_loss_dist_list);
 double calcSigBturb(double m_i, double q_i, double gam, double beta, double rho, double Bmag, double Bmag_turb, double q, double Lmax);
 double calcPowerSync(double m_i, double q_i, double gam, double beta, double B0, double cos_alpha);
-double calcPowerCher(double beta, double temp, double n_e_free);
+double calcPowerCerenkov(double beta, double temp, double n_e_free);
 void calcOmxMoller(double gam, double beta, double cos_th_cut, double lam_deb, double &prefac, double &omxmin, double &omxmax, double &omxcut);
 double calcPowerMoller(double ener, double gam, double beta, double n_e_free, double lam_deb, double cos_th_cut);
 double calcSigMoller(double gam, double beta, double lam_deb, double cos_th_cut);
