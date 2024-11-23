@@ -89,6 +89,11 @@ bool didEscape(int geo, double escape, Vec pos) {
   return false;
 }
 
+/**
+ * @brief Resample the B-field direction.
+ * Assume that the...
+ */
+
 Vec calcRandVec(double mach_A) {
   Vec rand_vec = Vec(0.0, 0.0, 0.0);
   double cos_th = 2.0 * xi() - 1.0;

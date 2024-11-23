@@ -15,10 +15,13 @@
 #include "functions.h"
 #include "parser.h"
 #include "io.h"
+#include "process.h"
 
 // types
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
+template <typename T>
+using vector3d = std::vector<vector2d<T>>;
 
 /// @brief A constructor to initialize the Stat structure.
 Stat::Stat(size_t size_, std::string name_, std::string description_)
@@ -104,6 +107,7 @@ void writeInfo(
   oss << "Post-processing parameters" << std::endl;
   oss << "File number:              " << config["IO"]["num_file"] << std::endl;
   oss << "Events per chunk:         " << config["IO"]["num_event_per_chunk"] << std::endl;
+  oss << "Number of histories:      " << config["IO"]["num_hist"] << std::endl;
   oss << "Number of Mach numbers:   " << config["Bin.Mach"]["num"] << std::endl;
   oss << "Number of energies:       " << config["Bin.Ener"]["num"] << std::endl;
   oss << "Number of escape lengths: " << config["Bin.Escape"]["num"] << std::endl;
@@ -148,7 +152,7 @@ void writeInfo(
   oss << "1.  Alfven Mach number" << std::endl;
   oss << "2.  energy [ev]" << std::endl;
   oss << "3.  escape length [cm]" << std::endl;
-  num_line = 3;
+  num_line = 4;
 
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
     for ( size_t j = 0; j < 4; j++ ) {
@@ -174,11 +178,13 @@ void writeInfo(
 /**
  * @brief Write processed data to an output file.
  * 
- * @param outfile_name       The name of the output file.
- * @param bin_list           The list of bins.
- * @param stat_list          The list of statistics.
- * @param avg_stat_list_flat The flattened list of mean statistics.
- * @param var_stat_list_flat The flattened list of variance statistics.
+ * @param outfile_name        The name of the output file.
+ * @param bin_list            The list of bins.
+ * @param stat_list           The list of statistics.
+ * @param avg_stat_list_flat  The flattened list of mean statistics.
+ * @param var_stat_list_flat  The flattened list of variance statistics.
+ * @param skew_stat_list_flat The flattened list of skewness statistics.
+ * @param kurt_stat_list_flat The flattened list of kurtosis statistics.
  */
 void writeData(
   const std::string &outfile_name,
@@ -211,6 +217,58 @@ void writeData(
   }
 
   std::ofstream outfile(outfile_name, std::ios::app);
+  writeOss(outfile, oss);
+}
+
+/**
+ * @brief Write the particle history to an output file.
+ * 
+ * @param histfile_name The name of the output file.
+ * @param bin_list      The list of bins.
+ * @param data_grid     The grid of data.
+ */
+void writeHist(
+  const std::string &histfile_name,
+  const vector2d<double> &bin_list,
+  vector3d<Data>& data_grid
+) {
+  
+  std::ostringstream oss; // data stream
+  oss << "format" << std::endl;
+  oss << "start: idx_mach, idx_ener, idx_escape" << std::endl;
+  oss << "mach, ener[eV], escape[cm]" << std::endl;
+  oss << "time[s], x[cm], y[cm], z[cm], cos_alpha, ener[eV], flag" << std::endl;
+  oss << "end" << std::endl << std::endl;
+
+  for ( size_t i = 0; i < data_grid.size(); i++ ) {
+    for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
+      for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
+    
+        oss << "start: " << i << ", " << j << ", " << k << std::endl;
+        oss << bin_list[bin_tag::mach][i] << ", ";
+        oss << bin_list[bin_tag::ener][j] << ", ";
+        oss << bin_list[bin_tag::escape][k] << std::endl;
+        oss << data_grid[i][j][k].oss.str();
+        oss << "end" << std::endl;
+
+      }
+    }
+  }
+
+  std::ofstream histfile(histfile_name);
+  writeOss(histfile, oss);
+}
+
+/** 
+ * @brief Write a data stream to a file.
+ * 
+ * @param outfile The outfile.
+ * @param oss     The data stream.
+ */
+void writeOss(
+  std::ofstream &outfile, 
+  const std::ostringstream &oss
+) {
   if ( !outfile ) {
     std::cerr << "Failed to open file for writing." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);

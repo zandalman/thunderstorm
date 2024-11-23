@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
   // start timer
   auto start = std::chrono::steady_clock::now();
 
-    std::vector<std::string> stat_def_list = {
+  std::vector<std::string> stat_def_list = {
     "energy loss [eV] for each mechanism",
     "number of ionizations per element",
     "number of secondary electrons per secondary energy bin"
@@ -48,9 +48,11 @@ int main(int argc, char** argv) {
 
   // get file paths
   const std::string outfile_name = config["IO"]["outpath"] + "/data.txt";
+  const std::string histdir_name = config["IO"]["outpath"] + "/hist";
   const std::string data_path = config["IO"]["data_path"];
   const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
-  
+  const int num_hist = std::stoi(config["IO"]["num_hist"]);
+
   // get parameters
   int geo;
   const double L = std::stod(config["Parameters"]["L"]);
@@ -94,27 +96,42 @@ int main(int argc, char** argv) {
   vector3d<Data> data_grid;
   data_grid.resize(num_mach);
   for (size_t i = 0; i < num_mach; i++) {
-      data_grid[i].resize(num_ener);
-      for (size_t j = 0; j < num_ener; j++) {
-          data_grid[i][j].resize(num_escape);
-          for ( size_t k = 0; k < num_escape; k++ ) {
-            data_grid[i][j][k] = Data(mach_list[i], ener_list[j], escape_list[k], ener_min, L, geo, stat_list);
-          }
+    data_grid[i].resize(num_ener);
+    for (size_t j = 0; j < num_ener; j++) {
+      data_grid[i][j].resize(num_escape);
+      for ( size_t k = 0; k < num_escape; k++ ) {
+        data_grid[i][j][k] = Data(mach_list[i], ener_list[j], escape_list[k], ener_min, L, geo, stat_list);
       }
+    }
   }
 
-  // get data file indices
+  // get data file indices for this rank
   int num_file = std::stoi(config["IO"]["num_file"]);
   int num_file_per_rank = static_cast<int>(ceil(num_file / size));
   int idx_file_min = std::min(rank * num_file_per_rank, num_file);
   int idx_file_max = std::min((rank + 1) * num_file_per_rank, num_file);
+
+  // get number of histories for this rank
+  int num_hist_per_rank = static_cast<int>(ceil(num_hist / size));
+  int idx_hist_min = std::min(rank * num_hist_per_rank, num_hist);
+  int idx_hist_max = std::min((rank + 1) * num_hist_per_rank, num_hist);
 
   // process files
   MPI_Barrier(MPI_COMM_WORLD);
   int count = 0;
   for ( int i = idx_file_min; i < idx_file_max; i++ ) {
     std::string datafile_name = data_path + "/data.bin." + std::to_string(i);
-    processFile(datafile_name, num_event_per_chunk, bin_list, stat_list, count, data_grid);
+    processFile(
+      datafile_name, 
+      num_event_per_chunk, 
+      bin_list, 
+      stat_list, 
+      histdir_name,
+      idx_hist_min, 
+      idx_hist_max, 
+      count, 
+      data_grid
+    );
   }
 
   // flatten the data

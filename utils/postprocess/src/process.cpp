@@ -7,6 +7,7 @@
 #include <vector>
 #include <cmath>
 #include <cstdio>
+#include <format>
 #include <mpi.h>
 
 // headers
@@ -40,8 +41,7 @@ Data::Data(double mach_A_, double ener_, double escape_, double ener_min_, doubl
   , sminus_prev(0.)
   , lam_scat(0.0)
   , s_scat(0.0)
-  , pos(Vec())
-  , Bhat(Vec())
+  , oss()
  {
   Stat stat;
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
@@ -52,9 +52,9 @@ Data::Data(double mach_A_, double ener_, double escape_, double ener_min_, doubl
     M3_stat_list.push_back(std::vector<double>(stat.size, 0.0));
     M4_stat_list.push_back(std::vector<double>(stat.size, 0.0));
   }
-  pos = Vec(0.0, 0.0, 0.0);
   lam_scat = mach_A > 1.0 ? L / (mach_A*mach_A*mach_A) : L * mach_A*mach_A;
   s_scat = -log(1 - xi()) * lam_scat;
+  pos = Vec(0.0, 0.0, 0.0);
   Bhat = calcRandVec(mach_A);
  }
 
@@ -69,6 +69,7 @@ void Data::reset() {
   sminus_prev = 0.;
   s_scat = -log(1 - xi()) * lam_scat;
   Bhat = calcRandVec(mach_A);
+  oss.clear();
   
   for ( size_t i = 0; i < part_stat_list.size(); i++ ) {
     std::fill(part_stat_list[i].begin(), part_stat_list[i].end(), 0.0);
@@ -119,6 +120,9 @@ void processFile(
   size_t num_event_per_chunk, 
   const vector2d<double> &bin_list,
   const std::vector<Stat>& stat_list, 
+  const std::string &histdir_name,
+  int idx_hist_min,
+  int idx_hist_max,
   int &count, 
   vector3d<Data>& data_grid
 ) {
@@ -140,14 +144,23 @@ void processFile(
   
   // Read data in chunks
   int current_id = -1;
+  int idx_hist = idx_hist_min;
+  std::ostringstream oss;
   while ( datafile.read(buffer.data(), chunk_size) ) {
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
       if ( event->id == -1 ) {
         current_id = event->id;
       } else if ( event->id == current_id ) {
-        processEvent(event, bin_list, data_grid);
+        processEvent(event, idx_hist < idx_hist_max, bin_list, data_grid);
       } else {
+        if ( idx_hist < idx_hist_max ) {
+          oss << histdir_name << "/hist";
+          oss << std::setw(5) << std::setfill('0') << idx_hist << ".txt";
+          writeHist(oss.str(), bin_list, data_grid);
+          oss.clear();
+          idx_hist++;
+        }
         postProcPart(count, stat_list, data_grid);
         current_id = event->id;
         count++;
@@ -165,8 +178,15 @@ void processFile(
         if ( event->id == -1 ) {
           current_id = event->id;
         } else if ( event->id == current_id ) {
-          processEvent(event, bin_list, data_grid);
+          processEvent(event, idx_hist < idx_hist_max, bin_list, data_grid);
         } else {
+          if ( idx_hist < idx_hist_max ) {
+            oss << histdir_name << "/hist";
+            oss << std::setw(5) << std::setfill('0') << idx_hist << ".txt";
+            writeHist(oss.str(), bin_list, data_grid);
+            oss.clear();
+            idx_hist++;
+          }
           postProcPart(count, stat_list, data_grid);
           current_id = event->id;
           count++;
@@ -215,11 +235,11 @@ void postProcPart(
  * 
  * @param event     The event struct.
  * @param bin_list  The list of bins.
- * @param ener_min  The minimum energy [eV].
  * @param data_grid The grid of data.
  */
 void processEvent(
   const Event* event, 
+  bool do_hist,
   const vector2d<double> &bin_list, 
   vector3d<Data>& data_grid
 ) {
@@ -277,7 +297,6 @@ void processEvent(
         }
         if ( didEscape(data.geo, data.escape, data.pos) ) {
           data.escaped = true;
-          continue;
         }
 
         // update time and distance
@@ -301,18 +320,18 @@ void processEvent(
         
         // compute interaction histograms
         switch ( event->interaction ) {
-          case flags::scat:
+          case flags::scat: // scattering
           data.part_stat_list[stat_tag::num_ev_inter][inter_tag::scat] += 1.0;
           break;
-          case flags::brem:
+          case flags::brem: // Bremsstrahlung
           data.part_stat_list[stat_tag::num_ev_inter][inter_tag::brem] += 1.0;
           data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::brem] += event->ener_loss;
           break;
-          case flags::exc:
+          case flags::exc: // excitation
           data.part_stat_list[stat_tag::num_ev_inter][inter_tag::exc] += 1.0;
           data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::exc] += event->ener_loss;
           break;
-          case flags::ion:
+          case flags::ion: // ionization
           data.part_stat_list[stat_tag::num_ev_inter][inter_tag::ion] += 1.0;
           data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::ion] += event->ener_loss;
           data.part_stat_list[stat_tag::num_ion_elem][event->Zelem - 1] += 1.0;
@@ -322,9 +341,9 @@ void processEvent(
             data.part_stat_list[stat_tag::num_sec_ener][idx_ener_sec - 1] += 1.0;
           }
           break;
-          case flags::moller:
+          case flags::moller: // Moller
           data.part_stat_list[stat_tag::num_ev_inter][inter_tag::moller] += 1.0;
-          if ( !std::isnan(event->ener_loss) ) {
+          if ( !std::isnan(event->ener_loss) ) { // for some reason, this is sometimes NaN
             data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += event->ener_loss;
           }
           break;
@@ -332,6 +351,16 @@ void processEvent(
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += event->ener_loss_moller;
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::sync] += event->ener_loss_sync;
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += event->ener_loss_cher;
+
+        // write data
+        if ( do_hist ) {
+          int flag = data.escaped ? -1 : event->interaction;
+          data.oss << time_rel << ",";
+          data.oss << data.pos.x << "," << data.pos.y << "," << data.pos.z << ",";
+          data.oss << event->cos_alpha << ", ";
+          data.oss << event->ener << ", ";
+          data.oss << flag << std::endl;
+        }
       }
     }
   }
