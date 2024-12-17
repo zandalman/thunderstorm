@@ -113,7 +113,7 @@ void writeInfo(
   oss << "Number of escape lengths: " << config["Bin.Escape"]["num"] << std::endl;
   oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
   oss << "Minimum energy [eV]:      " << config["Parameters"]["ener_min"] << std::endl;
-  oss << "Turbulence scale [cm]:    " << config["Parameters"]["L"] << std::endl;
+  oss << "Turbulence scale [lesc]:  " << config["Parameters"]["scale_turb"] << std::endl;
   oss << "Geometry:                 " << config["Parameters"]["geo"] << std::endl;
   oss << std::endl;
 
@@ -216,8 +216,7 @@ void writeData(
     }
   }
 
-  std::ofstream outfile(outfile_name, std::ios::app);
-  writeOss(outfile, oss);
+  writeOss(outfile_name, oss, true);
 }
 
 /**
@@ -235,18 +234,18 @@ void writeHist(
   
   std::ostringstream oss; // data stream
   oss << "format" << std::endl;
-  oss << "start: idx_mach, idx_ener, idx_escape" << std::endl;
-  oss << "mach, ener[eV], escape[cm]" << std::endl;
-  oss << "time[s], x[cm], y[cm], z[cm], cos_alpha, ener[eV], flag" << std::endl;
+  oss << "start:idx_mach,idx_ener,idx_escape" << std::endl;
+  oss << "mach,ener[eV],escape[cm]" << std::endl;
+  oss << "time[s],x[cm],y[cm],z[cm],cos_alpha,ener[eV],flag" << std::endl;
   oss << "end" << std::endl << std::endl;
 
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
-    
-        oss << "start: " << i << ", " << j << ", " << k << std::endl;
-        oss << bin_list[bin_tag::mach][i] << ", ";
-        oss << bin_list[bin_tag::ener][j] << ", ";
+        
+        oss << "start:" << i << "," << j << "," << k << std::endl;
+        oss << bin_list[bin_tag::mach][i] << ",";
+        oss << bin_list[bin_tag::ener][j] << ",";
         oss << bin_list[bin_tag::escape][k] << std::endl;
         oss << data_grid[i][j][k].oss.str();
         oss << "end" << std::endl;
@@ -255,8 +254,8 @@ void writeHist(
     }
   }
 
-  std::ofstream histfile(histfile_name);
-  writeOss(histfile, oss);
+  clearFile(histfile_name);
+  writeOss(histfile_name, oss, false);
 }
 
 /** 
@@ -266,17 +265,20 @@ void writeHist(
  * @param oss     The data stream.
  */
 void writeOss(
-  std::ofstream &outfile, 
-  const std::ostringstream &oss
+  const std::string &outfile_name, 
+  const std::ostringstream &oss,
+  bool do_app
 ) {
+  std::ofstream outfile;
+  outfile.open(outfile_name, do_app ? std::ios::app : std::ios::out);
   if ( !outfile ) {
-    std::cerr << "Failed to open file for writing." << std::endl;
+    std::cerr << "Failed to open file " << outfile_name << " for writing." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
   outfile << oss.str();
   outfile.close();
-  if ( !outfile.good() ) {
-    std::cerr << "Error writing to file." << std::endl;
+  if ( outfile.fail() ) {
+    std::cerr << "Error writing to file " << outfile_name << "." << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 }

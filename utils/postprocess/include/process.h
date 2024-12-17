@@ -74,8 +74,8 @@ void processFile(
   const vector2d<double> &bin_list, 
   const std::vector<Stat>& stat_list, 
   const std::string &histdir_name,
-  int idx_hist_min,
   int idx_hist_max,
+  int &idx_hist,
   int &count, 
   vector3d<Data>& data_grid
 );

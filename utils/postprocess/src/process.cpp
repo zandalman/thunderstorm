@@ -2,12 +2,12 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <cstring>
 #include <vector>
 #include <cmath>
 #include <cstdio>
-#include <format>
 #include <mpi.h>
 
 // headers
@@ -68,8 +68,9 @@ void Data::reset() {
   splus_prev = 0.;
   sminus_prev = 0.;
   s_scat = -log(1 - xi()) * lam_scat;
+  pos = Vec(0.0, 0.0, 0.0);
   Bhat = calcRandVec(mach_A);
-  oss.clear();
+  oss.str(""); oss.clear();
   
   for ( size_t i = 0; i < part_stat_list.size(); i++ ) {
     std::fill(part_stat_list[i].begin(), part_stat_list[i].end(), 0.0);
@@ -121,8 +122,8 @@ void processFile(
   const vector2d<double> &bin_list,
   const std::vector<Stat>& stat_list, 
   const std::string &histdir_name,
-  int idx_hist_min,
   int idx_hist_max,
+  int &idx_hist,
   int &count, 
   vector3d<Data>& data_grid
 ) {
@@ -144,21 +145,23 @@ void processFile(
   
   // Read data in chunks
   int current_id = -1;
-  int idx_hist = idx_hist_min;
   std::ostringstream oss;
+  bool do_hist;
+
   while ( datafile.read(buffer.data(), chunk_size) ) {
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
+      do_hist = idx_hist < idx_hist_max;
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
-      if ( event->id == -1 ) {
-        current_id = event->id;
-      } else if ( event->id == current_id ) {
-        processEvent(event, idx_hist < idx_hist_max, bin_list, data_grid);
+      if ( current_id == -1 ) { current_id = event->id; }
+      if ( current_id == event->id ) {
+        processEvent(event, do_hist, bin_list, data_grid);      
       } else {
-        if ( idx_hist < idx_hist_max ) {
+        if ( do_hist ) {
           oss << histdir_name << "/hist";
           oss << std::setw(5) << std::setfill('0') << idx_hist << ".txt";
+          clearFile(oss.str());
           writeHist(oss.str(), bin_list, data_grid);
-          oss.clear();
+          oss.str(""); oss.clear();
           idx_hist++;
         }
         postProcPart(count, stat_list, data_grid);
@@ -174,17 +177,18 @@ void processFile(
     if ( bytes_read > 0 ) {
       size_t num_event_last_chunk = bytes_read / event_size;
       for ( size_t i = 0; i < num_event_last_chunk; i++ ) {
+        do_hist = idx_hist < idx_hist_max;
         event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
-        if ( event->id == -1 ) {
-          current_id = event->id;
-        } else if ( event->id == current_id ) {
-          processEvent(event, idx_hist < idx_hist_max, bin_list, data_grid);
+        if ( current_id == -1 ) { current_id = event->id; }
+        if ( current_id == event->id ) {
+          processEvent(event, do_hist, bin_list, data_grid);
         } else {
-          if ( idx_hist < idx_hist_max ) {
+          if ( do_hist ) {
             oss << histdir_name << "/hist";
             oss << std::setw(5) << std::setfill('0') << idx_hist << ".txt";
+            clearFile(oss.str());
             writeHist(oss.str(), bin_list, data_grid);
-            oss.clear();
+            oss.str(""); oss.clear();
             idx_hist++;
           }
           postProcPart(count, stat_list, data_grid);
@@ -256,7 +260,7 @@ void processEvent(
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
-    
+        
         Data &data = data_grid[i][j][k];
         if ( data.escaped ) continue;
         
@@ -271,7 +275,7 @@ void processEvent(
           continue;
         }
 
-        if ( event->ener < data.ener_min ) continue;
+        if ( event->ener < data.ener_min ) { continue; }
 
         // compute useful quantities
         ener_loss = data.ener_prev - event->ener;
@@ -283,6 +287,7 @@ void processEvent(
         dsminus = event->sminus - data.sminus_prev;
         ds = dsplus + dsminus;
         sign = dsplus > dsminus ? 1.0 : -1.0;
+
         while ( true ) {
           if ( ds < data.s_scat ) {
             data.pos = data.pos + sign * ds * data.Bhat;
@@ -353,8 +358,9 @@ void processEvent(
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += event->ener_loss_cher;
 
         // write data
+        int flag;
         if ( do_hist ) {
-          int flag = data.escaped ? -1 : event->interaction;
+          flag = data.escaped ? -1 : event->interaction;
           data.oss << time_rel << ",";
           data.oss << data.pos.x << "," << data.pos.y << "," << data.pos.z << ",";
           data.oss << event->cos_alpha << ", ";

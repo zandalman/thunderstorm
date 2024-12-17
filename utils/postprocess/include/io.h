@@ -78,8 +78,9 @@ void writeHist(
   vector3d<Data>& data_grid
 );
 void writeOss(
-  std::ofstream &outfile, 
-  const std::ostringstream &oss
+  const std::string &outfile_name, 
+  const std::ostringstream &oss,
+  bool do_app
 );
 
 #endif
