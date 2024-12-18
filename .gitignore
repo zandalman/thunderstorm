@@ -8,4 +8,5 @@ utils/postprocess/build/postprocess
 utils/postprocess/build/run.sh
 .vscode
 data/*
-
+build/run.sh
+utils/postprocess/run/*

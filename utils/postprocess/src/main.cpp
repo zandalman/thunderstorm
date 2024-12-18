@@ -69,9 +69,9 @@ int main(int argc, char** argv) {
   // make bin list
   size_t num_ener, num_escape, num_mach, num_ener_sec, num_time;
   std::vector<double> ener_list, escape_list, mach_list, ener_sec_list, time_list;
-  makeList(config["Bin.Ener"], ener_list, num_ener);
-  makeList(config["Bin.Escape"], escape_list, num_escape);
-  makeList(config["Bin.Mach"], mach_list, num_mach);
+  makeList(config["Grid.Ener"], ener_list, num_ener);
+  makeList(config["Grid.Escape"], escape_list, num_escape);
+  makeList(config["Grid.Mach"], mach_list, num_mach);
   makeList(config["Bin.EnerSec"], ener_sec_list, num_ener_sec);
   makeList(config["Bin.Time"], time_list, num_time, constants::hr);
   vector2d<double> bin_list = {mach_list, ener_list, escape_list, ener_sec_list, time_list};
@@ -82,6 +82,7 @@ int main(int argc, char** argv) {
   stat_list.push_back(Stat(num_inter, "num_ev_inter", "number of events for each interaction"));
   stat_list.push_back(Stat(num_mech, "ener_loss_mech", "energy loss [eV] for each mechanism"));
   stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
+  stat_list.push_back(Stat(num_ener - 1, "num_escape", "number of escaped electrons per secondary energy bin"));
   stat_list.push_back(Stat(num_ener_sec - 1, "num_sec_ener", "number of secondary electrons per secondary energy bin"));
   stat_list.push_back(Stat(num_time - 1, "ener_loss_time", "energy loss [eV] per time bin"));
   stat_list.push_back(Stat(num_ener - 1, "time_ener", "time [s] spent per energy bin"));
@@ -124,7 +125,6 @@ int main(int argc, char** argv) {
   int idx_hist = idx_hist_min;
   for ( int i = idx_file_min; i < idx_file_max; i++ ) {
     std::string datafile_name = data_path + "/data.bin." + std::to_string(i);
-    std::cout << "Processing file " << i << "..." << std::endl;
     processFile(
       datafile_name, 
       num_event_per_chunk, 

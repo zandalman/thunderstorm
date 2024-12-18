@@ -94,15 +94,29 @@ bool didEscape(int geo, double escape, Vec pos) {
  * Assume that the...
  */
 
-Vec calcRandVec(double mach_A) {
-  Vec rand_vec = Vec(0.0, 0.0, 0.0);
+Vec calcRandVec(double mach_A, int geo, Vec pos) {
+  
+  Vec Bhat_turb = Vec(0.0, 0.0, 0.0);
   double cos_th = 2.0 * xi() - 1.0;
   double sin_th = sqrt(1.0 - cos_th*cos_th);
   double phi = 2.0 * M_PI * xi();
-  rand_vec.x = mach_A * sin_th * cos(phi);
-  rand_vec.y = mach_A * sin_th * sin(phi);
-  rand_vec.z = mach_A * cos_th + 1.0;
-  return rand_vec.unit();
+  Bhat_turb.x = sin_th * cos(phi);
+  Bhat_turb.y = sin_th * sin(phi);
+  Bhat_turb.z = cos_th;
+  
+  Vec Bhat_co;
+  switch ( geo ) {
+    case geo_tag::none:
+    Bhat_co = Vec(0.0, 0.0, 1.0);
+    break;
+    case geo_tag::plane:
+    Bhat_co = Vec(0.0, 0.0, 1.0);
+    break;
+    case geo_tag::sphere:
+    Bhat_co = pos.unit();
+  }
+  
+  return (mach_A * Bhat_turb + Bhat_co).unit();
 }
 
 /**

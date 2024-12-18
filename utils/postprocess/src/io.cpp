@@ -108,9 +108,9 @@ void writeInfo(
   oss << "File number:              " << config["IO"]["num_file"] << std::endl;
   oss << "Events per chunk:         " << config["IO"]["num_event_per_chunk"] << std::endl;
   oss << "Number of histories:      " << config["IO"]["num_hist"] << std::endl;
-  oss << "Number of Mach numbers:   " << config["Bin.Mach"]["num"] << std::endl;
-  oss << "Number of energies:       " << config["Bin.Ener"]["num"] << std::endl;
-  oss << "Number of escape lengths: " << config["Bin.Escape"]["num"] << std::endl;
+  oss << "Number of Mach numbers:   " << config["Grid.Mach"]["num"] << std::endl;
+  oss << "Number of energies:       " << config["Grid.Ener"]["num"] << std::endl;
+  oss << "Number of escape lengths: " << config["Grid.Escape"]["num"] << std::endl;
   oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
   oss << "Minimum energy [eV]:      " << config["Parameters"]["ener_min"] << std::endl;
   oss << "Turbulence scale [lesc]:  " << config["Parameters"]["scale_turb"] << std::endl;

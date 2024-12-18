@@ -54,8 +54,8 @@ Data::Data(double mach_A_, double ener_, double escape_, double ener_min_, doubl
   }
   lam_scat = mach_A > 1.0 ? L / (mach_A*mach_A*mach_A) : L * mach_A*mach_A;
   s_scat = -log(1 - xi()) * lam_scat;
-  pos = Vec(0.0, 0.0, 0.0);
-  Bhat = calcRandVec(mach_A);
+  pos = Vec(0.0, 0.0, 1.0);
+  Bhat = calcRandVec(mach_A, geo, pos);
  }
 
 /// @brief Reset the particle data.
@@ -68,8 +68,8 @@ void Data::reset() {
   splus_prev = 0.;
   sminus_prev = 0.;
   s_scat = -log(1 - xi()) * lam_scat;
-  pos = Vec(0.0, 0.0, 0.0);
-  Bhat = calcRandVec(mach_A);
+  pos = Vec(0.0, 0.0, 1.0);
+  Bhat = calcRandVec(mach_A, geo, pos);
   oss.str(""); oss.clear();
   
   for ( size_t i = 0; i < part_stat_list.size(); i++ ) {
@@ -149,6 +149,7 @@ void processFile(
   bool do_hist;
 
   while ( datafile.read(buffer.data(), chunk_size) ) {
+    
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
       do_hist = idx_hist < idx_hist_max;
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
@@ -169,6 +170,8 @@ void processFile(
         count++;
       }
     }
+
+    std::cout << event->ener << std::endl;
   }
 
   // Handle the case where the last chunk might not be full
@@ -220,12 +223,12 @@ void postProcPart(
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
         Data &data = data_grid[i][j][k];
+        
         // compute thermalization efficiency
-        if ( data.escaped ) {
-          data.part_stat_list[stat_tag::eps_thm][0] += (data.ener_prev / data.ener_start);
-        } else {
-          data.part_stat_list[stat_tag::eps_thm][0] += 1.0;
+        if ( !data.escaped ) {
+          data.part_stat_list[stat_tag::eps_thm][0] += data.ener_prev;
         }
+        
         // aggregate statistics and reset
         data.calcStat(count, stat_list);
         data.reset();
@@ -280,6 +283,8 @@ void processEvent(
         // compute useful quantities
         ener_loss = data.ener_prev - event->ener;
         time_rel = event->time - data.time_start;
+        idx_ener = findIdx(event->ener, bin_list[bin_tag::ener]);
+        idx_time = findIdx(time_rel, bin_list[bin_tag::time]);
 
         // compute transport
         dt = event->time - data.time_prev;
@@ -297,11 +302,15 @@ void processEvent(
             data.pos = data.pos + sign * data.s_scat * data.Bhat;
             ds = ds - data.s_scat;
             data.s_scat = -log(1 - xi()) * data.lam_scat;
-            data.Bhat = calcRandVec(data.mach_A); // Resample B-field direction
+            data.Bhat = calcRandVec(data.mach_A, data.geo, data.pos); // Resample B-field direction
           }
         }
+
         if ( didEscape(data.geo, data.escape, data.pos) ) {
           data.escaped = true;
+          if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
+            data.part_stat_list[stat_tag::num_escape][idx_ener - 1] += 1.0;
+          }
         }
 
         // update time and distance
@@ -311,13 +320,11 @@ void processEvent(
         data.sminus_prev = event->sminus;
 
         // compute energy histograms
-        idx_ener = findIdx(event->ener, bin_list[bin_tag::ener]);
         if ( idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size() ) {
           data.part_stat_list[stat_tag::time_ener][idx_ener - 1] += dt;
         }
         
         // compute time histograms
-        idx_time = findIdx(time_rel, bin_list[bin_tag::time]);
         if ( idx_time > 0 && idx_time < bin_list[bin_tag::time].size() ) {
           data.part_stat_list[stat_tag::ener_loss_time][idx_time - 1] += ener_loss;
         }

@@ -19,9 +19,10 @@ constexpr int eps_thm = 0;
 constexpr int num_ev_inter = 1;
 constexpr int ener_loss_mech = 2;
 constexpr int num_ion_elem = 3;
-constexpr int num_sec_ener = 4;
-constexpr int ener_loss_time = 5;
-constexpr int time_ener = 6;
+constexpr int num_escape = 4;
+constexpr int num_sec_ener = 5;
+constexpr int ener_loss_time = 6;
+constexpr int time_ener = 7;
 }
 
 namespace bin_tag {

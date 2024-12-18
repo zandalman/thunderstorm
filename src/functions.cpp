@@ -10,6 +10,10 @@
 #include "part.h"
 #include "random.h"
 
+// types
+typedef std::vector<double> Vector1d;
+typedef std::vector<std::vector<double>> Vector2d;
+
 /**
  * @brief Find the index to insert a value into a list.
  * 
