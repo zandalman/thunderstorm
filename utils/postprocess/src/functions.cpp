@@ -67,6 +67,19 @@ void normalize(std::vector<double>& vec, const double norm) {
 }
 
 /**
+ * @brief Calculate the density of the ejecta at a given radius.
+ * 
+ * @param dis  The radius in the ejecta [lesc].
+ * @param Mej  The mass of the ejecta [g].
+ * @param lesc The maximum radius of the ejecta [cm].
+ * @param plaw The power law exponent of the density profile.
+ * @return The density of the ejecta at the given radius [g/cm^3].
+ */
+double calcRho(double dis, const double Mej, const double lesc, const double plaw) {
+  return (3.0 - plaw) / (4.0 * M_PI) * Mej / (plaw*plaw*plaw) * pow(dis, -plaw);
+}
+
+/**
  * @brief Determine whether a particle has escaped.
  * 
  * @param geo     The geometry tag.

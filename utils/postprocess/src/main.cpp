@@ -53,28 +53,42 @@ int main(int argc, char** argv) {
   const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
   const int num_hist = std::stoi(config["IO"]["num_hist"]);
 
-  // get parameters
+  // get ejecta geometry
   int geo;
-  const double scale_turb = std::stod(config["Parameters"]["scale_turb"]);
-  const double ener_min = std::stod(config["Parameters"]["ener_min"]);
-  std::string geo_str = std::string(config["Parameters"]["geo"]);
-  if ( geo_str == "plane" ) {
+  switch ( std::string(config["Ejecta"]["geo"]) ) {
+    case "plane":
     geo = geo_tag::plane;
-  } else if ( geo_str == "sphere" ) {
+    break;
+    case "sphere":
     geo = geo_tag::sphere;
-  } else {
+    break;
+    default:
     geo = geo_tag::none;
   }
 
+  // get ejecta parameters
+  const double Mej = std::stod(config["Ejecta"]["Mej"]) * constants::M_sol;
+  const double vej = std::stod(config["Ejecta"]["vej"]) * constants::c;
+  const double plaw = std::stod(config["Ejecta"]["plaw"]);
+  const double scale_turb = std::stod(config["Ejecta"]["scale_turb"]);
+
+  // get simulation data
+  const double time_sim = std::stod(config["Sim"]["time"]) * constants::day;
+  const double rho_sim = std::stod(config["Sim"]["rho0"]);
+  const double ener_min = std::stod(config["Sim"]["ener_min"]);
+
+  // compute ejecta information
+  const double escape = vej * time_sim;
+
   // make bin list
-  size_t num_ener, num_escape, num_mach, num_ener_sec, num_time;
-  std::vector<double> ener_list, escape_list, mach_list, ener_sec_list, time_list;
-  makeList(config["Grid.Ener"], ener_list, num_ener);
-  makeList(config["Grid.Escape"], escape_list, num_escape);
+  size_t num_mach, num_dis, num_ener, num_ener_sec, num_time;
+  std::vector<double> mach_list, dis_list, ener_list, ener_sec_list, time_list;
   makeList(config["Grid.Mach"], mach_list, num_mach);
+  makeList(config["Grid.Dis"], dis_list, num_dis);
+  makeList(config["Grid.Ener"], ener_list, num_ener);
   makeList(config["Bin.EnerSec"], ener_sec_list, num_ener_sec);
   makeList(config["Bin.Time"], time_list, num_time, constants::hr);
-  vector2d<double> bin_list = {mach_list, ener_list, escape_list, ener_sec_list, time_list};
+  vector2d<double> bin_list = {mach_list, dis_list, ener_list, ener_sec_list, time_list};
 
   // define statistics
   std::vector<Stat> stat_list;
@@ -98,10 +112,10 @@ int main(int argc, char** argv) {
   double L;
   data_grid.resize(num_mach);
   for (size_t i = 0; i < num_mach; i++) {
-    data_grid[i].resize(num_ener);
-    for (size_t j = 0; j < num_ener; j++) {
-      data_grid[i][j].resize(num_escape);
-      for ( size_t k = 0; k < num_escape; k++ ) {
+    data_grid[i].resize(num_dis);
+    for (size_t j = 0; j < num_dis; j++) {
+      data_grid[i][j].resize(num_ener);
+      for ( size_t k = 0; k < num_ener; k++ ) {
         L = scale_turb * escape_list[k];
         data_grid[i][j][k] = Data(mach_list[i], ener_list[j], escape_list[k], ener_min, L, geo, stat_list);
       }

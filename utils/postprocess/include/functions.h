@@ -16,6 +16,7 @@ using vector2d = std::vector<std::vector<T>>;
 void linspace(double vmin, double vmax, size_t num, bool log, std::vector<double> &list);
 size_t findIdx(double x0, std::vector<double> x_list);
 void normalize(std::vector<double>& vec, const double norm);
+double calcRho(double dis, const double Mej, const double lesc, const double plaw);
 bool didEscape(int geo, double escape, Vec pos);
 Vec calcRandVec(double mach_A, int geo, Vec pos);
 void addStat(

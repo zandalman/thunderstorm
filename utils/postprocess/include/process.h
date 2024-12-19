@@ -20,6 +20,7 @@ using vector3d = std::vector<vector2d<T>>;
 /// @brief A structure to represent data.
 struct Data {
   double mach_A;                   // The Alfven Mach number.
+  double dis;                      // The initial particle radius [lesc].
   double ener;                     // The particle energy [eV].
   double escape;                   // The escape legnth [cm].
   double ener_min;                 // The minimum energy [eV].

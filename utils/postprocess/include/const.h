@@ -27,8 +27,8 @@ constexpr int time_ener = 7;
 
 namespace bin_tag {
 constexpr int mach = 0;
-constexpr int ener = 1;
-constexpr int escape = 2;
+constexpr int dis = 1;
+constexpr int ener = 2;
 constexpr int ener_sec = 3;
 constexpr int time = 4;
 }

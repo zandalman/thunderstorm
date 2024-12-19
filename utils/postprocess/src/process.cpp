@@ -25,7 +25,15 @@ template <typename T>
 using vector3d = std::vector<vector2d<T>>;
 
 /// @brief A constructor to initialize the Data structure.
-Data::Data(double mach_A_, double ener_, double escape_, double ener_min_, double L_, int geo_, const std::vector<Stat> &stat_list)
+Data::Data(
+  double mach_A_, 
+  double dis_, 
+  double ener_, 
+  double ener_min_, 
+  double L_, 
+  int geo_, 
+  const std::vector<Stat> &stat_list
+  )
   : mach_A(mach_A_)
   , ener(ener_)
   , escape(escape_)

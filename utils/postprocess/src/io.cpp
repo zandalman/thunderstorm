@@ -109,21 +109,29 @@ void writeInfo(
   oss << "Events per chunk:         " << config["IO"]["num_event_per_chunk"] << std::endl;
   oss << "Number of histories:      " << config["IO"]["num_hist"] << std::endl;
   oss << "Number of Mach numbers:   " << config["Grid.Mach"]["num"] << std::endl;
+  oss << "Number of distances:      " << config["Grid.Dis"]["num"] << std::endl;
   oss << "Number of energies:       " << config["Grid.Ener"]["num"] << std::endl;
-  oss << "Number of escape lengths: " << config["Grid.Escape"]["num"] << std::endl;
   oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
-  oss << "Minimum energy [eV]:      " << config["Parameters"]["ener_min"] << std::endl;
-  oss << "Turbulence scale [lesc]:  " << config["Parameters"]["scale_turb"] << std::endl;
-  oss << "Geometry:                 " << config["Parameters"]["geo"] << std::endl;
+  oss << "Ejecta mass [Msol]:       " << config["Ejecta"]["Mej"] << std::endl;
+  oss << "Ejecta velocity [c]:      " << config["Ejecta"]["vej"] << std::endl;
+  oss << "Density power law:        " << config["Ejecta"]["plaw"] << std::endl;
+  oss << "Turbulence scale [lesc]:  " << config["Ejecta"]["scale_turb"] << std::endl;
+  oss << "Geometry:                 " << config["Ejecta"]["geo"] << std::endl;
+  oss << "Sim time [day]:           " << config["Sim"]["time"] << std::endl;
+  oss << "Sim density [g/cc]:       " << config["Sim"]["rho0"] << std::endl;
+  oss << "Sim min energy [eV]:      " << config["Sim"]["ener_min"] << std::endl;
   oss << std::endl;
 
-  oss << "Variable lists" << std::endl;
+  oss << "Grid" << std::endl;
   oss << "Alfven Mach number" << std::endl;  
   writeVector(oss, bin_list[bin_tag::mach]);
+  oss << "Radius [lesc]" << std::endl;
+  writeVector(oss, bin_list[bin_tag::dis]);
   oss << "Energy [eV]" << std::endl;  
   writeVector(oss, bin_list[bin_tag::ener]);
-  oss << "Escape [cm]" << std::endl;
-  writeVector(oss, bin_list[bin_tag::escape]);
+  oss << std::endl;
+
+  oss << "Bins" << std::endl;
   oss << "Secondary energy [eV]" << std::endl;  
   writeVector(oss, bin_list[bin_tag::ener_sec]);
   oss << "Time [s]" << std::endl;  
@@ -136,8 +144,8 @@ void writeInfo(
 
   oss << "Post-processed data names" << std::endl;
   oss << "1.  mach_A" << std::endl;
-  oss << "2.  ener" << std::endl;
-  oss << "3.  escape" << std::endl;
+  oss << "2.  dis" << std::endl;
+  oss << "3.  ener" << std::endl;
   num_line = 4;
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
     for ( size_t j = 0; j < 4; j++ ) {
@@ -150,8 +158,8 @@ void writeInfo(
 
   oss << "Post-processed data descriptions" << std::endl;
   oss << "1.  Alfven Mach number" << std::endl;
-  oss << "2.  energy [ev]" << std::endl;
-  oss << "3.  escape length [cm]" << std::endl;
+  oss << "2.  radius [lesc]" << std::endl;
+  oss << "3.  energy [ev]" << std::endl;
   num_line = 4;
 
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
