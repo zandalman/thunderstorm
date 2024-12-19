@@ -109,24 +109,21 @@ void writeInfo(
   oss << "Events per chunk:         " << config["IO"]["num_event_per_chunk"] << std::endl;
   oss << "Number of histories:      " << config["IO"]["num_hist"] << std::endl;
   oss << "Number of Mach numbers:   " << config["Grid.Mach"]["num"] << std::endl;
-  oss << "Number of distances:      " << config["Grid.Dis"]["num"] << std::endl;
+  oss << "Number of scales:         " << config["Grid.RhoScale"]["num"] << std::endl;
   oss << "Number of energies:       " << config["Grid.Ener"]["num"] << std::endl;
   oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
-  oss << "Ejecta mass [Msol]:       " << config["Ejecta"]["Mej"] << std::endl;
-  oss << "Ejecta velocity [c]:      " << config["Ejecta"]["vej"] << std::endl;
-  oss << "Density power law:        " << config["Ejecta"]["plaw"] << std::endl;
-  oss << "Turbulence scale [lesc]:  " << config["Ejecta"]["scale_turb"] << std::endl;
-  oss << "Geometry:                 " << config["Ejecta"]["geo"] << std::endl;
-  oss << "Sim time [day]:           " << config["Sim"]["time"] << std::endl;
-  oss << "Sim density [g/cc]:       " << config["Sim"]["rho0"] << std::endl;
-  oss << "Sim min energy [eV]:      " << config["Sim"]["ener_min"] << std::endl;
+  oss << "Sim density [g/cm^3]:     " << config["Misc"]["rho_sim"] << std::endl;
+  oss << "Sim min energy [eV]:      " << config["Misc"]["ener_min"] << std::endl;
+  oss << "Therm barr pos [scale]:   " << config["Misc"]["inner"] << std::endl;
+  oss << "Escape barr pos [scale]:  " << config["Misc"]["outer"] << std::endl;
+  oss << "Turb inj scale [scale]:   " << config["Misc"]["turb"] << std::endl;
   oss << std::endl;
 
   oss << "Grid" << std::endl;
   oss << "Alfven Mach number" << std::endl;  
   writeVector(oss, bin_list[bin_tag::mach]);
-  oss << "Radius [lesc]" << std::endl;
-  writeVector(oss, bin_list[bin_tag::dis]);
+  oss << "Density x Scale [g/cm^2]" << std::endl;
+  writeVector(oss, bin_list[bin_tag::scale]);
   oss << "Energy [eV]" << std::endl;  
   writeVector(oss, bin_list[bin_tag::ener]);
   oss << std::endl;
@@ -144,7 +141,7 @@ void writeInfo(
 
   oss << "Post-processed data names" << std::endl;
   oss << "1.  mach_A" << std::endl;
-  oss << "2.  dis" << std::endl;
+  oss << "2.  rhoscale" << std::endl;
   oss << "3.  ener" << std::endl;
   num_line = 4;
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
@@ -158,7 +155,7 @@ void writeInfo(
 
   oss << "Post-processed data descriptions" << std::endl;
   oss << "1.  Alfven Mach number" << std::endl;
-  oss << "2.  radius [lesc]" << std::endl;
+  oss << "2.  density times scale [g/cm^2]" << std::endl;
   oss << "3.  energy [ev]" << std::endl;
   num_line = 4;
 
@@ -207,11 +204,11 @@ void writeData(
   size_t idx = 0; // index in flat data vectors
 
   for ( size_t i = 0; i < bin_list[bin_tag::mach].size(); i++ ) {
-    for ( size_t j = 0; j < bin_list[bin_tag::ener].size(); j++ ) {
-      for ( size_t k = 0; k < bin_list[bin_tag::escape].size(); k++ ) {
+    for ( size_t j = 0; j < bin_list[bin_tag::scale].size(); j++ ) {
+      for ( size_t k = 0; k < bin_list[bin_tag::ener].size(); k++ ) {
         oss << bin_list[bin_tag::mach][i] << std::endl;
-        oss << bin_list[bin_tag::ener][j] << std::endl;
-        oss << bin_list[bin_tag::escape][k] << std::endl;
+        oss << bin_list[bin_tag::scale][j] << std::endl;
+        oss << bin_list[bin_tag::ener][k] << std::endl;
         for ( size_t l = 0; l < stat_list.size(); l++ ) {
           const Stat &stat = stat_list[l];
           writeVector(oss, mean_stat_list_flat, idx, idx + stat.size);
@@ -242,8 +239,8 @@ void writeHist(
   
   std::ostringstream oss; // data stream
   oss << "format" << std::endl;
-  oss << "start:idx_mach,idx_ener,idx_escape" << std::endl;
-  oss << "mach,ener[eV],escape[cm]" << std::endl;
+  oss << "start:idx_mach,idx_scale,idx_ener" << std::endl;
+  oss << "mach,rhoscale[g/cm^2],ener[eV]" << std::endl;
   oss << "time[s],x[cm],y[cm],z[cm],cos_alpha,ener[eV],flag" << std::endl;
   oss << "end" << std::endl << std::endl;
 
@@ -253,8 +250,8 @@ void writeHist(
         
         oss << "start:" << i << "," << j << "," << k << std::endl;
         oss << bin_list[bin_tag::mach][i] << ",";
-        oss << bin_list[bin_tag::ener][j] << ",";
-        oss << bin_list[bin_tag::escape][k] << std::endl;
+        oss << bin_list[bin_tag::scale][j] << ",";
+        oss << bin_list[bin_tag::ener][k] << std::endl;
         oss << data_grid[i][j][k].oss.str();
         oss << "end" << std::endl;
 

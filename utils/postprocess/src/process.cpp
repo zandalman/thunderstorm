@@ -27,26 +27,25 @@ using vector3d = std::vector<vector2d<T>>;
 /// @brief A constructor to initialize the Data structure.
 Data::Data(
   double mach_A_, 
-  double dis_, 
+  double scale_, 
   double ener_, 
-  double ener_min_, 
-  double L_, 
-  int geo_, 
+  MiscParam misc_param_,
   const std::vector<Stat> &stat_list
   )
   : mach_A(mach_A_)
   , ener(ener_)
-  , escape(escape_)
-  , ener_min(ener_min_)
-  , L(L_)
-  , geo(geo_)
-  , ener_start(ener_)
+  , ener_min(misc_param_.ener_min)
+  , inner(misc_param_.inner * scale_)
+  , outer(misc_param_.outer * scale_)
+  , turb(misc_param_.turb * scale_)
   , escaped(false)
+  , therm(false)
+  , ener_start(ener_)
   , time_start(0.0)
   , ener_prev(ener_)
-  , time_prev(0.)
-  , splus_prev(0.)
-  , sminus_prev(0.)
+  , time_prev(0.0)
+  , splus_prev(0.0)
+  , sminus_prev(0.0)
   , lam_scat(0.0)
   , s_scat(0.0)
   , oss()
@@ -60,24 +59,25 @@ Data::Data(
     M3_stat_list.push_back(std::vector<double>(stat.size, 0.0));
     M4_stat_list.push_back(std::vector<double>(stat.size, 0.0));
   }
-  lam_scat = mach_A > 1.0 ? L / (mach_A*mach_A*mach_A) : L * mach_A*mach_A;
-  s_scat = -log(1 - xi()) * lam_scat;
-  pos = Vec(0.0, 0.0, 1.0);
-  Bhat = calcRandVec(mach_A, geo, pos);
+  lam_scat = mach_A > 1.0 ? turb / (mach_A*mach_A*mach_A) : turb * mach_A*mach_A;
+  s_scat = -log(1.0 - xi()) * lam_scat;
+  pos = Vec(0.0, 0.0, 0.0);
+  Bhat = calcRandVec(mach_A);
  }
 
 /// @brief Reset the particle data.
 void Data::reset() {
-  ener_start = ener;
+  therm = false;
   escaped = false;
-  time_start = 0.;
+  ener_start = ener;
+  time_start = 0.0;
   ener_prev = ener;
-  time_prev = 0.;
-  splus_prev = 0.;
-  sminus_prev = 0.;
-  s_scat = -log(1 - xi()) * lam_scat;
-  pos = Vec(0.0, 0.0, 1.0);
-  Bhat = calcRandVec(mach_A, geo, pos);
+  time_prev = 0.0;
+  splus_prev = 0.0;
+  sminus_prev = 0.0;
+  s_scat = -log(1.0 - xi()) * lam_scat;
+  pos = Vec(0.0, 0.0, 0.0);
+  Bhat = calcRandVec(mach_A);
   oss.str(""); oss.clear();
   
   for ( size_t i = 0; i < part_stat_list.size(); i++ ) {
@@ -264,6 +264,7 @@ void processEvent(
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
+  int flag;
   double ener_loss, time_rel;
   double dt, dsplus, dsminus, ds, sign;
   size_t idx_ener_sec, idx_time, idx_ener;
@@ -273,7 +274,7 @@ void processEvent(
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
         
         Data &data = data_grid[i][j][k];
-        if ( data.escaped ) continue;
+        if ( data.escaped || data.therm ) continue;
         
         // if energy is above starting energy, update start time and coordinates
         if ( event->ener > data.ener ) {
@@ -285,8 +286,6 @@ void processEvent(
           data.sminus_prev = event->sminus;
           continue;
         }
-
-        if ( event->ener < data.ener_min ) { continue; }
 
         // compute useful quantities
         ener_loss = data.ener_prev - event->ener;
@@ -309,15 +308,8 @@ void processEvent(
           } else {
             data.pos = data.pos + sign * data.s_scat * data.Bhat;
             ds = ds - data.s_scat;
-            data.s_scat = -log(1 - xi()) * data.lam_scat;
-            data.Bhat = calcRandVec(data.mach_A, data.geo, data.pos); // Resample B-field direction
-          }
-        }
-
-        if ( didEscape(data.geo, data.escape, data.pos) ) {
-          data.escaped = true;
-          if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
-            data.part_stat_list[stat_tag::num_escape][idx_ener - 1] += 1.0;
+            data.s_scat = -log(1.0 - xi()) * data.lam_scat;
+            data.Bhat = calcRandVec(data.mach_A); // Resample B-field direction
           }
         }
 
@@ -339,7 +331,8 @@ void processEvent(
         data.part_stat_list[stat_tag::eps_thm][0] += ener_loss;
         
         // compute interaction histograms
-        switch ( event->interaction ) {
+        flag = event->interaction;
+        switch ( flag ) {
           case flags::scat: // scattering
           data.part_stat_list[stat_tag::num_ev_inter][inter_tag::scat] += 1.0;
           break;
@@ -372,10 +365,20 @@ void processEvent(
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::sync] += event->ener_loss_sync;
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += event->ener_loss_cher;
 
+        // check if particle has crossed thermalization or escape barrier
+        if ( data.pos.z > data.outer ) {
+          data.escaped = true;
+          flag = -1;
+          if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
+            data.part_stat_list[stat_tag::num_escape][idx_ener - 1] += 1.0;
+          }
+        } else if ( data.pos.z < data.inner || event->ener < data.ener_min ) {
+          data.therm = true;
+          flag = -2;
+        }
+
         // write data
-        int flag;
         if ( do_hist ) {
-          flag = data.escaped ? -1 : event->interaction;
           data.oss << time_rel << ",";
           data.oss << data.pos.x << "," << data.pos.y << "," << data.pos.z << ",";
           data.oss << event->cos_alpha << ", ";

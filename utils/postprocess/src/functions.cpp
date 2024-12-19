@@ -15,6 +15,20 @@
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 
+MiscParam::MiscParam(
+  double rho_sim_,
+  double ener_min_,
+  double inner_,
+  double outer_,
+  double turb_
+)
+: rho_sim(rho_sim_)
+, ener_min(ener_min_)
+, inner(inner_)
+, outer(outer_)
+, turb(turb_)
+{}
+
 /**
  * @brief Make a linearly or logarithmically spaced list of values.
  * 
@@ -67,69 +81,20 @@ void normalize(std::vector<double>& vec, const double norm) {
 }
 
 /**
- * @brief Calculate the density of the ejecta at a given radius.
- * 
- * @param dis  The radius in the ejecta [lesc].
- * @param Mej  The mass of the ejecta [g].
- * @param lesc The maximum radius of the ejecta [cm].
- * @param plaw The power law exponent of the density profile.
- * @return The density of the ejecta at the given radius [g/cm^3].
- */
-double calcRho(double dis, const double Mej, const double lesc, const double plaw) {
-  return (3.0 - plaw) / (4.0 * M_PI) * Mej / (plaw*plaw*plaw) * pow(dis, -plaw);
-}
-
-/**
- * @brief Determine whether a particle has escaped.
- * 
- * @param geo     The geometry tag.
- * @param escape  The escape distance [cm].
- * @param pos     The particle position [cm].
- * @return Whether the particle escaped or not.    
- */
-bool didEscape(int geo, double escape, Vec pos) {
-  switch ( geo ) {
-    case geo_tag::none:
-    return false;
-    break;
-    case geo_tag::plane:
-    return pos.z > escape;
-    break;
-    case geo_tag::sphere:
-    return pos.mag() > escape;
-    break;
-  }
-  return false;
-}
-
-/**
  * @brief Resample the B-field direction.
  * Assume that the...
  */
 
-Vec calcRandVec(double mach_A, int geo, Vec pos) {
+Vec calcRandVec(double mach_A) {
   
-  Vec Bhat_turb = Vec(0.0, 0.0, 0.0);
   double cos_th = 2.0 * xi() - 1.0;
   double sin_th = sqrt(1.0 - cos_th*cos_th);
   double phi = 2.0 * M_PI * xi();
-  Bhat_turb.x = sin_th * cos(phi);
-  Bhat_turb.y = sin_th * sin(phi);
-  Bhat_turb.z = cos_th;
-  
-  Vec Bhat_co;
-  switch ( geo ) {
-    case geo_tag::none:
-    Bhat_co = Vec(0.0, 0.0, 1.0);
-    break;
-    case geo_tag::plane:
-    Bhat_co = Vec(0.0, 0.0, 1.0);
-    break;
-    case geo_tag::sphere:
-    Bhat_co = pos.unit();
-  }
-  
-  return (mach_A * Bhat_turb + Bhat_co).unit();
+  return Vec(
+    mach_A * sin_th * cos(phi),
+    mach_A * sin_th * sin(phi),
+    1.0 + mach_A * cos_th
+  );
 }
 
 /**

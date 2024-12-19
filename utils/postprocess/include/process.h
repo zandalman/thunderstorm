@@ -10,6 +10,7 @@
 // headers
 #include "io.h"
 #include "vec.h"
+#include "functions.h"
 
 // types
 template <typename T>
@@ -20,23 +21,23 @@ using vector3d = std::vector<vector2d<T>>;
 /// @brief A structure to represent data.
 struct Data {
   double mach_A;                   // The Alfven Mach number.
-  double dis;                      // The initial particle radius [lesc].
   double ener;                     // The particle energy [eV].
-  double escape;                   // The escape legnth [cm].
   double ener_min;                 // The minimum energy [eV].
-  double L;                        // The turbulence injection scale [cm].
-  int geo;                         // The geometry tag.
+  double inner;                    // The position of the thermalization barrier [cm].
+  double outer;                    // The position of the escape barrier [cm].
+  double turb;                     // The turbulence injection scale [cm].
+  bool escaped;                    // Whether the particle has escaped.
+  bool therm;                      // Whether the particle has thermalized.
   double ener_start;               // The start energy [eV].
-  bool escaped;                    // Whether the particle has escpaed.
   double time_start;               // The start time [s].
   double ener_prev;                // The energy [eV].
   double time_prev;                // The time [s].
   double splus_prev;               // The positive distance along the field line [cm].
   double sminus_prev;              // The negative distance along the field line [cm].
-  double lam_scat;                 // The mean free path along a field line before scattering [cm].
-  double s_scat;                   // The distance remaining along a field line before scattering [cm].
-  Vec pos;                         // The particle position [cm].
-  Vec Bhat;                        // The particle B-field direction.
+  double lam_scat;                 // The mean free path along a field line to scatter [cm].
+  double s_scat;                   // The distance along a field line to scattering [cm].
+  Vec pos;                         // The position [cm].
+  Vec Bhat;                        // The B-field direction.
   std::ostringstream oss;          // The string stream.
   vector2d<double> part_stat_list; // The statistics for a single particle.
   vector2d<double> mean_stat_list; // The mean statistics
@@ -47,11 +48,9 @@ struct Data {
   Data() = default;
   Data(
     double mach_A_, 
-    double ener_, 
-    double escape_, 
-    double ener_min_, 
-    double L_, 
-    int geo_, 
+    double scale_, 
+    double ener_,
+    MiscParam misc_param_,
     const std::vector<Stat> &stat_list
   );
   void reset();

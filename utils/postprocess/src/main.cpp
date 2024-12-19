@@ -34,12 +34,6 @@ int main(int argc, char** argv) {
   // start timer
   auto start = std::chrono::steady_clock::now();
 
-  std::vector<std::string> stat_def_list = {
-    "energy loss [eV] for each mechanism",
-    "number of ionizations per element",
-    "number of secondary electrons per secondary energy bin"
-  };
-
   // read config file
   Config config;
   std::string configfile_name = "../config/config.ini";
@@ -53,42 +47,24 @@ int main(int argc, char** argv) {
   const size_t num_event_per_chunk = std::stoul(config["IO"]["num_event_per_chunk"]);
   const int num_hist = std::stoi(config["IO"]["num_hist"]);
 
-  // get ejecta geometry
-  int geo;
-  switch ( std::string(config["Ejecta"]["geo"]) ) {
-    case "plane":
-    geo = geo_tag::plane;
-    break;
-    case "sphere":
-    geo = geo_tag::sphere;
-    break;
-    default:
-    geo = geo_tag::none;
-  }
-
-  // get ejecta parameters
-  const double Mej = std::stod(config["Ejecta"]["Mej"]) * constants::M_sol;
-  const double vej = std::stod(config["Ejecta"]["vej"]) * constants::c;
-  const double plaw = std::stod(config["Ejecta"]["plaw"]);
-  const double scale_turb = std::stod(config["Ejecta"]["scale_turb"]);
-
-  // get simulation data
-  const double time_sim = std::stod(config["Sim"]["time"]) * constants::day;
-  const double rho_sim = std::stod(config["Sim"]["rho0"]);
-  const double ener_min = std::stod(config["Sim"]["ener_min"]);
-
-  // compute ejecta information
-  const double escape = vej * time_sim;
+  // get miscellaneous parameters
+  MiscParam misc_param = MiscParam(
+    std::stod(config["Misc"]["rho_sim"]),
+    std::stod(config["Misc"]["ener_min"]),
+    std::stod(config["Misc"]["inner"]),
+    std::stod(config["Misc"]["outer"]),
+    std::stod(config["Misc"]["turb"])
+  );
 
   // make bin list
-  size_t num_mach, num_dis, num_ener, num_ener_sec, num_time;
-  std::vector<double> mach_list, dis_list, ener_list, ener_sec_list, time_list;
+  size_t num_mach, num_scale, num_ener, num_ener_sec, num_time;
+  std::vector<double> mach_list, scale_list, ener_list, ener_sec_list, time_list;
   makeList(config["Grid.Mach"], mach_list, num_mach);
-  makeList(config["Grid.Dis"], dis_list, num_dis);
+  makeList(config["Grid.RhoScale"], scale_list, num_scale);
   makeList(config["Grid.Ener"], ener_list, num_ener);
   makeList(config["Bin.EnerSec"], ener_sec_list, num_ener_sec);
   makeList(config["Bin.Time"], time_list, num_time, constants::hr);
-  vector2d<double> bin_list = {mach_list, dis_list, ener_list, ener_sec_list, time_list};
+  vector2d<double> bin_list = {mach_list, scale_list, ener_list, ener_sec_list, time_list};
 
   // define statistics
   std::vector<Stat> stat_list;
@@ -112,12 +88,11 @@ int main(int argc, char** argv) {
   double L;
   data_grid.resize(num_mach);
   for (size_t i = 0; i < num_mach; i++) {
-    data_grid[i].resize(num_dis);
-    for (size_t j = 0; j < num_dis; j++) {
+    data_grid[i].resize(num_scale);
+    for (size_t j = 0; j < num_scale; j++) {
       data_grid[i][j].resize(num_ener);
       for ( size_t k = 0; k < num_ener; k++ ) {
-        L = scale_turb * escape_list[k];
-        data_grid[i][j][k] = Data(mach_list[i], ener_list[j], escape_list[k], ener_min, L, geo, stat_list);
+        data_grid[i][j][k] = Data(mach_list[i], scale_list[j] / misc_param.rho_sim, ener_list[k], misc_param, stat_list);
       }
     }
   }
