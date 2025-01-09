@@ -11,7 +11,7 @@ BUILD_DIR := .
 SRC := $(wildcard $(SRC_DIR)/*.cpp)
 OBJ := $(SRC:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
 INC := -I$(INCLUDE_DIR)
-TARGET := postprocess
+TARGET := lightning
 
 all: $(TARGET)
 
