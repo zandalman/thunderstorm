@@ -59,7 +59,7 @@ Data::Data(
     M3_stat_list.push_back(std::vector<double>(stat.size, 0.0));
     M4_stat_list.push_back(std::vector<double>(stat.size, 0.0));
   }
-  lam_scat = mach_A > 1.0 ? turb / (mach_A*mach_A*mach_A) : turb * mach_A*mach_A;
+  lam_scat = mach_A > 1.0 ? turb / (mach_A*mach_A*mach_A) : turb * mach_A*mach_A*mach_A*mach_A;
   s_scat = -log(1.0 - xi()) * lam_scat;
   pos = Vec(0.0, 0.0, 0.0);
   Bhat = calcRandVec(mach_A);
@@ -178,8 +178,6 @@ void processFile(
         count++;
       }
     }
-
-    std::cout << event->ener << std::endl;
   }
 
   // Handle the case where the last chunk might not be full
@@ -233,8 +231,10 @@ void postProcPart(
         Data &data = data_grid[i][j][k];
         
         // compute thermalization efficiency
-        if ( !data.escaped ) {
-          data.part_stat_list[stat_tag::eps_thm][0] += data.ener_prev;
+        if ( data.escaped ) {
+          data.part_stat_list[stat_tag::eps_thm][0] = fmax(0.0, 1.0 - data.ener_prev / data.ener);
+        } else {
+          data.part_stat_list[stat_tag::eps_thm][0] = 1.0;
         }
         
         // aggregate statistics and reset
@@ -328,7 +328,6 @@ void processEvent(
         if ( idx_time > 0 && idx_time < bin_list[bin_tag::time].size() ) {
           data.part_stat_list[stat_tag::ener_loss_time][idx_time - 1] += ener_loss;
         }
-        data.part_stat_list[stat_tag::eps_thm][0] += ener_loss;
         
         // compute interaction histograms
         flag = event->interaction;

@@ -69,9 +69,20 @@ void parseConfig(const std::string &configfile_name, Config &config) {
  * @param unit The data unit.
  */
 void makeList(Dict &dict, std::vector<double> &list, size_t &num, double unit) {
-  double min = std::stod(dict["min"]) * unit;
-  double max = std::stod(dict["max"]) * unit;
-  bool log = dict["log"] == "true";
-  num = std::stoul(dict["num"]);
-  linspace(min, max, num, log, list);
+  
+  if ( dict["list"] == "true" ) {
+    num = 0;
+    std::stringstream ss(dict["val"]);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+      list.push_back(std::stod(token));
+      num++;
+    }
+  } else {
+    double min = std::stod(dict["min"]) * unit;
+    double max = std::stod(dict["max"]) * unit;
+    bool log = dict["log"] == "true";
+    num = std::stoul(dict["num"]);
+    linspace(min, max, num, log, list);
+  }
 } 

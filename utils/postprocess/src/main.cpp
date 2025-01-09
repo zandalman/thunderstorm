@@ -85,7 +85,6 @@ int main(int argc, char** argv) {
 
   // create a grid of data structs
   vector3d<Data> data_grid;
-  double L;
   data_grid.resize(num_mach);
   for (size_t i = 0; i < num_mach; i++) {
     data_grid[i].resize(num_scale);

@@ -94,7 +94,7 @@ Vec calcRandVec(double mach_A) {
     mach_A * sin_th * cos(phi),
     mach_A * sin_th * sin(phi),
     1.0 + mach_A * cos_th
-  );
+  ).unit();
 }
 
 /**
