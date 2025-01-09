@@ -9,4 +9,3 @@ thunder/data/*
 !thunder/build/Makefile
 
 .vscode
-utils/*
