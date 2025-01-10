@@ -114,15 +114,13 @@ void writeInfo(
   oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
   oss << "Sim density [g/cm^3]:     " << config["Misc"]["rho_sim"] << std::endl;
   oss << "Sim min energy [eV]:      " << config["Misc"]["ener_min"] << std::endl;
-  oss << "Therm barr pos [scale]:   " << config["Misc"]["inner"] << std::endl;
-  oss << "Escape barr pos [scale]:  " << config["Misc"]["outer"] << std::endl;
   oss << "Turb inj scale [scale]:   " << config["Misc"]["turb"] << std::endl;
   oss << std::endl;
 
   oss << "Grid" << std::endl;
   oss << "Alfven Mach number" << std::endl;  
   writeVector(oss, bin_list[bin_tag::mach]);
-  oss << "Density x Scale [g/cm^2]" << std::endl;
+  oss << "Density-scale [g/cm^2]" << std::endl;
   writeVector(oss, bin_list[bin_tag::scale]);
   oss << "Energy [eV]" << std::endl;  
   writeVector(oss, bin_list[bin_tag::ener]);

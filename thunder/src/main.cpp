@@ -51,8 +51,6 @@ int main(int argc, char** argv) {
   MiscParam misc_param = MiscParam(
     std::stod(config["Misc"]["rho_sim"]),
     std::stod(config["Misc"]["ener_min"]),
-    std::stod(config["Misc"]["inner"]),
-    std::stod(config["Misc"]["outer"]),
     std::stod(config["Misc"]["turb"])
   );
 

@@ -18,14 +18,10 @@ using vector2d = std::vector<std::vector<T>>;
 MiscParam::MiscParam(
   double rho_sim_,
   double ener_min_,
-  double inner_,
-  double outer_,
   double turb_
 )
 : rho_sim(rho_sim_)
 , ener_min(ener_min_)
-, inner(inner_)
-, outer(outer_)
 , turb(turb_)
 {}
 

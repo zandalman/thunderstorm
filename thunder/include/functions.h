@@ -17,16 +17,12 @@ using vector2d = std::vector<std::vector<T>>;
 struct MiscParam {
   double rho_sim;  // The density in the simulation [g/cc]
   double ener_min; // The minimum energy in the simulation [eV]
-  double inner;    // The thermalization barrier position [scale]
-  double outer;    // The escape barrier position [scale]
   double turb;     // The turbulence injection scale [scale]
 
   MiscParam() = default;
   MiscParam(
     double rho_sim_,
     double ener_min_,
-    double inner_,
-    double outer_,
     double turb_
   );
 };

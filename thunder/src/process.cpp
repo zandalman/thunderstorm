@@ -35,11 +35,9 @@ Data::Data(
   : mach_A(mach_A_)
   , ener(ener_)
   , ener_min(misc_param_.ener_min)
-  , inner(misc_param_.inner * scale_)
-  , outer(misc_param_.outer * scale_)
+  , scale(scale_)
   , turb(misc_param_.turb * scale_)
   , escaped(false)
-  , therm(false)
   , ener_start(ener_)
   , time_start(0.0)
   , ener_prev(ener_)
@@ -67,7 +65,6 @@ Data::Data(
 
 /// @brief Reset the particle data.
 void Data::reset() {
-  therm = false;
   escaped = false;
   ener_start = ener;
   time_start = 0.0;
@@ -274,7 +271,7 @@ void processEvent(
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
         
         Data &data = data_grid[i][j][k];
-        if ( data.escaped || data.therm ) continue;
+        if ( data.escaped ) continue;
         
         // if energy is above starting energy, update start time and coordinates
         if ( event->ener > data.ener ) {
@@ -365,15 +362,12 @@ void processEvent(
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += event->ener_loss_cher;
 
         // check if particle has crossed thermalization or escape barrier
-        if ( data.pos.z > data.outer ) {
+        if ( fabs(data.pos.z) > 0.5 * data.scale ) {
           data.escaped = true;
           flag = -1;
           if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
-            data.part_stat_list[stat_tag::num_escape][idx_ener - 1] += 1.0;
+            data.part_stat_list[stat_tag::num_escape][idx_ener - 1] += 0.5;
           }
-        } else if ( data.pos.z < data.inner || event->ener < data.ener_min ) {
-          data.therm = true;
-          flag = -2;
         }
 
         // write data

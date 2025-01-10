@@ -23,11 +23,9 @@ struct Data {
   double mach_A;                   // The Alfven Mach number.
   double ener;                     // The particle energy [eV].
   double ener_min;                 // The minimum energy [eV].
-  double inner;                    // The position of the thermalization barrier [cm].
-  double outer;                    // The position of the escape barrier [cm].
+  double scale;                    // Characteristic scale of the simulation [cm].
   double turb;                     // The turbulence injection scale [cm].
   bool escaped;                    // Whether the particle has escaped.
-  bool therm;                      // Whether the particle has thermalized.
   double ener_start;               // The start energy [eV].
   double time_start;               // The start time [s].
   double ener_prev;                // The energy [eV].
