@@ -2,6 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <string>
 #include <mpi.h>
 
 // headers
@@ -16,14 +17,26 @@ template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 
 MiscParam::MiscParam(
+  double t_end_,
   double rho_sim_,
   double ener_min_,
-  double turb_
+  double turb_,
+  std::string spawn_
 )
-: rho_sim(rho_sim_)
+: t_end(t_end_)
+, rho_sim(rho_sim_)
 , ener_min(ener_min_)
 , turb(turb_)
-{}
+, spawn(0)
+{
+  if ( spawn_ == "full" ) {
+    spawn = spawn_tag::full;
+  } else if ( spawn_ == "center" ) {
+    spawn = spawn_tag::center;
+  } else if ( spawn_ == "edge" ) {
+    spawn = spawn_tag::edge;
+  }
+}
 
 /**
  * @brief Make a linearly or logarithmically spaced list of values.

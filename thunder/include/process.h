@@ -6,6 +6,7 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 // headers
 #include "io.h"
@@ -20,14 +21,17 @@ using vector3d = std::vector<vector2d<T>>;
 
 /// @brief A structure to represent data.
 struct Data {
+  double t_end;                    // The last time before the particles escape [s]
   double mach_A;                   // The Alfven Mach number.
   double ener;                     // The particle energy [eV].
   double ener_min;                 // The minimum energy [eV].
   double scale;                    // Characteristic scale of the simulation [cm].
   double turb;                     // The turbulence injection scale [cm].
+  int spawn;                       // The spawn mode.
   bool escaped;                    // Whether the particle has escaped.
   double ener_start;               // The start energy [eV].
   double time_start;               // The start time [s].
+  double sign_start;               // The start sign.
   double ener_prev;                // The energy [eV].
   double time_prev;                // The time [s].
   double splus_prev;               // The positive distance along the field line [cm].
@@ -69,13 +73,16 @@ void processEvent(
 void processFile(
   const std::string &datafile_name, 
   size_t num_event_per_chunk, 
+  std::chrono::steady_clock::time_point start,
+  int walltime,
   const vector2d<double> &bin_list, 
   const std::vector<Stat>& stat_list, 
   const std::string &histdir_name,
   int idx_hist_max,
   int &idx_hist,
   int &count, 
-  vector3d<Data>& data_grid
+  vector3d<Data>& data_grid,
+  bool &no_time
 );
 void getFlatData(
   const vector3d<Data>& data_grid, 

@@ -8,6 +8,7 @@
 #include <vector>
 #include <cmath>
 #include <cstdio>
+#include <chrono>
 #include <mpi.h>
 
 // headers
@@ -32,14 +33,17 @@ Data::Data(
   MiscParam misc_param_,
   const std::vector<Stat> &stat_list
   )
-  : mach_A(mach_A_)
+  : t_end(misc_param_.t_end)
+  , mach_A(mach_A_)
   , ener(ener_)
   , ener_min(misc_param_.ener_min)
   , scale(scale_)
   , turb(misc_param_.turb * scale_)
+  , spawn(misc_param_.spawn)
   , escaped(false)
   , ener_start(ener_)
   , time_start(0.0)
+  , sign_start(1.0)
   , ener_prev(ener_)
   , time_prev(0.0)
   , splus_prev(0.0)
@@ -60,6 +64,14 @@ Data::Data(
   lam_scat = mach_A > 1.0 ? turb / (mach_A*mach_A*mach_A) : turb * mach_A*mach_A*mach_A*mach_A;
   s_scat = -log(1.0 - xi()) * lam_scat;
   pos = Vec(0.0, 0.0, 0.0);
+  switch ( spawn ) {
+    case spawn_tag::full:
+    pos.z = (xi() - 0.5) * scale;
+    break;
+    case spawn_tag::edge:
+    pos.z = -0.5 * scale;
+    break;
+  }
   Bhat = calcRandVec(mach_A);
  }
 
@@ -68,12 +80,21 @@ void Data::reset() {
   escaped = false;
   ener_start = ener;
   time_start = 0.0;
+  sign_start = 1.0;
   ener_prev = ener;
   time_prev = 0.0;
   splus_prev = 0.0;
   sminus_prev = 0.0;
   s_scat = -log(1.0 - xi()) * lam_scat;
   pos = Vec(0.0, 0.0, 0.0);
+  switch ( spawn ) {
+    case spawn_tag::full:
+    pos.z = (xi() - 0.5) * scale;
+    break;
+    case spawn_tag::edge:
+    pos.z = -0.5 * scale;
+    break;
+  }
   Bhat = calcRandVec(mach_A);
   oss.str(""); oss.clear();
   
@@ -116,21 +137,27 @@ void Data::calcStat(int n_int, const std::vector<Stat> &stat_list) {
  * 
  * @param datafile_name       The name of the binary data file.
  * @param num_event_per_chunk The number of events per chunk.
+ * @param start               The start time of the simulation.
+ * @param walltime            The wallclock time of the job [s].
  * @param bin_list            The list of bins.
  * @param stat_list           The list of statistics.
  * @param count               The particle count.
  * @param data_grid           The grid of data.  
+ * @param no_time             Whether the job has run out of wallclock time.
  */
 void processFile(
   const std::string &datafile_name, 
   size_t num_event_per_chunk, 
+  std::chrono::steady_clock::time_point start,
+  int walltime,
   const vector2d<double> &bin_list,
   const std::vector<Stat>& stat_list, 
   const std::string &histdir_name,
   int idx_hist_max,
   int &idx_hist,
   int &count, 
-  vector3d<Data>& data_grid
+  vector3d<Data>& data_grid,
+  bool &no_time
 ) {
 
   // Open file
@@ -155,6 +182,8 @@ void processFile(
 
   while ( datafile.read(buffer.data(), chunk_size) ) {
     
+    auto start_chunk = std::chrono::steady_clock::now();
+    
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
       do_hist = idx_hist < idx_hist_max;
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
@@ -175,10 +204,19 @@ void processFile(
         count++;
       }
     }
+
+    // Break if we are about to exceed walltime
+    auto now = std::chrono::steady_clock::now();
+    auto runtime = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
+    auto chunktime = std::chrono::duration_cast<std::chrono::seconds>(now - start_chunk).count();
+    if ( runtime > walltime - 2 * chunktime ) {
+      no_time = true;
+      break;
+    }
   }
 
   // Handle the case where the last chunk might not be full
-  if ( datafile.eof() ) {
+  if ( !no_time && datafile.eof() ) {
     size_t bytes_read = datafile.gcount();
     if ( bytes_read > 0 ) {
       size_t num_event_last_chunk = bytes_read / event_size;
@@ -203,10 +241,11 @@ void processFile(
         }
       }
     }
-  } else {
+  } else if ( !no_time ) {
     std::cerr << "Error reading file " << datafile_name << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
+
   datafile.close();
 }
 
@@ -275,8 +314,14 @@ void processEvent(
         
         // if energy is above starting energy, update start time and coordinates
         if ( event->ener > data.ener ) {
+          
           data.ener_start = event->ener;
           data.time_start = event->time;
+
+          dsplus = event->splus - data.splus_prev;
+          dsminus = event->sminus - data.sminus_prev;
+          data.sign_start = dsplus > dsminus ? 1.0 : -1.0;
+
           data.ener_prev = event->ener;
           data.time_prev = event->time;
           data.splus_prev = event->splus;
@@ -296,6 +341,9 @@ void processEvent(
         dsminus = event->sminus - data.sminus_prev;
         ds = dsplus + dsminus;
         sign = dsplus > dsminus ? 1.0 : -1.0;
+        if ( data.spawn == spawn_tag::edge ) {
+          sign = sign * data.sign_start;
+        }
 
         while ( true ) {
           if ( ds < data.s_scat ) {
@@ -362,11 +410,24 @@ void processEvent(
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += event->ener_loss_cher;
 
         // check if particle has crossed thermalization or escape barrier
-        if ( fabs(data.pos.z) > 0.5 * data.scale ) {
+        
+        if ( time_rel > data.t_end ) {
           data.escaped = true;
           flag = -1;
           if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
-            data.part_stat_list[stat_tag::num_escape][idx_ener - 1] += 0.5;
+            data.part_stat_list[stat_tag::num_escape_time][idx_ener - 1] += 1.0;
+          }
+        } else if ( data.pos.z > 0.5 * data.scale ) {
+          data.escaped = true;
+          flag = -1;
+          if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
+            data.part_stat_list[stat_tag::num_escape_outer][idx_ener - 1] += 1.0;
+          }
+        } else if ( data.pos.z < -0.5 * data.scale ) {
+          data.escaped = true;
+          flag = -1;
+          if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
+            data.part_stat_list[stat_tag::num_escape_inner][idx_ener - 1] += 1.0;
           }
         }
 

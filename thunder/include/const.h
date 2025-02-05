@@ -8,10 +8,10 @@ constexpr size_t num_inter = 6;
 constexpr size_t num_mech = 6;
 constexpr size_t num_elem = 118;
 
-namespace geo_tag {
-constexpr int none = 0;
-constexpr int plane = 1;
-constexpr int sphere = 2;
+namespace spawn_tag {
+constexpr int full = 0;
+constexpr int center = 1;
+constexpr int edge = 2;
 }
 
 namespace stat_tag {
@@ -19,10 +19,12 @@ constexpr int eps_thm = 0;
 constexpr int num_ev_inter = 1;
 constexpr int ener_loss_mech = 2;
 constexpr int num_ion_elem = 3;
-constexpr int num_escape = 4;
-constexpr int num_sec_ener = 5;
-constexpr int ener_loss_time = 6;
-constexpr int time_ener = 7;
+constexpr int num_escape_inner = 4;
+constexpr int num_escape_outer = 5;
+constexpr int num_escape_time = 6;
+constexpr int num_sec_ener = 7;
+constexpr int ener_loss_time = 8;
+constexpr int time_ener = 9;
 }
 
 namespace bin_tag {

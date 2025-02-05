@@ -112,9 +112,11 @@ void writeInfo(
   oss << "Number of scales:         " << config["Grid.RhoScale"]["num"] << std::endl;
   oss << "Number of energies:       " << config["Grid.Ener"]["num"] << std::endl;
   oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
+  oss << "Max time [day]:           " << config["Misc"]["walltime"] << std::endl;
   oss << "Sim density [g/cm^3]:     " << config["Misc"]["rho_sim"] << std::endl;
   oss << "Sim min energy [eV]:      " << config["Misc"]["ener_min"] << std::endl;
   oss << "Turb inj scale [scale]:   " << config["Misc"]["turb"] << std::endl;
+  oss << "Spawn mode:               " << config["Misc"]["spawn"] << std::endl;
   oss << std::endl;
 
   oss << "Grid" << std::endl;

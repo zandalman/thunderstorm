@@ -4,6 +4,7 @@
 // includes
 #include <iostream>
 #include <vector>
+#include <string>
 
 // headers
 #include "vec.h"
@@ -15,15 +16,19 @@ using vector2d = std::vector<std::vector<T>>;
 
 /// @brief Miscellaneous parameters
 struct MiscParam {
+  double t_end;    // The last time before the particles escape [s]
   double rho_sim;  // The density in the simulation [g/cc]
   double ener_min; // The minimum energy in the simulation [eV]
   double turb;     // The turbulence injection scale [scale]
+  int spawn;       // The spawn mode for the particles
 
   MiscParam() = default;
   MiscParam(
+    double t_end_,
     double rho_sim_,
     double ener_min_,
-    double turb_
+    double turb_,
+    std::string spawn_
   );
 };
 

@@ -48,10 +48,13 @@ int main(int argc, char** argv) {
   const int num_hist = std::stoi(config["IO"]["num_hist"]);
 
   // get miscellaneous parameters
+  int walltime = std::stoi(config["Misc"]["walltime"]);
   MiscParam misc_param = MiscParam(
+    std::stod(config["Misc"]["t_end"]) * constants::day,
     std::stod(config["Misc"]["rho_sim"]),
     std::stod(config["Misc"]["ener_min"]),
-    std::stod(config["Misc"]["turb"])
+    std::stod(config["Misc"]["turb"]),
+    config["Misc"]["spawn"]
   );
 
   // make bin list
@@ -70,7 +73,9 @@ int main(int argc, char** argv) {
   stat_list.push_back(Stat(num_inter, "num_ev_inter", "number of events for each interaction"));
   stat_list.push_back(Stat(num_mech, "ener_loss_mech", "energy loss [eV] for each mechanism"));
   stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
-  stat_list.push_back(Stat(num_ener - 1, "num_escape", "number of escaped electrons per secondary energy bin"));
+  stat_list.push_back(Stat(num_ener - 1, "num_escape_inner", "number of escaped electrons at the inner boundary per secondary energy bin"));
+  stat_list.push_back(Stat(num_ener - 1, "num_escape_outer", "number of escaped electrons at the outer boundary per secondary energy bin"));
+  stat_list.push_back(Stat(num_ener - 1, "num_escape_time", "number of escaped electrons at the end time"));
   stat_list.push_back(Stat(num_ener_sec - 1, "num_sec_ener", "number of secondary electrons per secondary energy bin"));
   stat_list.push_back(Stat(num_time - 1, "ener_loss_time", "energy loss [eV] per time bin"));
   stat_list.push_back(Stat(num_ener - 1, "time_ener", "time [s] spent per energy bin"));
@@ -109,18 +114,23 @@ int main(int argc, char** argv) {
   MPI_Barrier(MPI_COMM_WORLD);
   int count = 0;
   int idx_hist = idx_hist_min;
+  bool no_time = false;
   for ( int i = idx_file_min; i < idx_file_max; i++ ) {
+    if ( no_time ) break;
     std::string datafile_name = data_path + "/data.bin." + std::to_string(i);
     processFile(
       datafile_name, 
-      num_event_per_chunk, 
+      num_event_per_chunk,
+      start, 
+      walltime,
       bin_list, 
       stat_list, 
       histdir_name,
       idx_hist_max, 
       idx_hist,
       count, 
-      data_grid
+      data_grid,
+      no_time
     );
   }
 
