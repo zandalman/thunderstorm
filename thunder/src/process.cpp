@@ -410,14 +410,7 @@ void processEvent(
         data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += event->ener_loss_cher;
 
         // check if particle has crossed thermalization or escape barrier
-        
-        if ( time_rel > data.t_end ) {
-          data.escaped = true;
-          flag = -1;
-          if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
-            data.part_stat_list[stat_tag::num_escape_time][idx_ener - 1] += 1.0;
-          }
-        } else if ( data.pos.z > 0.5 * data.scale ) {
+        if ( data.pos.z > 0.5 * data.scale ) {
           data.escaped = true;
           flag = -1;
           if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {

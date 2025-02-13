@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
   stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
   stat_list.push_back(Stat(num_ener - 1, "num_escape_inner", "number of escaped electrons at the inner boundary per secondary energy bin"));
   stat_list.push_back(Stat(num_ener - 1, "num_escape_outer", "number of escaped electrons at the outer boundary per secondary energy bin"));
-  stat_list.push_back(Stat(num_ener - 1, "num_escape_time", "number of escaped electrons at the end time"));
+  // stat_list.push_back(Stat(num_ener - 1, "num_escape_time", "number of escaped electrons at the end time"));
   stat_list.push_back(Stat(num_ener_sec - 1, "num_sec_ener", "number of secondary electrons per secondary energy bin"));
   stat_list.push_back(Stat(num_time - 1, "ener_loss_time", "energy loss [eV] per time bin"));
   stat_list.push_back(Stat(num_ener - 1, "time_ener", "time [s] spent per energy bin"));

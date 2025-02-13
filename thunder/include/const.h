@@ -21,10 +21,9 @@ constexpr int ener_loss_mech = 2;
 constexpr int num_ion_elem = 3;
 constexpr int num_escape_inner = 4;
 constexpr int num_escape_outer = 5;
-constexpr int num_escape_time = 6;
-constexpr int num_sec_ener = 7;
-constexpr int ener_loss_time = 8;
-constexpr int time_ener = 9;
+constexpr int num_sec_ener = 6;
+constexpr int ener_loss_time = 7;
+constexpr int time_ener = 8;
 }
 
 namespace bin_tag {
