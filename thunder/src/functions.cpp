@@ -17,14 +17,12 @@ template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 
 MiscParam::MiscParam(
-  double t_end_,
   double rho_sim_,
   double ener_min_,
   double turb_,
   std::string spawn_
 )
-: t_end(t_end_)
-, rho_sim(rho_sim_)
+: rho_sim(rho_sim_)
 , ener_min(ener_min_)
 , turb(turb_)
 , spawn(0)

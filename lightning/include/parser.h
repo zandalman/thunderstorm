@@ -46,7 +46,7 @@ typedef std::vector<SpecData> EEDLData;
 
 std::string trim(const std::string &str);
 void parseConfig(const std::string &filename, Config &config);
-void parseAb(const std::string &filename, double time, Vector1d &ab);
+void parseAb(const std::string &filename, double time, Vector1d &ab, double &mmw);
 void parseEEDL(const std::string &filename, EEDLData &eedl_data);
 
 #endif

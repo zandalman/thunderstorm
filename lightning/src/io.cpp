@@ -54,7 +54,17 @@ void clearOutfile(const std::string& outfile_name) {
  * 
  * @param outfile The info file name.
 */
-void writeInfo(const std::string& infofile_name, int size, Config& config, const Vector1d& ab, const EEDLData& eedl, double n_i, double n_e_free, double lam_deb, double B0) {
+void writeInfo(
+  const std::string& infofile_name, 
+  int size, 
+  Config& config, 
+  const Vector1d& ab, 
+  const EEDLData& eedl, 
+  double n_i, 
+  double n_e_free, 
+  double lam_deb, 
+  double mmw
+) {
 
   std::ofstream infofile(infofile_name);
   std::ifstream licensefile("../LICENSE");
@@ -86,13 +96,13 @@ void writeInfo(const std::string& infofile_name, int size, Config& config, const
   infofile << "Temperature [K]:                 " << config["Background"]["temp"] << std::endl;
   infofile << "Abundance time [day]:            " << config["Background"]["ab_time"] << std::endl;
   infofile << "Average ion state:               " << config["Background"]["ion_state_avg"] << std::endl;
+  infofile << "Coherent B-field amplitude [G]:  " << config["Background"]["B0"] << std::endl;
   infofile << "Ion number density [1/cc]:       " << n_i << std::endl;
   infofile << "Free elec number density [1/cc]: " << n_e_free << std::endl;
   infofile << "Debye length [cm]:               " << lam_deb << std::endl;
+  infofile << "Mean molecular weight [mol/g]:   " << mmw << std::endl;
   infofile << "Particle energy [eV]:            " << config["Particle"]["ener"] << std::endl;
   infofile << "Particle lifetime [s]:           " << config["Particle"]["tmax"] << std::endl;
-  infofile << "Plasma beta:                     " << config["Bfield"]["beta"] << std::endl;
-  infofile << "Coherent B-field amplitude [G]:  " << B0 << std::endl;
   infofile << "Discrete Moller cos angle cutoff " << config["Simulation"]["cos_th_cut"] << std::endl;
   infofile << std::endl;
 

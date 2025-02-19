@@ -40,8 +40,9 @@ int main(int argc, char** argv) {
   
   // read abundance data
   Vector1d ab;
+  double mmw;
   double time = std::stod(config["Background"]["ab_time"]) * constants::day;
-  parseAb(config["IO"]["ab"], time, ab);
+  parseAb(config["IO"]["ab"], time, ab, mmw);
   if ( rank == 0 ) std::cout << "Read abundance data." << std::endl;
 
   // read EEDL data
@@ -59,7 +60,7 @@ int main(int argc, char** argv) {
   double rho = std::stod(config["Background"]["rho"]);
   double temp = std::stod(config["Background"]["temp"]);
   double ion_state_avg = std::stod(config["Background"]["ion_state_avg"]);
-  double beta = std::stod(config["Bfield"]["beta"]);
+  double B0 = std::stod(config["Background"]["B0"]);
   double cos_th_cut = std::stod(config["Simulation"]["cos_th_cut"]);
   
   // Set physics
@@ -72,9 +73,8 @@ int main(int argc, char** argv) {
   }
 
   // compute useful quantities
-  double n_i, n_e_free, lam_deb, B0;
+  double n_i, n_e_free, lam_deb;
   calcLamDeb(ab, rho, temp, ion_state_avg, n_i, n_e_free, lam_deb);
-  B0 = calcB0(n_i + n_e_free, temp, beta);
   
   // clear files and write info file
   std::string infofile = config["IO"]["outpath"] + "/info.txt";
@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
     clearOutfile(outfile);
     if ( rank == 0 ) { 
       clearInfo(infofile); 
-      writeInfo(infofile, size, config, ab, eedl, n_i, n_e_free, lam_deb, B0); 
+      writeInfo(infofile, size, config, ab, eedl, n_i, n_e_free, lam_deb, mmw);
     }
   }
 
@@ -103,7 +103,8 @@ int main(int argc, char** argv) {
     cos_th_cut, 
     do_moller, 
     do_cerenkov, 
-    do_sync
+    do_sync,
+    mmw
   );
   int count_loc = 0, count_dead_loc = 0;
   if ( rank == 0 ) {

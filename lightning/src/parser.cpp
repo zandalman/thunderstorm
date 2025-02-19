@@ -79,7 +79,7 @@ void parseConfig(const std::string &filename, Config &config) {
  * @param ab       The structure to store the parsed data.
  * @return 0 if success, 1 if failure.   
 */
-void parseAb(const std::string &filename, double time, Vector1d &ab) {
+void parseAb(const std::string &filename, double time, Vector1d &ab, double &mmw) {
   std::ifstream file(filename);
 
   if (!file) {
@@ -97,6 +97,13 @@ void parseAb(const std::string &filename, double time, Vector1d &ab) {
 
   // retrieve the abundance data
   ab = ab_json["ab"][idx].get<Vector1d>();
+
+  // compute the mean molecular weight
+  mmw = 0.0;
+  for ( size_t i = 0; i < ab.size(); i++ ) {
+    mmw += ab[i];
+  }
+  mmw = 1.0 / mmw;
 
   file.close();
 }

@@ -16,7 +16,6 @@ using vector2d = std::vector<std::vector<T>>;
 
 /// @brief Miscellaneous parameters
 struct MiscParam {
-  double t_end;    // The last time before the particles escape [s]
   double rho_sim;  // The density in the simulation [g/cc]
   double ener_min; // The minimum energy in the simulation [eV]
   double turb;     // The turbulence injection scale [scale]
@@ -24,7 +23,6 @@ struct MiscParam {
 
   MiscParam() = default;
   MiscParam(
-    double t_end_,
     double rho_sim_,
     double ener_min_,
     double turb_,

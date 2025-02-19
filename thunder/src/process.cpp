@@ -33,8 +33,7 @@ Data::Data(
   MiscParam misc_param_,
   const std::vector<Stat> &stat_list
   )
-  : t_end(misc_param_.t_end)
-  , mach_A(mach_A_)
+  : mach_A(mach_A_)
   , ener(ener_)
   , ener_min(misc_param_.ener_min)
   , scale(scale_)
@@ -209,7 +208,7 @@ void processFile(
     auto now = std::chrono::steady_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     auto chunktime = std::chrono::duration_cast<std::chrono::seconds>(now - start_chunk).count();
-    if ( runtime > walltime - 2 * chunktime ) {
+    if ( runtime > walltime - 2.0 * chunktime ) {
       no_time = true;
       break;
     }
@@ -341,6 +340,8 @@ void processEvent(
         dsminus = event->sminus - data.sminus_prev;
         ds = dsplus + dsminus;
         sign = dsplus > dsminus ? 1.0 : -1.0;
+        
+        // in edge spawn mode, ensure particles are initially directed into the region
         if ( data.spawn == spawn_tag::edge ) {
           sign = sign * data.sign_start;
         }

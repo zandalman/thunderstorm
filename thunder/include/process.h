@@ -21,7 +21,6 @@ using vector3d = std::vector<vector2d<T>>;
 
 /// @brief A structure to represent data.
 struct Data {
-  double t_end;                    // The last time before the particles escape [s]
   double mach_A;                   // The Alfven Mach number.
   double ener;                     // The particle energy [eV].
   double ener_min;                 // The minimum energy [eV].

@@ -29,6 +29,7 @@ struct Sim {
   bool do_moller;                // Do moller scattering and energy losses.
   bool do_cerenkov;              // Do Cerenkov energy losses.
   bool do_sync;                  // Do synchrotron energy losses.
+  double mmw;                    // Mean molecular weight [g/mol].
   std::vector<Event> event_list; // A vector of event objects.
 
   Sim(
@@ -43,7 +44,8 @@ struct Sim {
     double cos_th_cut_,
     bool do_moller_,
     bool do_cerenkov_,
-    bool do_sync_
+    bool do_sync_,
+    double mmw_
   );
   void reset(Part part);
   void kill();

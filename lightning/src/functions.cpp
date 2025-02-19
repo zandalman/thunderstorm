@@ -199,7 +199,7 @@ double calcPowerCerenkov(double beta, double temp, double n_e_free) {
   double vel_th = sqrt(3. * constants::k_B * temp / (2. * constants::m_e)); // thermal velocity
   double omega_p = sqrt(4.*M_PI * n_e_free * constants::e*constants::e / constants::m_e); // plasma frequency
   bool subthermal = beta*beta * constants::c*constants::c < 2. * vel_th*vel_th;
-  return subthermal ? 0. : constants::e*constants::e * omega_p*omega_p / (2. * beta * constants::c) * log(beta*beta * constants::c*constants::c / (vel_th*vel_th) - 1.) / constants::eV;
+  return subthermal ? 0. : constants::e*constants::e * omega_p*omega_p / (2. * beta*beta * constants::c*constants::c) * log(beta*beta * constants::c*constants::c / (vel_th*vel_th) - 1.) / constants::eV;
 }
 
 /**
@@ -215,11 +215,11 @@ double calcPowerCerenkov(double beta, double temp, double n_e_free) {
  * @param omxcut     One minus the cosine of the cutoff scattering angle in the CM frame.
  */
 void calcOmxMoller(double gam, double beta, double cos_th_cut, double lam_deb, double &prefac, double &omxmin, double &omxmax, double &omxcut) {
-  prefac = 4*M_PI * constants::e*constants::e*constants::e*constants::e / (constants::m_e*constants::m_e * constants::c*constants::c*constants::c*constants::c * beta*beta) * (gam + 1) / (gam*gam);
+  prefac = 8.0*M_PI * constants::e*constants::e*constants::e*constants::e / (constants::m_e*constants::m_e * constants::c*constants::c*constants::c*constants::c * beta*beta*beta*beta) * (gam + 1.0) / (gam*gam);
   double bmin = constants::h * constants::c / (gam * constants::m_e * beta * constants::c*constants::c);
   double bmax = lam_deb;
-  omxmin = prefac * M_PI / (bmin*bmin);
-  omxmax = prefac * M_PI / (bmax*bmax);
+  omxmin = prefac / (M_PI * bmin*bmin);
+  omxmax = prefac / (M_PI * bmax*bmax);
   omxcut = 2. * (gam + 1.) * (1. - cos_th_cut*cos_th_cut) / (2. + (gam - 1.) * (1. - cos_th_cut*cos_th_cut));
   omxcut = std::min(omxmin, omxcut);
 }
@@ -238,7 +238,7 @@ void calcOmxMoller(double gam, double beta, double cos_th_cut, double lam_deb, d
 double calcPowerMoller(double ener, double gam, double beta, double n_e_free, double lam_deb, double cos_th_cut) {
   double prefac, omxmin, omxmax, omxcut;
   calcOmxMoller(gam, beta, cos_th_cut, lam_deb, prefac, omxmin, omxmax, omxcut);
-  return prefac * ener * log(omxcut/omxmax) / 2. * n_e_free * beta * constants::c;
+  return 0.5 * prefac * ener * log(omxcut/omxmax) * n_e_free * beta * constants::c;
 }
 
 /**
@@ -273,6 +273,6 @@ void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta
   calcOmxMoller(gam, beta, cos_th_cut, lam_deb, prefac, omxmin, omxmax, omxcut);
   double sig = prefac * (1. / omxcut - 1. / omxmin);
   double omx = 1. / (sig * xi / prefac + 1. / omxmin);
-  cos_th = sqrt((2. - omx) * (1. + gam) / (2. * (1 + gam) + omx * (1. - gam)));
-  ener_loss = ener * omx / 2.;
+  cos_th = sqrt((2. - omx) * (1. + gam) / (2. * (1. + gam) + omx * (1. - gam)));
+  ener_loss = 0.5 * ener * omx;
 }
