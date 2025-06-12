@@ -9,6 +9,7 @@
 #include "functions.h"
 #include "part.h"
 #include "random.h"
+#include "const.h"
 
 // types
 typedef std::vector<double> Vector1d;
@@ -23,7 +24,7 @@ typedef std::vector<std::vector<double>> Vector2d;
 */
 int findIdx(double x0, Vector1d x_list) {
   auto it = std::lower_bound(x_list.begin(), x_list.end(), x0);
-  return it - x_list.begin();
+  return static_cast<int>(it - x_list.begin());
 }
 
 /**
@@ -100,16 +101,20 @@ double interp(double x0, const Vector1d &x, const Vector1d &y, bool do_llim, boo
  * @param ab            The vector of elemental abundances.
  * @param rho           The density [g/cc].
  * @param temp          The temperature [K].
- * @param ion_state_avg The average ionization state.
+ * @param q_avg         The average ionization state.
+ * @param qsq_avg       The average square ionization state.
  * @param n_i           The ion number density [1/cc].
  * @param n_e_free      The free electron number density [1/cc].
  * @param lam_deb       The Debye length [cm].
  */
-void calcLamDeb(Vector1d ab, double rho, double temp, double ion_state_avg, double &n_i, double &n_e_free, double &lam_deb) {
+void calcLamDeb(Vector1d ab, double rho, double temp, double q_avg, double qsq_avg, double &n_i, double &n_e_free, double &lam_deb) {
+  double fac = 0.0;
   n_i = 0.;
-  for ( size_t i = 0; i < ab.size(); i++ ) { n_i += rho * constants::N_A * ab[i]; }
-  n_e_free = n_i * ion_state_avg;
-  lam_deb = sqrt(constants::k_B * temp / (4*M_PI * constants::e*constants::e * n_i * ion_state_avg * (ion_state_avg + 1.)));
+  for ( size_t i = 0; i < ab.size(); i++ ) { 
+    n_i += rho * constants::N_A * ab[i]; 
+  }
+  n_e_free = n_i * q_avg;
+  lam_deb = sqrt(constants::k_B * temp / (4.0*M_PI * constants::e*constants::e * n_i * (q_avg + qsq_avg)));
 }
 
 /**
@@ -275,4 +280,25 @@ void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta
   double omx = 1. / (sig * xi / prefac + 1. / omxmin);
   cos_th = sqrt((2. - omx) * (1. + gam) / (2. * (1. + gam) + omx * (1. - gam)));
   ener_loss = 0.5 * ener * omx;
+}
+
+/** 
+ * @brief Normalize the ionization fractions.
+ * 
+ * @param ion_state The ionization state vector.
+ * @param q_avg     The average ionization state.
+ * @param qsq_avg   The average square ionization state.
+ */
+void normIonState(Vector1d &ion_state, double &q_avg, double &qsq_avg) {
+  double i_fl; // index converted to float
+  double ion_state_norm = 0.0;
+  for ( size_t i = 0; i < ion_state.size(); i++ ) {
+    ion_state_norm += ion_state[i];
+  }
+  for ( size_t i = 0; i < ion_state.size(); i++ ) {
+    i_fl = static_cast<double>(i);
+    ion_state[i] /= ion_state_norm;
+    q_avg += ion_state[i] * i_fl;
+    qsq_avg += ion_state[i] * i_fl*i_fl;
+  }
 }

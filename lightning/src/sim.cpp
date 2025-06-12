@@ -20,10 +20,10 @@ Sim::Sim(
   std::string outfile_, 
   double rho_, 
   double temp_,
-  double ion_state_avg_, 
+  Vector1d ion_state_, 
   double B0_, 
   double cos_th_cut_,
-  bool do_moller_,
+  bool neutral_,
   bool do_cerenkov_,
   bool do_sync_,
   double mmw_
@@ -34,7 +34,9 @@ Sim::Sim(
   , outfile(outfile_)             // The outfile name.
   , rho(rho_)                     // The density [g/cc].
   , temp(temp_)                   // The temperature [K].
-  , ion_state_avg(ion_state_avg_) // The average ionization state.
+  , ion_state(ion_state_)         // The ionization state vector.
+  , q_avg(0.0)                    // The average ionization state.
+  , qsq_avg(0.0)                  // The average square ionization state.
   , cos_th_cut(cos_th_cut_)       // The cutoff scattering angle cosine for discrete Moller scattering.
   , nstep (0)                     // The step number.
   , time(0.0)                     // The simulation time [s].
@@ -42,12 +44,13 @@ Sim::Sim(
   , n_e_free(0.0)                 // The free electron number density [1/cc].
   , lam_deb(0.0)                  // The Debye length [1/cc].
   , B0(B0_)                       // The coherent magnetic field amplitude [G].
-  , do_moller(do_moller_)         // Do moller scattering and energy losses.
+  , neutral(neutral_)             // Whether the ejecta is neutral.
   , do_cerenkov(do_cerenkov_)     // Do Cerenkov energy losses.
   , do_sync(do_sync_)             // Do synchrotron energy losses.
   , mmw(mmw_)                     // Mean molecular weight [g/mol].
   {
-    calcLamDeb(ab, rho, temp, ion_state_avg, n_i, n_e_free, lam_deb);
+    normIonState(ion_state, q_avg, qsq_avg);
+    if ( !neutral ) calcLamDeb(ab, rho, temp, q_avg, qsq_avg, n_i, n_e_free, lam_deb);
   }
 
 /**

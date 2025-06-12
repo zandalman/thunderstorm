@@ -88,15 +88,17 @@ void writeInfo(
 
   infofile << "Simulation parameters" << std::endl;
   infofile << "Number of MPI processes:         " << size << std::endl;
-  infofile << "Simulation duration [s]:         " << config["Simulation"]["tsim"] << std::endl;
-  infofile << "Moller scattering and losses?:   " << config["Physics"]["moller"] << std::endl;
+  infofile << "Runtime [s]:                     " << config["Simulation"]["tsim"] << std::endl;
   infofile << "Cerenkov losses?:                " << config["Physics"]["cerenkov"] << std::endl;
   infofile << "Synchrotron losses?:             " << config["Physics"]["sync"] << std::endl;
   infofile << "Density [g/cc]:                  " << config["Background"]["rho"] << std::endl;
   infofile << "Temperature [K]:                 " << config["Background"]["temp"] << std::endl;
   infofile << "Abundance time [day]:            " << config["Background"]["ab_time"] << std::endl;
-  infofile << "Average ion state:               " << config["Background"]["ion_state_avg"] << std::endl;
   infofile << "Coherent B-field amplitude [G]:  " << config["Background"]["B0"] << std::endl;
+  infofile << "Ionization fraction [I]:         " << config["Ionization"]["I"] << std::endl;
+  infofile << "Ionization fraction [II]:        " << config["Ionization"]["II"] << std::endl;
+  infofile << "Ionization fraction [III]:       " << config["Ionization"]["III"] << std::endl;
+  infofile << "Ionization fraction [IV]:        " << config["Ionization"]["IV"] << std::endl;
   infofile << "Ion number density [1/cc]:       " << n_i << std::endl;
   infofile << "Free elec number density [1/cc]: " << n_e_free << std::endl;
   infofile << "Debye length [cm]:               " << lam_deb << std::endl;

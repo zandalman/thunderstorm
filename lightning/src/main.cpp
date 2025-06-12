@@ -19,6 +19,9 @@
 #include "sim.h"
 #include "functions.h"
 
+// types
+typedef std::vector<double> Vector1d;
+
 int main(int argc, char** argv) {
 
   // initialize MPI
@@ -59,22 +62,27 @@ int main(int argc, char** argv) {
   double tmax = std::stod(config["Particle"]["tmax"]);
   double rho = std::stod(config["Background"]["rho"]);
   double temp = std::stod(config["Background"]["temp"]);
-  double ion_state_avg = std::stod(config["Background"]["ion_state_avg"]);
   double B0 = std::stod(config["Background"]["B0"]);
   double cos_th_cut = std::stod(config["Simulation"]["cos_th_cut"]);
-  
-  // Set physics
-  bool do_moller = config["Physics"]["moller"] == "true";
+
+  // ionization state
+  Vector1d ion_state;
+  double q_avg, qsq_avg;
+  bool neutral = false;
+  ion_state.push(std::stod(config["Ionization"]["I"]));
+  ion_state.push(std::stod(config["Ionization"]["II"]));
+  ion_state.push(std::stod(config["Ionization"]["III"]));
+  ion_state.push(std::stod(config["Ionization"]["IV"]));
+  normIonState(ion_state, q_avg, qsq_avg);
+  if ( q_avg == 0.0 ) neutral = true;
+
+  // physics
   bool do_cerenkov = config["Physics"]["cerenkov"] == "true";
   bool do_sync = config["Physics"]["sync"] == "true";
-  if ( ion_state_avg == 0.0 ) {
-    do_moller = false;
-    do_cerenkov = false;
-  }
 
   // compute useful quantities
   double n_i, n_e_free, lam_deb;
-  calcLamDeb(ab, rho, temp, ion_state_avg, n_i, n_e_free, lam_deb);
+  calcLamDeb(ab, rho, temp, q_avg, qsq_avg, n_i, n_e_free, lam_deb);
   
   // clear files and write info file
   std::string infofile = config["IO"]["outpath"] + "/info.txt";
@@ -98,10 +106,10 @@ int main(int argc, char** argv) {
     outfile, 
     rho, 
     temp, 
-    ion_state_avg,
+    ion_state,
     B0, 
     cos_th_cut, 
-    do_moller, 
+    neutral, 
     do_cerenkov, 
     do_sync,
     mmw
