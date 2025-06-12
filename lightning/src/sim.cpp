@@ -131,7 +131,7 @@ int Sim::choseElem() {
   double sig_tot = 0.0;
   Vector1d sig_cum;
   double sig_moller = do_moller ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
-  sig_tot += sig_moller * n_e_free / n_i;
+  sig_tot += sig_moller * n_e_free / n_i / mmw;
   sig_cum.push_back(sig_tot);
   for ( size_t i = 0; i < eedl.size(); i++ ) {
     SpecData spec_data = eedl[i];
