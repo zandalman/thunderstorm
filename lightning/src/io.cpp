@@ -27,6 +27,8 @@ Event::Event(int id_, int nstep_)
   , ener_loss_sync(0.0)    // The energy lost due to synchrotron [eV].
   , ener_loss_cher(0.0)    // The energy lost due to Cherenkov radiation [eV].
   , ener_loss_moller(0.0)  // The energy lost due to small-angle Moller scattering [eV].
+  , dlt_cos_al_moller(0.0) // The pitch angle scattering due to small-angle Moller scattering.
+  , dlt_cos_al_mott(0.0)   // The pitch angle scattering due to small-angle Mott scattering.
  {}
 
 /**

@@ -220,30 +220,79 @@ double calcPowerCerenkov(double beta, double temp, double n_e_free) {
  * @param omxcut     One minus the cosine of the cutoff scattering angle in the CM frame.
  */
 void calcOmxMoller(double gam, double beta, double cos_th_cut, double lam_deb, double &prefac, double &omxmin, double &omxmax, double &omxcut) {
-  prefac = 8.0*M_PI * constants::e*constants::e*constants::e*constants::e / (constants::m_e*constants::m_e * constants::c*constants::c*constants::c*constants::c * beta*beta*beta*beta) * (gam + 1.0) / (gam*gam);
-  double bmin = constants::h * constants::c / (gam * constants::m_e * beta * constants::c*constants::c);
+  prefac = 8.0*M_PI * constants::r0*constants::r0 / (beta*beta*beta*beta) * (gam + 1.0) / (gam*gam);
+  double bmin = constants::h * constants::c / (gam * constants::m_e * constants::c*constants::c * beta);
   double bmax = lam_deb;
   omxmin = prefac / (M_PI * bmin*bmin);
   omxmax = prefac / (M_PI * bmax*bmax);
-  omxcut = 2. * (gam + 1.) * (1. - cos_th_cut*cos_th_cut) / (2. + (gam - 1.) * (1. - cos_th_cut*cos_th_cut));
+  omxcut = 2.0 * (gam + 1.0) * (1.0 - cos_th_cut*cos_th_cut) / (2.0 + (gam - 1.0) * (1.0 - cos_th_cut*cos_th_cut));
   omxcut = std::min(omxmin, omxcut);
 }
 
 /**
- * @brief Compute the small-angle Moller power.
+ * @brief Compute the small-angle Moller power and pitch angle diffusion.
  * 
- * @param gam        The particle Lorentz factor.
- * @param beta       The particle velocity, relative to the speed of light.
- * @param cos_th_cut The cosine of the cutoff scattering angle in the lab frame.
- * @param lam_deb    The Debye length [cm].
- * @param ener       The kinetic energy of the particle [eV].
- * @param n_e_free   The number density of free electrons [1/cc].
- * @return The small-angle Moller power.
+ * @param ener          The particle kinetic energy [eV].
+ * @param gam           The particle Lorentz factor.
+ * @param beta          The particle velocity, relative to the speed of light.
+ * @param cos_alpha     The particle pitch angle.
+ * @param n_e_free      The number density of free electrons [1/cc].
+ * @param lam_deb       The Debye length [cm].
+ * @param cos_th_cut    The cosine of the cutoff scattering angle in the lab frame.
+ * @param edot          The small-angle Moller power [erg/s].
+ * @param cos_al_dot_sq The pitch angle diffusion [rad^2/s].
  */
-double calcPowerMoller(double ener, double gam, double beta, double n_e_free, double lam_deb, double cos_th_cut) {
+void calcPowerDiffMoller(
+  double ener, 
+  double gam, 
+  double beta, 
+  double cos_alpha,
+  double n_e_free, 
+  double lam_deb, 
+  double cos_th_cut,
+  double &edot,
+  double &cos_al_dot_sq
+) {
   double prefac, omxmin, omxmax, omxcut;
   calcOmxMoller(gam, beta, cos_th_cut, lam_deb, prefac, omxmin, omxmax, omxcut);
-  return 0.5 * prefac * ener * log(omxcut/omxmax) * n_e_free * beta * constants::c;
+  double prefac2 = prefac * log(omxcut/omxmax) * n_e_free * beta * constants::c;
+  edot = 0.5 * prefac2 * ener;
+  cos_al_dot_sq = prefac2 / (gam + 1.0) * (1.0 - cos_alpha*cos_alpha);
+}
+
+/**
+ * @brief Compute the small-angle Mott pitch angle diffusion.
+ * 
+ * @param gam           The particle Lorentz factor.
+ * @param beta          The particle velocity, relative to the speed of light.
+ * @param cos_alpha     The particle pitch angle.
+ * @param n_e_free      The number density of free electrons [1/cc].
+ * @param lam_deb       The Debye length [cm].
+ * @param qsq_avg       The average square ionization state.
+ * @param mmw           The mean molecular weight [g/mol].
+ * @param Zmax          The maximum atomic number.
+ * @param ab            A vector of elemental abundances.
+ * @param cos_al_dot_sq The pitch angle diffusion [rad^2/s].
+ */
+void calcDiffMott(
+  double gam,
+  double beta,
+  double cos_alpha,
+  double n_i,
+  double lam_deb,
+  double qsq_avg,
+  double mmw,
+  size_t Zmax,
+  const Vector1d &ab,
+  double &cos_al_dot_sq
+) {
+  double r_atom, ln_Lam;
+  for ( size_t i = 0; i < Zmax; i++ ) {
+    r_atom = constants::a0 / pow(i+1, 1.0/3.0);
+    ln_Lam = log(lam_deb / r_atom);
+    cos_al_dot_sq += mmw * ab[i+1] * ln_Lam;
+  }
+  cos_al_dot_sq *= 4.0*M_PI * qsq_avg * n_i * constants::r0*constants::r0 / (beta * gam*gam) * constants::c * (1.0 - cos_alpha*cos_alpha);
 }
 
 /**
@@ -273,7 +322,16 @@ double calcSigMoller(double gam, double beta, double lam_deb, double cos_th_cut)
  * @param cos_th     The sampled cosine theta value.
  * @param ener_loss  The sampled energy loss value [eV].
  */
-void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta, double lam_deb, double cos_th_cut, double &cos_th, double &ener_loss) {
+void calcCosThScatEnerLossMoller(
+  double xi, 
+  double ener, 
+  double gam, 
+  double beta, 
+  double lam_deb, 
+  double cos_th_cut, 
+  double &cos_th, 
+  double &ener_loss
+) {
   double prefac, omxmin, omxmax, omxcut;
   calcOmxMoller(gam, beta, cos_th_cut, lam_deb, prefac, omxmin, omxmax, omxcut);
   double sig = prefac * (1. / omxcut - 1. / omxmin);

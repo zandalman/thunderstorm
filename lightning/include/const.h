@@ -18,6 +18,7 @@ constexpr int intermittancy = 7;
 
 namespace constants {
 // length [cm]
+constexpr double r0 = 2.8179562e-13; // classical electron radius [cm]
 constexpr double a0 = 5.29177210e-9; // Bohr radius [cm]
 constexpr double AA = 1.e-8;         // Angstrom
 constexpr double nm = 1.e-7;         // nanometer

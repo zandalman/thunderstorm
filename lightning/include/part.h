@@ -18,6 +18,7 @@ struct Part {
   double beta() const;
   void scat(double xi, double cos_th);
   void loseEner(double ener_loss);
+  void scatCum(double dlt_cos_alpha);
 };
 
 #endif

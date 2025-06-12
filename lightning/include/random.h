@@ -2,5 +2,6 @@
 #define RANDOM_H
 
 double xi();
+double sampleNormal();
 
 #endif

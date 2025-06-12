@@ -50,3 +50,13 @@ void Part::scat(double xi, double cos_th) {
 void Part::loseEner(double ener_loss) {
   ener = std::max(0., ener - ener_loss);
 }
+
+/**
+ * @brief Adjust the pitch angle to account for cumulative small angle scatters.
+ * 
+ * @param dlt_cos_alpha The std of the pitch angle distribution.
+*/
+void Part::scatCum(double dlt_cos_alpha) {
+  double dlt_cos_alpha_rng = sampleNormal() * dlt_cos_alpha;
+  cos_alpha += dlt_cos_alpha_rng;
+}

@@ -113,12 +113,42 @@ void Sim::move(double sig_tot, Event &event) {
   } else {
     part.sminus += -dis * part.cos_alpha;
   }
-  // calculate energy loss in transport
+  // calculate energy loss and pitch angle diffusion in transport
+  double edot_moller, cos_al_dot_sq_moller, cos_al_dot_sq_mott;
   if ( do_sync ) event.ener_loss_sync = calcPowerSync(part.m_i, part.q_i, part.gam(), part.beta(), B0, part.cos_alpha) * dt;
   if ( do_cerenkov && !neutral ) event.ener_loss_cher = calcPowerCerenkov(part.beta(), temp, n_e_free) * dt;
-  if ( !neutral ) event.ener_loss_moller = calcPowerMoller(part.ener, part.gam(), part.beta(), n_e_free, lam_deb, cos_th_cut) * dt;
+  if ( !neutral ) {
+    calcPowerDiffMoller(
+      part.ener, 
+      part.gam(), 
+      part.beta(), 
+      part.cos_alpha, 
+      n_e_free, 
+      lam_deb, 
+      cos_th_cut, 
+      edot_moller, 
+      cos_al_dot_sq_moller
+    );
+    calcDiffMott(
+      part.gam(),
+      part.beta(),
+      part.cos_alpha,
+      n_i,
+      lam_deb,
+      qsq_avg,
+      mmw,
+      eedl.size(),
+      ab,
+      cos_al_dot_sq_mott
+    );
+    event.ener_loss_moller = edot_moller * dt;
+    event.dlt_cos_al_moller = sqrt(cos_al_dot_sq_moller) * dt;
+    event.dlt_cos_al_mott = sqrt(cos_al_dot_sq_mott) * dt;
+  }
 
   part.loseEner(event.ener_loss_sync + event.ener_loss_cher + event.ener_loss_moller);
+  part.scatCum(sqrt(cos_al_dot_sq_moller + cos_al_dot_sq_mott) * dt);
+
   // update event
   event.time = time;
   event.splus = part.splus;
@@ -170,7 +200,7 @@ int Sim::choseInter(int Zelem) {
     sig_tot += sig_list[i];
     sig_cum.push_back(sig_tot);
   }
-  return findIdx(sig_tot*xi(), sig_cum) + 1;
+  return findIdx(sig_tot * xi(), sig_cum) + 1;
 }
 
 /**

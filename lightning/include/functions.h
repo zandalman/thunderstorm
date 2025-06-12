@@ -24,9 +24,40 @@ double calcSigBturb(double m_i, double q_i, double gam, double beta, double rho,
 double calcPowerSync(double m_i, double q_i, double gam, double beta, double B0, double cos_alpha);
 double calcPowerCerenkov(double beta, double temp, double n_e_free);
 void calcOmxMoller(double gam, double beta, double cos_th_cut, double lam_deb, double &prefac, double &omxmin, double &omxmax, double &omxcut);
-double calcPowerMoller(double ener, double gam, double beta, double n_e_free, double lam_deb, double cos_th_cut);
+void calcPowerDiffMoller(
+  double ener, 
+  double gam, 
+  double beta, 
+  double cos_alpha,
+  double n_e_free, 
+  double lam_deb, 
+  double cos_th_cut,
+  double &edot,
+  double &cos_al_dot_sq
+);
+void calcDiffMott(
+  double gam,
+  double beta,
+  double cos_alpha,
+  double n_i,
+  double lam_deb,
+  double qsq_avg,
+  double mmw,
+  size_t Zmax,
+  const Vector1d &ab,
+  double &cos_al_dot_sq
+);
 double calcSigMoller(double gam, double beta, double lam_deb, double cos_th_cut);
-void calcCosThScatEnerLossMoller(double xi, double ener, double gam, double beta, double lam_deb, double cos_th_cut, double &cos_th, double &ener_loss);
+void calcCosThScatEnerLossMoller(
+  double xi, 
+  double ener, 
+  double gam, 
+  double beta, 
+  double lam_deb, 
+  double cos_th_cut, 
+  double &cos_th, 
+  double &ener_loss
+);
 void normIonState(Vector1d &ion_state, double &q_avg, double &qsq_avg);
 
 #endif
