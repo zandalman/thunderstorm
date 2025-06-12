@@ -69,10 +69,10 @@ int main(int argc, char** argv) {
   Vector1d ion_state;
   double q_avg, qsq_avg;
   bool neutral = false;
-  ion_state.push(std::stod(config["Ionization"]["I"]));
-  ion_state.push(std::stod(config["Ionization"]["II"]));
-  ion_state.push(std::stod(config["Ionization"]["III"]));
-  ion_state.push(std::stod(config["Ionization"]["IV"]));
+  ion_state.push_back(std::stod(config["Ionization"]["I"]));
+  ion_state.push_back(std::stod(config["Ionization"]["II"]));
+  ion_state.push_back(std::stod(config["Ionization"]["III"]));
+  ion_state.push_back(std::stod(config["Ionization"]["IV"]));
   normIonState(ion_state, q_avg, qsq_avg);
   if ( q_avg == 0.0 ) neutral = true;
 

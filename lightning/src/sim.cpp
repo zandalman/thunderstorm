@@ -86,7 +86,7 @@ void Sim::kill() {
 */
 double Sim::calcSigTot() {
   double sig_tot = 0.0;
-  double sig_moller = do_moller ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
+  double sig_moller = !neutral ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i / mmw;
   for ( size_t i = 0; i < eedl.size(); i++ ) {
     SpecData spec_data = eedl[i];
@@ -115,8 +115,8 @@ void Sim::move(double sig_tot, Event &event) {
   }
   // calculate energy loss in transport
   if ( do_sync ) event.ener_loss_sync = calcPowerSync(part.m_i, part.q_i, part.gam(), part.beta(), B0, part.cos_alpha) * dt;
-  if ( do_cerenkov ) event.ener_loss_cher = calcPowerCerenkov(part.beta(), temp, n_e_free) * dt;
-  if ( do_moller ) event.ener_loss_moller = calcPowerMoller(part.ener, part.gam(), part.beta(), n_e_free, lam_deb, cos_th_cut) * dt;
+  if ( do_cerenkov && !neutral ) event.ener_loss_cher = calcPowerCerenkov(part.beta(), temp, n_e_free) * dt;
+  if ( !neutral ) event.ener_loss_moller = calcPowerMoller(part.ener, part.gam(), part.beta(), n_e_free, lam_deb, cos_th_cut) * dt;
 
   part.loseEner(event.ener_loss_sync + event.ener_loss_cher + event.ener_loss_moller);
   // update event
@@ -133,7 +133,7 @@ void Sim::move(double sig_tot, Event &event) {
 int Sim::choseElem() {
   double sig_tot = 0.0;
   Vector1d sig_cum;
-  double sig_moller = do_moller ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
+  double sig_moller = !neutral ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i / mmw;
   sig_cum.push_back(sig_tot);
   for ( size_t i = 0; i < eedl.size(); i++ ) {
