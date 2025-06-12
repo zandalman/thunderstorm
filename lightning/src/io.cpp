@@ -65,7 +65,9 @@ void writeInfo(
   double n_i, 
   double n_e_free, 
   double lam_deb, 
-  double mmw
+  double mmw,
+  double q_avg,
+  double qsq_avg
 ) {
 
   std::ofstream infofile(infofile_name);
@@ -101,6 +103,8 @@ void writeInfo(
   infofile << "Ionization fraction [II]:        " << config["Ionization"]["II"] << std::endl;
   infofile << "Ionization fraction [III]:       " << config["Ionization"]["III"] << std::endl;
   infofile << "Ionization fraction [IV]:        " << config["Ionization"]["IV"] << std::endl;
+  infofile << "Average ion stage:               " << q_avg << std::endl;
+  infofile << "Average square ion stage:        " << qsq_avg << std::endl;
   infofile << "Ion number density [1/cc]:       " << n_i << std::endl;
   infofile << "Free elec number density [1/cc]: " << n_e_free << std::endl;
   infofile << "Debye length [cm]:               " << lam_deb << std::endl;

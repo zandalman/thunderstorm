@@ -67,7 +67,8 @@ int main(int argc, char** argv) {
 
   // ionization state
   Vector1d ion_state;
-  double q_avg, qsq_avg;
+  double q_avg = 0.0;
+  double qsq_avg = 0.0;
   bool neutral = false;
   ion_state.push_back(std::stod(config["Ionization"]["I"]));
   ion_state.push_back(std::stod(config["Ionization"]["II"]));
@@ -91,7 +92,7 @@ int main(int argc, char** argv) {
     clearOutfile(outfile);
     if ( rank == 0 ) { 
       clearInfo(infofile); 
-      writeInfo(infofile, size, config, ab, eedl, n_i, n_e_free, lam_deb, mmw);
+      writeInfo(infofile, size, config, ab, eedl, n_i, n_e_free, lam_deb, mmw, q_avg, qsq_avg);
     }
   }
 
