@@ -1,0 +1,11 @@
+lightning/build/*
+lightning/run/*
+lightning/data/*
+!lightning/build/Makefile
+
+thunder/build/*
+thunder/run/*
+thunder/data/*
+!thunder/build/Makefile
+
+.vscode
