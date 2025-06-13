@@ -26,7 +26,7 @@ typedef std::vector<Vector1d2d2d> Vector1d2d2dVector;
 struct SpecData {
   int Zelem;                         // The proton number.
   std::string symbol;                // The symbol.
-  std::vector<std::string> ion_list; // The ionization name data.
+  std::vector<int> ss_list;                  // The subshell name data.
   Vector1d ener_bind_list;           // The ionization binding energy data.
   Vector1d1d sig_tot_data;           // The total cross section data.
   Vector1d1d sig_scat_data;          // The scattering cross section data.

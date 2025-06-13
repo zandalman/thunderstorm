@@ -121,17 +121,17 @@ void writeInfo(
   }
   infofile << std::endl;
 
-  infofile << "Ions" << std::endl;
-  infofile << "Z:ion_list" << std::endl;
-  for ( size_t i = 0; i < eedl.size(); i++ ) {
-    infofile << i+1 << ":";
-    std::vector<std::string> ion_list = eedl[i].ion_list;
-    for ( size_t j = 0; j < ion_list.size(); j++ ) {
-      infofile << ion_list[j] << ",";
-    }
-    infofile << std::endl;
-  }
-  infofile << std::endl;
+  // infofile << "Ions" << std::endl;
+  // infofile << "Z:ion_list" << std::endl;
+  // for ( size_t i = 0; i < eedl.size(); i++ ) {
+  //   infofile << i+1 << ":";
+  //   std::vector<std::string> ion_list = eedl[i].ion_list;
+  //   for ( size_t j = 0; j < ion_list.size(); j++ ) {
+  //     infofile << ion_list[j] << ",";
+  //   }
+  //   infofile << std::endl;
+  // }
+  // infofile << std::endl;
 
   if ( !infofile.good() ) {
     std::cerr << "Error writing to " << infofile_name << std::endl;

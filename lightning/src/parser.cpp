@@ -152,9 +152,9 @@ void parseEEDL(const std::string &filename, EEDLData &eedl) {
     spec_data.spec_brem_data.second   = spec_json["spec_brem"]["ener_loss"].get<Vector1d>();
     spec_data.spec_exc_data.first     = spec_json["spec_exc"]["ener"].get<Vector1d>();
     spec_data.spec_exc_data.second    = spec_json["spec_exc"]["ener_loss"].get<Vector1d>();
-    spec_data.ion_list                = spec_json["ion_list"].get<std::vector<std::string>>();
+    spec_data.ss_list                 = spec_json["ss_list"].get<std::vector<int>>();
     spec_data.ener_bind_list          = spec_json["ener_bind_list"].get<Vector1d>();
-    for (size_t j = 0; j < spec_data.ion_list.size(); j++) {
+    for (size_t j = 0; j < spec_data.ss_list.size(); j++) {
       sig_ion_data_1ion.first   = spec_json["sig_ion_list"][j]["ener"].get<Vector1d>();
       sig_ion_data_1ion.second  = spec_json["sig_ion_list"][j]["sig"].get<Vector1d>();
       spec_ion_data_1ion.first  = spec_json["spec_ion_list"][j]["ener"].get<Vector1d>();
