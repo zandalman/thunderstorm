@@ -14,6 +14,7 @@ Event::Event(int id_, int nstep_)
   : id(id_)                // The particle ID.
   , nstep(nstep_)          // The step number.
   , Zelem(-1)              // The proton number of the element.
+  , stage(-1)              // The ionization stage of the element.
   , interaction(-1)        // The interaction flag.
   , ion(-1)                // The ion index.
   , time(0.0)              // The event time [s].
@@ -61,7 +62,6 @@ void writeInfo(
   int size, 
   Config& config, 
   const Vector1d& ab, 
-  const EEDLData& eedl, 
   double n_i, 
   double n_e_free, 
   double lam_deb, 
@@ -120,18 +120,6 @@ void writeInfo(
     infofile << i << "," << ab[i] << std::endl;
   }
   infofile << std::endl;
-
-  // infofile << "Ions" << std::endl;
-  // infofile << "Z:ion_list" << std::endl;
-  // for ( size_t i = 0; i < eedl.size(); i++ ) {
-  //   infofile << i+1 << ":";
-  //   std::vector<std::string> ion_list = eedl[i].ion_list;
-  //   for ( size_t j = 0; j < ion_list.size(); j++ ) {
-  //     infofile << ion_list[j] << ",";
-  //   }
-  //   infofile << std::endl;
-  // }
-  // infofile << std::endl;
 
   if ( !infofile.good() ) {
     std::cerr << "Error writing to " << infofile_name << std::endl;

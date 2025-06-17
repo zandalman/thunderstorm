@@ -53,9 +53,9 @@ struct Sim {
   void kill();
   double calcSigTot();
   void move(double sig_tot, Event &event);
-  int choseElem();
-  int choseInter(int Zelem);
-  int choseIon(int Zelem);
+  void choseElem(bool &moller, int &Zelem, int &stage);
+  int choseInter(int Zelem, int stage);
+  int choseIon(int Zelem, int stage);
   void interact(Event &event);
   void step();
 };

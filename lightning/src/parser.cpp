@@ -126,8 +126,10 @@ void parseEEDL(const std::string &filename, EEDLData &eedl) {
   json eedl_json;
   file >> eedl_json;
 
-  Vector1d1d sig_ion_data_1ion;
-  Vector1d2d2d spec_ion_data_1ion;
+  Vector1d1d sig_ion_data_1stage_1ion;
+  Vector1d1dVector1d sig_ion_data_1stage;
+  Vector1d2d2d spec_ion_data_1stage_1ion;
+  Vector1d2d2dVector1d spec_ion_data_1stage;
   
   std::vector<int> Z_list = eedl_json["Z"].get<std::vector<int>>();
   std::vector<std::string> symbol_list =
@@ -136,7 +138,7 @@ void parseEEDL(const std::string &filename, EEDLData &eedl) {
     auto spec_json = eedl_json["data"][i];
     SpecData spec_data(Z_list[i], symbol_list[i]);
     spec_data.sig_tot_data.first      = spec_json["sig_tot"]["ener"].get<Vector1d>();
-    spec_data.sig_tot_data.second     = spec_json["sig_tot"]["sig"].get<Vector1d>();
+    spec_data.sig_tot_data.second     = spec_json["sig_tot"]["sig"].get<Vector2d>();
     spec_data.sig_scat_data.first     = spec_json["sig_scat_la"]["ener"].get<Vector1d>();
     spec_data.sig_scat_data.second    = spec_json["sig_scat_la"]["sig"].get<Vector1d>();
     spec_data.sig_brem_data.first     = spec_json["sig_brem"]["ener"].get<Vector1d>();
@@ -144,7 +146,7 @@ void parseEEDL(const std::string &filename, EEDLData &eedl) {
     spec_data.sig_exc_data.first      = spec_json["sig_exc"]["ener"].get<Vector1d>();
     spec_data.sig_exc_data.second     = spec_json["sig_exc"]["sig"].get<Vector1d>();
     spec_data.sig_ion_tot_data.first  = spec_json["sig_ion"]["ener"].get<Vector1d>();
-    spec_data.sig_ion_tot_data.second = spec_json["sig_ion"]["sig"].get<Vector1d>();
+    spec_data.sig_ion_tot_data.second = spec_json["sig_ion"]["sig"].get<Vector2d>();
     spec_data.th_scat_data.first      = spec_json["th_scat"]["ener"].get<Vector1d>();
     spec_data.th_scat_data.second     = spec_json["th_scat"]["cos_th"].get<Vector2d>();
     spec_data.th_scat_data.third      = spec_json["th_scat"]["cos_th_dist"].get<Vector2d>();
@@ -153,16 +155,24 @@ void parseEEDL(const std::string &filename, EEDLData &eedl) {
     spec_data.spec_exc_data.first     = spec_json["spec_exc"]["ener"].get<Vector1d>();
     spec_data.spec_exc_data.second    = spec_json["spec_exc"]["ener_loss"].get<Vector1d>();
     spec_data.ss_list                 = spec_json["ss_list"].get<std::vector<int>>();
-    spec_data.ener_bind_list          = spec_json["ener_bind_list"].get<Vector1d>();
-    for (size_t j = 0; j < spec_data.ss_list.size(); j++) {
-      sig_ion_data_1ion.first   = spec_json["sig_ion_list"][j]["ener"].get<Vector1d>();
-      sig_ion_data_1ion.second  = spec_json["sig_ion_list"][j]["sig"].get<Vector1d>();
-      spec_ion_data_1ion.first  = spec_json["spec_ion_list"][j]["ener"].get<Vector1d>();
-      spec_ion_data_1ion.second = spec_json["spec_ion_list"][j]["ener_loss"].get<Vector2d>();
-      spec_ion_data_1ion.third  = spec_json["spec_ion_list"][j]["ener_loss_dist"].get<Vector2d>();
-      spec_data.sig_ion_data.push_back(sig_ion_data_1ion);
-      spec_data.spec_ion_data.push_back(spec_ion_data_1ion);
+    spec_data.ener_bind_list          = spec_json["ener_bind_list"].get<Vector2d>();
+    
+    for (size_t j = 0; j < 4; j++) {
+      sig_ion_data_1stage.clear();
+      spec_ion_data_1stage.clear();
+      for (size_t k = 0; k < spec_data.ss_list.size(); k++) {
+        sig_ion_data_1stage_1ion.first   = spec_json["sig_ion_list"][j][k]["ener"].get<Vector1d>();
+        sig_ion_data_1stage_1ion.second  = spec_json["sig_ion_list"][j][k]["sig"].get<Vector1d>();
+        spec_ion_data_1stage_1ion.first  = spec_json["spec_ion_list"][j][k]["ener"].get<Vector1d>();
+        spec_ion_data_1stage_1ion.second = spec_json["spec_ion_list"][j][k]["ener_loss"].get<Vector2d>();
+        spec_ion_data_1stage_1ion.third  = spec_json["spec_ion_list"][j][k]["ener_loss_dist"].get<Vector2d>();
+        sig_ion_data_1stage.push_back(sig_ion_data_1stage_1ion);
+        spec_ion_data_1stage.push_back(spec_ion_data_1stage_1ion);
+      }
+      spec_data.sig_ion_data.push_back(sig_ion_data_1stage);
+      spec_data.spec_ion_data.push_back(spec_ion_data_1stage);
     }
+
     eedl.push_back(spec_data);
   }
   file.close();

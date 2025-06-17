@@ -12,6 +12,7 @@ struct Event {
   int id;                   // The particle ID.
   int nstep;                // The step number.
   int Zelem;                // The proton number of the element.
+  int stage;                // The ionization stage of the element.
   int interaction;          // The interaction flag.
   int ion;                  // The ion index.
   double time;              // The event time [s].
@@ -39,7 +40,6 @@ void writeInfo(
   int size, 
   Config& config, 
   const Vector1d& ab, 
-  const EEDLData& eedl, 
   double n_i, 
   double n_e_free, 
   double lam_deb, 

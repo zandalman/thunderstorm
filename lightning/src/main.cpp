@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
   double time = std::stod(config["Background"]["ab_time"]) * constants::day;
   parseAb(config["IO"]["ab"], time, ab, mmw);
   if ( rank == 0 ) std::cout << "Read abundance data." << std::endl;
-
+  
   // read EEDL data
   EEDLData eedl;
   parseEEDL(config["IO"]["EEDL"], eedl);
@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
     clearOutfile(outfile);
     if ( rank == 0 ) { 
       clearInfo(infofile); 
-      writeInfo(infofile, size, config, ab, eedl, n_i, n_e_free, lam_deb, mmw, q_avg, qsq_avg);
+      writeInfo(infofile, size, config, ab, n_i, n_e_free, lam_deb, mmw, q_avg, qsq_avg);
     }
   }
 
