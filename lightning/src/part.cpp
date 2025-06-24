@@ -59,4 +59,6 @@ void Part::loseEner(double ener_loss) {
 void Part::scatCum(double dlt_cos_alpha) {
   double dlt_cos_alpha_rng = sampleNormal() * dlt_cos_alpha;
   cos_alpha += dlt_cos_alpha_rng;
+  if ( cos_alpha > 1.0 ) cos_alpha = 2.0 - cos_alpha;
+  if ( cos_alpha < -1.0 ) cos_alpha = -2.0 - cos_alpha;
 }

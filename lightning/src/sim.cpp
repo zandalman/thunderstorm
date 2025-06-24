@@ -85,13 +85,17 @@ void Sim::kill() {
  * @return The total cross section [cm^2 mol / g].
 */
 double Sim::calcSigTot() {
+  double sig;
   double sig_tot = 0.0;
   double sig_moller = !neutral ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
   sig_tot += sig_moller * n_e_free / n_i / mmw;
   for ( size_t i = 0; i < eedl.size(); i++ ) {
     SpecData spec_data = eedl[i];
-    double sig = interp(part.ener, spec_data.sig_tot_data.first, spec_data.sig_tot_data.second, true, false, 0., 0.);
-    sig_tot += sig * ab[i+1];
+    for ( size_t j = 0; j < ion_state.size(); j++ ) {
+      if ( ion_state[j] == 0.0 ) continue;
+      sig = interp(part.ener, spec_data.sig_tot_data.first, spec_data.sig_tot_data.second[j], true, false, 0., 0.);
+      sig_tot += sig * ab[i+1] * ion_state[j];
+    }
   }
   return sig_tot;
 }
@@ -158,26 +162,44 @@ void Sim::move(double sig_tot, Event &event) {
 /**
  * @brief Select an element.
  * 
- * @return The proton number of the selected element, or a flag for a non-element interactions.
+ * @param moller Whether the interaction is Moller scattering.
+ * @param Zelem  The proton number of the selected element.
+ * @param stage  The selected ionization stage.
 */
-int Sim::choseElem() {
+void Sim::choseElem(bool &moller, int &Zelem, int &stage) {
+  double sig;
   double sig_tot = 0.0;
-  Vector1d sig_cum;
-  double sig_moller = !neutral ? calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut) : 0.;
+  Vector1d sig_tot1d;
+  double sig_tot_1elem;
+  Vector1d sig_cum1d;
+  Vector2d sig_cum2d;
+  Vector1d sig_cum2d_1elem;
+  double sig_moller = neutral ? 0.0: calcSigMoller(part.gam(), part.beta(), lam_deb, cos_th_cut);
   sig_tot += sig_moller * n_e_free / n_i / mmw;
-  sig_cum.push_back(sig_tot);
+  sig_cum1d.push_back(sig_tot);
   for ( size_t i = 0; i < eedl.size(); i++ ) {
     SpecData spec_data = eedl[i];
-    double sig = interp(part.ener, spec_data.sig_tot_data.first, spec_data.sig_tot_data.second, true, false, 0., 0.);
-    sig_tot += sig * ab[i+1];
-    sig_cum.push_back(sig_tot);
+    sig_tot_1elem = 0.0;
+    sig_cum2d_1elem.clear();
+    for ( size_t j = 0; j < ion_state.size(); j++ ) {
+      sig = interp(part.ener, spec_data.sig_tot_data.first, spec_data.sig_tot_data.second[j], true, false, 0., 0.);
+      sig_tot += sig * ab[i+1] * ion_state[j];
+      sig_tot_1elem += sig * ab[i+1] * ion_state[j];
+      sig_cum2d_1elem.push_back(sig_tot_1elem);
+    }
+    sig_tot1d.push_back(sig_tot_1elem);
+    sig_cum1d.push_back(sig_tot);
+    sig_cum2d.push_back(sig_cum2d_1elem);
   }
-  int idx_elem = findIdx(sig_tot * xi(), sig_cum);
-  switch ( idx_elem ) { 
-    case 0:
-    return flags_elem::moller;
-    default:
-    return idx_elem;
+  int idx_elem = findIdx(sig_tot * xi(), sig_cum1d);
+  if ( idx_elem == 0 ) {
+    moller = true;
+    Zelem = -1;
+    stage = -1;
+  } else {
+    moller = false;
+    Zelem = idx_elem;
+    stage = findIdx(sig_tot1d[Zelem - 1] * xi(), sig_cum2d[Zelem - 1]);
   }
 }
 
@@ -185,16 +207,17 @@ int Sim::choseElem() {
  * @brief Select an interaction.
  * 
  * @param Zelem The proton number of the element.
+ * @param stage The ionization stage of the element.
  * @return The interaction flag.
 */
-int Sim::choseInter(int Zelem) {
+int Sim::choseInter(int Zelem, int stage) {
   SpecData spec_data = eedl[Zelem-1];
   double sig_tot = 0.0;
   Vector1d sig_cum;
   double sig_scat = interp(part.ener, spec_data.sig_scat_data.first, spec_data.sig_scat_data.second, true, false, 0., 0.);
   double sig_brem = interp(part.ener, spec_data.sig_brem_data.first, spec_data.sig_brem_data.second, true, false, 0., 0.);
   double sig_exc = interp(part.ener, spec_data.sig_exc_data.first, spec_data.sig_exc_data.second, true, false, 0., 0.);
-  double sig_ion = interp(part.ener, spec_data.sig_ion_tot_data.first, spec_data.sig_ion_tot_data.second, true, false, 0., 0.);
+  double sig_ion = interp(part.ener, spec_data.sig_ion_tot_data.first, spec_data.sig_ion_tot_data.second[stage], true, false, 0., 0.);
   double sig_list[4] = {sig_scat, sig_brem, sig_exc, sig_ion};
   for ( size_t i = 0; i < 4; i++ ) {
     sig_tot += sig_list[i];
@@ -207,10 +230,11 @@ int Sim::choseInter(int Zelem) {
  * @brief Select an ionization.
  * 
  * @param Zelem The proton number of the element.
+ * @param stage The ionization stage of the element.
  * @return The ionization index.
 */
-int Sim::choseIon(int Zelem) {
-  Vector1d1dVector sig_ion_data = eedl[Zelem-1].sig_ion_data;
+int Sim::choseIon(int Zelem, int stage) {
+  Vector1d1dVector1d sig_ion_data = eedl[Zelem-1].sig_ion_data[stage];
   double sig_tot = 0.0;
   Vector1d sig_cum;
   for ( size_t i = 0; i < sig_ion_data.size(); i++ ) {
@@ -233,17 +257,17 @@ int Sim::choseIon(int Zelem) {
  * @param event The event object.
 */
 void Sim::interact(Event &event) {
-  event.Zelem = choseElem();
-  switch ( event.Zelem ) {
-    case flags_elem::moller:
+  bool moller;
+  int idx_ion;
+  choseElem(moller, event.Zelem, event.stage);
+  if ( moller ) {
     event.interaction = flags::moller;
     calcCosThScatEnerLossMoller(xi(), part.ener, part.gam(), part.beta(), lam_deb, cos_th_cut, event.cos_th, event.ener_loss);
     part.scat(xi(), event.cos_th);
     part.loseEner(event.ener_loss);
-    break;
-    default:
-    SpecData spec_data = eedl[event.Zelem-1];
-    event.interaction = choseInter(event.Zelem);
+  } else {
+    SpecData spec_data = eedl[event.Zelem - 1];
+    event.interaction = choseInter(event.Zelem, event.stage);
     switch ( event.interaction ) {
       case flags::scat:
       event.cos_th = calcCosThScat(xi(), part.ener, spec_data.th_scat_data.first, spec_data.th_scat_data.second, spec_data.th_scat_data.third);
@@ -258,14 +282,14 @@ void Sim::interact(Event &event) {
       part.loseEner(event.ener_loss);
       break;
       case flags::ion:
-      event.ion = choseIon(event.Zelem);
-      Vector1d2d2d spec_ion_data_1ion = spec_data.spec_ion_data[event.ion];
+      idx_ion = choseIon(event.Zelem, event.stage);
+      event.ion = spec_data.ss_list[idx_ion];
+      Vector1d2d2d spec_ion_data_1ion = spec_data.spec_ion_data[event.stage][idx_ion];
       event.ener_sec = calcEnerLoss(xi(), part.ener, spec_ion_data_1ion.first, spec_ion_data_1ion.second, spec_ion_data_1ion.third);
-      event.ener_loss = event.ener_sec + spec_data.ener_bind_list[event.ion];
+      event.ener_loss = event.ener_sec + spec_data.ener_bind_list[event.stage][idx_ion];
       part.loseEner(event.ener_loss);
       break;
     }
-    break;
   }
   event.ener = part.ener;
   event.cos_alpha = part.cos_alpha;
