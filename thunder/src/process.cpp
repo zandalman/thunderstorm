@@ -29,21 +29,24 @@ using vector3d = std::vector<vector2d<T>>;
 Data::Data(
   double mach_A_, 
   double scale_, 
-  double ener_, 
+  double ener_low_, 
+  double ener_high_,
   MiscParam misc_param_,
   const std::vector<Stat> &stat_list
   )
   : mach_A(mach_A_)
-  , ener(ener_)
+  , ener_low(ener_low_)
+  , ener_high(ener_high_)
   , ener_min(misc_param_.ener_min)
   , scale(scale_)
   , turb(misc_param_.turb * scale_)
   , spawn(misc_param_.spawn)
   , escaped(false)
-  , ener_start(ener_)
+  , ener(0.0)
+  , ener_start(0.0)
   , time_start(0.0)
   , sign_start(1.0)
-  , ener_prev(ener_)
+  , ener_prev(0.0)
   , time_prev(0.0)
   , splus_prev(0.0)
   , sminus_prev(0.0)
@@ -60,6 +63,10 @@ Data::Data(
     M3_stat_list.push_back(std::vector<double>(stat.size, 0.0));
     M4_stat_list.push_back(std::vector<double>(stat.size, 0.0));
   }
+  double iparam = xi();
+  ener = (1.0 - iparam) * ener_low + iparam * ener_high;
+  ener_start = ener;
+  ener_prev = ener;
   lam_scat = mach_A > 1.0 ? turb / (mach_A*mach_A*mach_A) : turb * mach_A*mach_A*mach_A*mach_A;
   s_scat = -log(1.0 - xi()) * lam_scat;
   pos = Vec(0.0, 0.0, 0.0);
@@ -77,10 +84,12 @@ Data::Data(
 /// @brief Reset the particle data.
 void Data::reset() {
   escaped = false;
+  double iparam = xi();
+  ener = (1.0 - iparam) * ener_low + iparam * ener_high;
   ener_start = ener;
+  ener_prev = ener;
   time_start = 0.0;
   sign_start = 1.0;
-  ener_prev = ener;
   time_prev = 0.0;
   splus_prev = 0.0;
   sminus_prev = 0.0;
@@ -182,13 +191,13 @@ void processFile(
   while ( datafile.read(buffer.data(), chunk_size) ) {
     
     auto start_chunk = std::chrono::steady_clock::now();
-    
+
     for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
       do_hist = idx_hist < idx_hist_max;
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
       if ( current_id == -1 ) { current_id = event->id; }
       if ( current_id == event->id ) {
-        processEvent(event, do_hist, bin_list, data_grid);      
+        processEvent(event, do_hist, bin_list, data_grid);  
       } else {
         if ( do_hist ) {
           oss << histdir_name << "/hist";
@@ -414,28 +423,29 @@ void processEvent(
         if ( data.pos.z > 0.5 * data.scale ) {
           data.escaped = true;
           flag = -1;
-          if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
+          if ( idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size() ) {
             data.part_stat_list[stat_tag::num_escape_outer][idx_ener - 1] += 1.0;
           }
         } else if ( data.pos.z < -0.5 * data.scale ) {
           data.escaped = true;
           flag = -1;
-          if (idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size()) {
+          if ( idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size() ) {
             data.part_stat_list[stat_tag::num_escape_inner][idx_ener - 1] += 1.0;
           }
         }
 
         // write data
         if ( do_hist ) {
-          data.oss << time_rel << ",";
-          data.oss << data.pos.x << "," << data.pos.y << "," << data.pos.z << ",";
-          data.oss << event->cos_alpha << ", ";
-          data.oss << event->ener << ", ";
+          data.oss << std::setprecision(15) << time_rel << ",";
+          data.oss << std::setprecision(15) << data.pos.x << "," << std::setprecision(15) << data.pos.y << "," << std::setprecision(15) << data.pos.z << ",";
+          data.oss << std::setprecision(15) << event->cos_alpha << ", ";
+          data.oss << std::setprecision(15) << event->ener << ", ";
           data.oss << flag << std::endl;
         }
       }
     }
   }
+
 }
 
 /**

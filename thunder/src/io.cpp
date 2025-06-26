@@ -31,12 +31,13 @@ Stat::Stat(size_t size_, std::string name_, std::string description_)
 {}
 
 /// @brief A constructor to initialize the Event structure.
-Event::Event(int int_data[5], double double_data[11]) 
+Event::Event(int int_data[6], double double_data[13]) 
   : id(int_data[0])                   // The particle ID.
   , nstep(int_data[1])                // The step number.
   , Zelem(int_data[2])                // The proton number of the element.
-  , interaction(int_data[3])          // The interaction flag.
-  , ion(int_data[4])                  // The ion index.
+  , stage(int_data[3])                // The ionization stage of the element.
+  , interaction(int_data[4])          // The interaction flag.
+  , ion(int_data[5])                  // The ion index.
   , time(double_data[0])              // The event time [s].
   , splus(double_data[1])             // The positive distance along the field line [cm].
   , sminus(double_data[2])            // The negative distance along the field line [cm].
@@ -48,6 +49,8 @@ Event::Event(int int_data[5], double double_data[11])
   , ener_loss_sync(double_data[8])    // The energy lost due to synchrotron [eV].
   , ener_loss_cher(double_data[9])    // The energy lost due to Cherenkov radiation [eV].
   , ener_loss_moller(double_data[10]) // The energy lost due to small-angle Moller scattering [eV].
+  , dlt_cos_al_moller(double_data[11]) // The pitch angle scattering due to small-angle Moller scattering.
+  , dlt_cos_al_mott(double_data[12])   // The pitch angle scattering due to small-angle Mott scattering.
  {}
 
 
@@ -110,7 +113,7 @@ void writeInfo(
   oss << "Number of histories:      " << config["IO"]["num_hist"] << std::endl;
   oss << "Number of Mach numbers:   " << config["Grid.Mach"]["num"] << std::endl;
   oss << "Number of scales:         " << config["Grid.RhoScale"]["num"] << std::endl;
-  oss << "Number of energies:       " << config["Grid.Ener"]["num"] << std::endl;
+  oss << "Number of energies:       " << config["Bin.Ener"]["num"] << std::endl;
   oss << "Number of lines:          " << 3 + 4 * stat_list.size() << std::endl;
   oss << "Max time [day]:           " << config["Misc"]["walltime"] << std::endl;
   oss << "Sim density [g/cm^3]:     " << config["Misc"]["rho_sim"] << std::endl;
@@ -205,7 +208,7 @@ void writeData(
 
   for ( size_t i = 0; i < bin_list[bin_tag::mach].size(); i++ ) {
     for ( size_t j = 0; j < bin_list[bin_tag::scale].size(); j++ ) {
-      for ( size_t k = 0; k < bin_list[bin_tag::ener].size(); k++ ) {
+      for ( size_t k = 0; k < bin_list[bin_tag::ener].size() - 1; k++ ) {
         oss << bin_list[bin_tag::mach][i] << std::endl;
         oss << bin_list[bin_tag::scale][j] << std::endl;
         oss << bin_list[bin_tag::ener][k] << std::endl;

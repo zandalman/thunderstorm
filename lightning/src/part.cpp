@@ -57,8 +57,16 @@ void Part::loseEner(double ener_loss) {
  * @param dlt_cos_alpha The std of the pitch angle distribution.
 */
 void Part::scatCum(double dlt_cos_alpha) {
+  int seg;
   double dlt_cos_alpha_rng = sampleNormal() * dlt_cos_alpha;
   cos_alpha += dlt_cos_alpha_rng;
+  if ( fabs(cos_alpha) > 1.0 ) { // zig-zag function
+    seg = static_cast<int>(std::floor((cos_alpha + 1.0) / 2.0));
+    cos_alpha = std::fmod(cos_alpha + 1.0, 2.0) - 1.0;
+    if ( cos_alpha < -1.0 ) cos_alpha += 2.0; // adjust for negative values; fmod matches sign of argument
+    if ( fabs(seg % 2) == 1 ) cos_alpha = -cos_alpha;
+  }
+
   if ( cos_alpha > 1.0 ) cos_alpha = 2.0 - cos_alpha;
   if ( cos_alpha < -1.0 ) cos_alpha = -2.0 - cos_alpha;
 }
