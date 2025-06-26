@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
   std::vector<double> mach_list, scale_list, ener_list, ener_sec_list, time_list;
   makeList(config["Grid.Mach"], mach_list, num_mach);
   makeList(config["Grid.RhoScale"], scale_list, num_scale);
-  makeList(config["Grid.Ener"], ener_list, num_ener);
+  makeList(config["Bin.Ener"], ener_list, num_ener);
   makeList(config["Bin.EnerSec"], ener_sec_list, num_ener_sec);
   makeList(config["Bin.Time"], time_list, num_time, constants::hr);
   vector2d<double> bin_list = {mach_list, scale_list, ener_list, ener_sec_list, time_list};
@@ -90,9 +90,9 @@ int main(int argc, char** argv) {
   for (size_t i = 0; i < num_mach; i++) {
     data_grid[i].resize(num_scale);
     for (size_t j = 0; j < num_scale; j++) {
-      data_grid[i][j].resize(num_ener);
-      for ( size_t k = 0; k < num_ener; k++ ) {
-        data_grid[i][j][k] = Data(mach_list[i], scale_list[j] / misc_param.rho_sim, ener_list[k], misc_param, stat_list);
+      data_grid[i][j].resize(num_ener - 1);
+      for ( size_t k = 0; k < num_ener - 1; k++ ) {
+        data_grid[i][j][k] = Data(mach_list[i], scale_list[j] / misc_param.rho_sim, ener_list[k], ener_list[k+1], misc_param, stat_list);
       }
     }
   }

@@ -22,12 +22,14 @@ using vector3d = std::vector<vector2d<T>>;
 /// @brief A structure to represent data.
 struct Data {
   double mach_A;                   // The Alfven Mach number.
-  double ener;                     // The particle energy [eV].
+  double ener_low;                 // The lower bound of the energy bin [eV].
+  double ener_high;                // The upper bound of the energy bin [eV].
   double ener_min;                 // The minimum energy [eV].
   double scale;                    // Characteristic scale of the simulation [cm].
   double turb;                     // The turbulence injection scale [cm].
   int spawn;                       // The spawn mode.
   bool escaped;                    // Whether the particle has escaped.
+  double ener;                     // The current energy [eV].
   double ener_start;               // The start energy [eV].
   double time_start;               // The start time [s].
   double sign_start;               // The start sign.
@@ -50,7 +52,8 @@ struct Data {
   Data(
     double mach_A_, 
     double scale_, 
-    double ener_,
+    double ener_low_,
+    double ener_high_,
     MiscParam misc_param_,
     const std::vector<Stat> &stat_list
   );

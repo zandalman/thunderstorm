@@ -120,6 +120,8 @@ int main(int argc, char** argv) {
     std::cout << "Starting simulation." << std::endl << std::endl;
   }
   MPI_Barrier(MPI_COMM_WORLD);
+
+  std::cout << "rank " << rank << std::flush;
   
   while ( true ) {
     // start a timer for the particle
@@ -134,6 +136,7 @@ int main(int argc, char** argv) {
     // run the simulation
     while ( sim.part.alive ) {
       sim.step();
+      std::cout << "\rrank " << rank << ": " << count_loc << " (" << sim.part.ener << "eV)" << std::flush;
       if ( sim.part.ener < ener_min ) { 
         sim.kill(); count_dead_loc++; 
       }
@@ -150,6 +153,7 @@ int main(int argc, char** argv) {
     if ( runtime >= (tsim - 2.0 * tpart) ) break;
     if ( count_max > 0 && count_loc >= count_max ) break;
   }
+  std::cout << std::endl << std::endl;
 
   // compute the packet counts
   int count_glob, count_dead_glob;

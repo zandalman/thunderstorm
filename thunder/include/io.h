@@ -28,25 +28,28 @@ struct Stat {
 
 /// @brief A structure to represent an event.
 struct Event {
-  int id;                  // The particle ID.
-  int nstep;               // The step number.
-  int Zelem;               // The proton number of the element.
-  int interaction;         // The interaction flag.
-  int ion;                 // The ion index.
-  double time;             // The event time [s].
-  double splus;            // The positive distance along the field line [cm].
-  double sminus;           // The negative distance along the field line [cm].
-  double ener;             // The particle kinetic energy [eV].
-  double cos_alpha;        // The particle pitch angle cosine.
-  double cos_th;           // The cosine of the scattering angle.
-  double ener_loss;        // The energy lost [eV].
-  double ener_sec;         // The energy of the secondary [eV].
-  double ener_loss_sync;   // The energy lost due to synchrotron [eV].
-  double ener_loss_cher;   // The energy lost due to Cherenkov radiation [eV].
-  double ener_loss_moller; // The energy lost due to small-angle Moller scattering [eV].
+  int id;                   // The particle ID.
+  int nstep;                // The step number.
+  int Zelem;                // The proton number of the element.
+  int stage;                // The ionization stage of the element.
+  int interaction;          // The interaction flag.
+  int ion;                  // The ion index.
+  double time;              // The event time [s].
+  double splus;             // The positive distance along the field line [cm].
+  double sminus;            // The negative distance along the field line [cm].
+  double ener;              // The particle kinetic energy [eV].
+  double cos_alpha;         // The particle pitch angle cosine.
+  double cos_th;            // The cosine of the scattering angle.
+  double ener_loss;         // The energy lost [eV].
+  double ener_sec;          // The energy of the secondary [eV].
+  double ener_loss_sync;    // The energy lost due to synchrotron [eV].
+  double ener_loss_cher;    // The energy lost due to Cherenkov radiation [eV].
+  double ener_loss_moller;  // The energy lost due to small-angle Moller scattering [eV].
+  double dlt_cos_al_moller; // The pitch angle scattering due to small-angle Moller scattering.
+  double dlt_cos_al_mott;   // The pitch angle scattering due to small-angle Mott scattering.
 
   Event() = default;
-  Event(int int_data[5], double double_data[11]);
+  Event(int int_data[6], double double_data[13]);
 };
 
 template <typename T>
