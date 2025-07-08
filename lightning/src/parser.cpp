@@ -141,6 +141,7 @@ void parseEEDL(const std::string &filename, EEDLData &eedl) {
     spec_data.sig_tot_data.second     = spec_json["sig_tot"]["sig"].get<Vector2d>();
     spec_data.sig_scat_data.first     = spec_json["sig_scat_la"]["ener"].get<Vector1d>();
     spec_data.sig_scat_data.second    = spec_json["sig_scat_la"]["sig"].get<Vector1d>();
+    spec_data.sig_scat_data.third    = spec_json["sig_scat_la"]["sa"].get<Vector1d>();
     spec_data.sig_brem_data.first     = spec_json["sig_brem"]["ener"].get<Vector1d>();
     spec_data.sig_brem_data.second    = spec_json["sig_brem"]["sig"].get<Vector1d>();
     spec_data.sig_exc_data.first      = spec_json["sig_exc"]["ener"].get<Vector1d>();

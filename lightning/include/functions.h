@@ -7,6 +7,7 @@
 // headers
 #include "const.h"
 #include "part.h"
+#include "parser.h"
 
 // types
 typedef std::vector<double> Vector1d;
@@ -36,6 +37,7 @@ void calcPowerDiffMoller(
   double &cos_al_dot_sq
 );
 void calcDiffMott(
+  double ener,
   double gam,
   double beta,
   double cos_alpha,
@@ -43,7 +45,7 @@ void calcDiffMott(
   double lam_deb,
   double qsq_avg,
   double mmw,
-  size_t Zmax,
+  const EEDLData& eedl,
   const Vector1d &ab,
   double &cos_al_dot_sq
 );

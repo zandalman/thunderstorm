@@ -134,6 +134,7 @@ void Sim::move(double sig_tot, Event &event) {
       cos_al_dot_sq_moller
     );
     calcDiffMott(
+      part.ener,
       part.gam(),
       part.beta(),
       part.cos_alpha,
@@ -141,7 +142,7 @@ void Sim::move(double sig_tot, Event &event) {
       lam_deb,
       qsq_avg,
       mmw,
-      eedl.size(),
+      eedl,
       ab,
       cos_al_dot_sq_mott
     );

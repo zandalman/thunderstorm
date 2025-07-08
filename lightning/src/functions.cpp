@@ -10,6 +10,7 @@
 #include "part.h"
 #include "random.h"
 #include "const.h"
+#include "parser.h"
 
 // types
 typedef std::vector<double> Vector1d;
@@ -263,6 +264,7 @@ void calcPowerDiffMoller(
 /**
  * @brief Compute the small-angle Mott pitch angle diffusion.
  * 
+ * @param ener          The particle energy.
  * @param gam           The particle Lorentz factor.
  * @param beta          The particle velocity, relative to the speed of light.
  * @param cos_alpha     The particle pitch angle.
@@ -270,11 +272,12 @@ void calcPowerDiffMoller(
  * @param lam_deb       The Debye length [cm].
  * @param qsq_avg       The average square ionization state.
  * @param mmw           The mean molecular weight [g/mol].
- * @param Zmax          The maximum atomic number.
+ * @param eedl          The EEDL data.
  * @param ab            A vector of elemental abundances.
  * @param cos_al_dot_sq The pitch angle diffusion [rad^2/s].
  */
 void calcDiffMott(
+  double ener,
   double gam,
   double beta,
   double cos_alpha,
@@ -282,17 +285,23 @@ void calcDiffMott(
   double lam_deb,
   double qsq_avg,
   double mmw,
-  size_t Zmax,
+  const EEDLData& eedl,
   const Vector1d &ab,
   double &cos_al_dot_sq
 ) {
-  double r_atom, ln_Lam;
-  for ( size_t i = 0; i < Zmax; i++ ) {
+  double r_atom, ln_Lam, sa;
+  double cos_al_dot_sq1 = 0.0;
+  double cos_al_dot_sq2 = 0.0;
+  for ( size_t i = 0; i < eedl.size(); i++ ) {
+    SpecData spec_data = eedl[i];
     r_atom = constants::a0 / pow(i+1, 1.0/3.0);
     ln_Lam = log(lam_deb / r_atom);
-    cos_al_dot_sq += mmw * ab[i+1] * ln_Lam;
+    cos_al_dot_sq1 += mmw * ab[i+1] * ln_Lam; // unsheilded contribution
+    sa = interp(ener, spec_data.sig_scat_data.first, spec_data.sig_scat_data.third, true, false, 0., 0.);
+    cos_al_dot_sq2 += mmw * ab[i+1] * sa; // sheilded contribution
   }
-  cos_al_dot_sq *= 4.0*M_PI * qsq_avg * n_i * constants::r0*constants::r0 / (beta * gam*gam) * constants::c * (1.0 - cos_alpha*cos_alpha);
+  cos_al_dot_sq1 *= 4.0*M_PI * qsq_avg * constants::r0*constants::r0 / (beta*beta * gam*gam);
+  cos_al_dot_sq = (cos_al_dot_sq1 + cos_al_dot_sq2) * n_i * beta * constants::c * (1.0 - cos_alpha*cos_alpha);
 }
 
 /**
