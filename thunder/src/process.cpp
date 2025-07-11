@@ -27,27 +27,35 @@ using vector3d = std::vector<vector2d<T>>;
 
 /// @brief A constructor to initialize the Data structure.
 Data::Data(
+  
   double mach_A_, 
-  double scale_, 
+  double dx_, 
   double ener_low_, 
   double ener_high_,
-  MiscParam misc_param_,
+  double ener_min_,
+  double dt_,
+  int ndim_,
   const std::vector<Stat> &stat_list
   )
+  
   : mach_A(mach_A_)
+  , dx(dx_)
   , ener_low(ener_low_)
   , ener_high(ener_high_)
-  , ener_min(misc_param_.ener_min)
-  , scale(scale_)
-  , turb(misc_param_.turb * scale_)
-  , spawn(misc_param_.spawn)
-  , escaped(false)
+  , ener_min(ener_min_)
+  , dt(dt_)
+  , super(mach_A_ >= 1.0)
+  , ndim(ndim_)
+
   , ener(0.0)
-  , ener_start(0.0)
-  , time_start(0.0)
-  , sign_start(1.0)
   , ener_prev(0.0)
+  , ener_start(0.0)
+
+  , time(0.0)
   , time_prev(0.0)
+  , time_start(0.0)
+  , escaped(false)
+
   , splus_prev(0.0)
   , sminus_prev(0.0)
   , lam_scat(0.0)
@@ -63,47 +71,35 @@ Data::Data(
     M3_stat_list.push_back(std::vector<double>(stat.size, 0.0));
     M4_stat_list.push_back(std::vector<double>(stat.size, 0.0));
   }
-  double iparam = xi();
-  ener = (1.0 - iparam) * ener_low + iparam * ener_high;
-  ener_start = ener;
-  ener_prev = ener;
-  lam_scat = mach_A > 1.0 ? turb / (mach_A*mach_A*mach_A) : turb * mach_A*mach_A*mach_A*mach_A;
-  s_scat = -log(1.0 - xi()) * lam_scat;
-  pos = Vec(0.0, 0.0, 0.0);
-  switch ( spawn ) {
-    case spawn_tag::full:
-    pos.z = (xi() - 0.5) * scale;
-    break;
-    case spawn_tag::edge:
-    pos.z = -0.5 * scale;
-    break;
-  }
-  Bhat = calcRandVec(mach_A);
+  reset();
  }
 
 /// @brief Reset the particle data.
 void Data::reset() {
-  escaped = false;
-  double iparam = xi();
-  ener = (1.0 - iparam) * ener_low + iparam * ener_high;
+  
+  // initialize the energy to a random energy within the bin
+  // initial energies are log-spaced within each bin to match the bin spacing
+  ener = ener_low * pow(ener_high / ener_low, xi());
   ener_start = ener;
   ener_prev = ener;
-  time_start = 0.0;
-  sign_start = 1.0;
-  time_prev = 0.0;
+
+  // initialize the time to a random time within the timestep
+  time = xi() * dt;
+  time_start = time;
+  time_prev = time;
+  escaped = false;
+
   splus_prev = 0.0;
   sminus_prev = 0.0;
+
   s_scat = -log(1.0 - xi()) * lam_scat;
   pos = Vec(0.0, 0.0, 0.0);
-  switch ( spawn ) {
-    case spawn_tag::full:
-    pos.z = (xi() - 0.5) * scale;
-    break;
-    case spawn_tag::edge:
-    pos.z = -0.5 * scale;
-    break;
-  }
-  Bhat = calcRandVec(mach_A);
+
+  // initialize the position to a random position within the cell
+  pos.x = xi() * dx;
+  pos.y = xi() * dx;
+  pos.z = xi() * dx;
+  Bhat = calcRandVec(mach_A, super);
   oss.str(""); oss.clear();
   
   for ( size_t i = 0; i < part_stat_list.size(); i++ ) {
@@ -188,16 +184,14 @@ void processFile(
   std::ostringstream oss;
   bool do_hist;
 
-  while ( datafile.read(buffer.data(), chunk_size) ) {
-    
-    auto start_chunk = std::chrono::steady_clock::now();
-
-    for ( size_t i = 0; i < num_event_per_chunk; i++ ) {
+  // Define lambda to process chunks
+  auto processChunk = [&](size_t num_event) {
+    for ( size_t i = 0; i < num_event; i++ ) {
       do_hist = idx_hist < idx_hist_max;
       event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
-      if ( current_id == -1 ) { current_id = event->id; }
-      if ( current_id == event->id ) {
-        processEvent(event, do_hist, bin_list, data_grid);  
+      if (current_id == -1) current_id = event->id;
+      if (current_id == event->id) {
+        processEvent(event, do_hist, bin_list, data_grid);
       } else {
         if ( do_hist ) {
           oss << histdir_name << "/hist";
@@ -212,8 +206,17 @@ void processFile(
         count++;
       }
     }
+  };
 
-    // Break if we are about to exceed walltime
+  while ( datafile.read(buffer.data(), chunk_size) ) {
+    
+    // start timer
+    auto start_chunk = std::chrono::steady_clock::now();
+    
+    // process chunk
+    processChunk(num_event_per_chunk);
+
+    // break if we are about to exceed walltime
     auto now = std::chrono::steady_clock::now();
     auto runtime = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
     auto chunktime = std::chrono::duration_cast<std::chrono::seconds>(now - start_chunk).count();
@@ -227,27 +230,12 @@ void processFile(
   if ( !no_time && datafile.eof() ) {
     size_t bytes_read = datafile.gcount();
     if ( bytes_read > 0 ) {
+      
+      // compute number of events in last chunk
       size_t num_event_last_chunk = bytes_read / event_size;
-      for ( size_t i = 0; i < num_event_last_chunk; i++ ) {
-        do_hist = idx_hist < idx_hist_max;
-        event = reinterpret_cast<Event*>(buffer.data() + i * event_size);
-        if ( current_id == -1 ) { current_id = event->id; }
-        if ( current_id == event->id ) {
-          processEvent(event, do_hist, bin_list, data_grid);
-        } else {
-          if ( do_hist ) {
-            oss << histdir_name << "/hist";
-            oss << std::setw(5) << std::setfill('0') << idx_hist << ".txt";
-            clearFile(oss.str());
-            writeHist(oss.str(), bin_list, data_grid);
-            oss.str(""); oss.clear();
-            idx_hist++;
-          }
-          postProcPart(count, stat_list, data_grid);
-          current_id = event->id;
-          count++;
-        }
-      }
+      
+      // process last chunk
+      processChunk(num_event_last_chunk);
     }
   } else if ( !no_time ) {
     std::cerr << "Error reading file " << datafile_name << std::endl;
@@ -325,10 +313,6 @@ void processEvent(
           
           data.ener_start = event->ener;
           data.time_start = event->time;
-
-          dsplus = event->splus - data.splus_prev;
-          dsminus = event->sminus - data.sminus_prev;
-          data.sign_start = dsplus > dsminus ? 1.0 : -1.0;
 
           data.ener_prev = event->ener;
           data.time_prev = event->time;

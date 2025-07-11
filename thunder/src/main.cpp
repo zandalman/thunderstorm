@@ -49,34 +49,31 @@ int main(int argc, char** argv) {
 
   // get miscellaneous parameters
   int walltime = std::stoi(config["Misc"]["walltime"]);
-  MiscParam misc_param = MiscParam(
-    std::stod(config["Misc"]["rho_sim"]),
-    std::stod(config["Misc"]["ener_min"]),
-    std::stod(config["Misc"]["turb"]),
-    config["Misc"]["spawn"]
-  );
+  double rho_sim = std::stod(config["Misc"]["rho_sim"]);
+  double ener_min = std::stod(config["Misc"]["ener_min"]);
+  double vmax = std::stod(config["Misc"]["vmax"]) * constants::c;
+  int ndim = std::stoi(config["Misc"]["ndim"]);
 
   // make bin list
-  size_t num_mach, num_scale, num_ener, num_ener_sec, num_time;
-  std::vector<double> mach_list, scale_list, ener_list, ener_sec_list, time_list;
+  size_t num_mach, num_col, num_ener, num_ener_sec;
+  std::vector<double> mach_list, col_list, ener_list, ener_sec_list, time_list;
   makeList(config["Grid.Mach"], mach_list, num_mach);
-  makeList(config["Grid.RhoScale"], scale_list, num_scale);
+  makeList(config["Grid.Sigma"], col_list, num_col);
   makeList(config["Bin.Ener"], ener_list, num_ener);
   makeList(config["Bin.EnerSec"], ener_sec_list, num_ener_sec);
-  makeList(config["Bin.Time"], time_list, num_time, constants::hr);
-  vector2d<double> bin_list = {mach_list, scale_list, ener_list, ener_sec_list, time_list};
+  vector2d<double> bin_list = {mach_list, col_list, ener_list, ener_sec_list};
 
   // define statistics
   std::vector<Stat> stat_list;
-  stat_list.push_back(Stat(1, "eps_thm", "thermalization efficiency"));
-  stat_list.push_back(Stat(num_inter, "num_ev_inter", "number of events for each interaction"));
-  stat_list.push_back(Stat(num_mech, "ener_loss_mech", "energy loss [eV] for each mechanism"));
-  stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
-  stat_list.push_back(Stat(num_ener - 1, "num_escape_inner", "number of escaped electrons at the inner boundary per secondary energy bin"));
-  stat_list.push_back(Stat(num_ener - 1, "num_escape_outer", "number of escaped electrons at the outer boundary per secondary energy bin"));
-  stat_list.push_back(Stat(num_ener_sec - 1, "num_sec_ener", "number of secondary electrons per secondary energy bin"));
-  stat_list.push_back(Stat(num_time - 1, "ener_loss_time", "energy loss [eV] per time bin"));
+  stat_list.push_back(Stat(2, "ener_thm", "energy [eV] that is locally thermalized and total energy"));
+  stat_list.push_back(Stat(num_ener - 1, "ener_esc_par", "energy [eV] that escapes parallel to the mean field per energy bin"));
+  stat_list.push_back(Stat(num_ener - 1, "ener_esc_perp", "energy [eV] that escapes perpendicular to the mean field per energy bin"));
+  stat_list.push_back(Stat(num_ener - 1, "ener_loc", "energy [eV] that neither escapes nor thermalizes per energy bin"));
+  stat_list.push_back(Stat(num_ener_sec - 1, "ener_sec", "energy [eV] in secondary electrons per energy bin"));
   stat_list.push_back(Stat(num_ener - 1, "time_ener", "time [s] spent per energy bin"));
+  stat_list.push_back(Stat(num_inter, "num_ev_inter", "number of events for each interaction"));
+  stat_list.push_back(Stat(num_inter, "ener_loss_inter", "energy loss [eV] for each interaction"));
+  stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
 
   // write info file
   if ( rank == 0 ) {
@@ -88,11 +85,19 @@ int main(int argc, char** argv) {
   vector3d<Data> data_grid;
   data_grid.resize(num_mach);
   for (size_t i = 0; i < num_mach; i++) {
-    data_grid[i].resize(num_scale);
-    for (size_t j = 0; j < num_scale; j++) {
+    data_grid[i].resize(num_col);
+    for (size_t j = 0; j < num_col; j++) {
       data_grid[i][j].resize(num_ener - 1);
       for ( size_t k = 0; k < num_ener - 1; k++ ) {
-        data_grid[i][j][k] = Data(mach_list[i], scale_list[j] / misc_param.rho_sim, ener_list[k], ener_list[k+1], misc_param, stat_list);
+        data_grid[i][j][k] = Data(
+          mach_list[i], 
+          col_list[j] / rho_sim, 
+          ener_list[k], 
+          ener_list[k+1], 
+          col_list[j] / rho_sim / vmax, 
+          ndim, 
+          stat_list
+        );
       }
     }
   }

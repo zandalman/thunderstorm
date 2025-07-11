@@ -14,26 +14,10 @@
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 
-/// @brief Miscellaneous parameters
-struct MiscParam {
-  double rho_sim;  // The density in the simulation [g/cc]
-  double ener_min; // The minimum energy in the simulation [eV]
-  double turb;     // The turbulence injection scale [scale]
-  int spawn;       // The spawn mode for the particles
-
-  MiscParam() = default;
-  MiscParam(
-    double rho_sim_,
-    double ener_min_,
-    double turb_,
-    std::string spawn_
-  );
-};
-
 void linspace(double vmin, double vmax, size_t num, bool log, std::vector<double> &list);
 size_t findIdx(double x0, std::vector<double> x_list);
 void normalize(std::vector<double>& vec, const double norm);
-Vec calcRandVec(double mach_A);
+Vec calcRandVec(double mach_A, bool super);
 void addStat(
   size_t size, 
   int nB_int, 

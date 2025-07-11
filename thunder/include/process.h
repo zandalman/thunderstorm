@@ -21,40 +21,49 @@ using vector3d = std::vector<vector2d<T>>;
 
 /// @brief A structure to represent data.
 struct Data {
+  
   double mach_A;                   // The Alfven Mach number.
+  double dx;                       // The zone size [cm].
   double ener_low;                 // The lower bound of the energy bin [eV].
   double ener_high;                // The upper bound of the energy bin [eV].
   double ener_min;                 // The minimum energy [eV].
-  double scale;                    // Characteristic scale of the simulation [cm].
-  double turb;                     // The turbulence injection scale [cm].
-  int spawn;                       // The spawn mode.
-  bool escaped;                    // Whether the particle has escaped.
+  double dt;                       // The zone timestep [s].
+  bool super;                      // Whether the turbulence is super-Alfvenic
+  int ndim;                        // The number of dimensions.
+
   double ener;                     // The current energy [eV].
+  double ener_prev;                // The previous energy [eV].
   double ener_start;               // The start energy [eV].
+  
+  double time;                     // The curret time [s].
+  double time_prev;                // The previous time [s].
   double time_start;               // The start time [s].
-  double sign_start;               // The start sign.
-  double ener_prev;                // The energy [eV].
-  double time_prev;                // The time [s].
-  double splus_prev;               // The positive distance along the field line [cm].
-  double sminus_prev;              // The negative distance along the field line [cm].
+  bool escaped;                    // Whether the particle has escaped.
+  
+  Vec pos;                         // The position [cm].
+  double splus_prev;               // The previous positive distance along the field line [cm].
+  double sminus_prev;              // The previous negative distance along the field line [cm].
+  
+  Vec Bhat;                        // The B-field direction.
   double lam_scat;                 // The mean free path along a field line to scatter [cm].
   double s_scat;                   // The distance along a field line to scattering [cm].
-  Vec pos;                         // The position [cm].
-  Vec Bhat;                        // The B-field direction.
+  
   std::ostringstream oss;          // The string stream.
   vector2d<double> part_stat_list; // The statistics for a single particle.
-  vector2d<double> mean_stat_list; // The mean statistics
-  vector2d<double> M2_stat_list;   // The M2 statistics
-  vector2d<double> M3_stat_list;   // The M3 statistics
-  vector2d<double> M4_stat_list;   // The M4 statistics
+  vector2d<double> mean_stat_list; // The mean (M1) statistics.
+  vector2d<double> M2_stat_list;   // The M2 statistics.
+  vector2d<double> M3_stat_list;   // The M3 statistics.
+  vector2d<double> M4_stat_list;   // The M4 statistics.
 
   Data() = default;
   Data(
     double mach_A_, 
-    double scale_, 
+    double dx_, 
     double ener_low_,
     double ener_high_,
-    MiscParam misc_param_,
+    double ener_min_,
+    double dt_,
+    int ndim_,
     const std::vector<Stat> &stat_list
   );
   void reset();
