@@ -16,26 +16,6 @@
 template <typename T>
 using vector2d = std::vector<std::vector<T>>;
 
-MiscParam::MiscParam(
-  double rho_sim_,
-  double ener_min_,
-  double turb_,
-  std::string spawn_
-)
-: rho_sim(rho_sim_)
-, ener_min(ener_min_)
-, turb(turb_)
-, spawn(0)
-{
-  if ( spawn_ == "full" ) {
-    spawn = spawn_tag::full;
-  } else if ( spawn_ == "center" ) {
-    spawn = spawn_tag::center;
-  } else if ( spawn_ == "edge" ) {
-    spawn = spawn_tag::edge;
-  }
-}
-
 /**
  * @brief Make a linearly or logarithmically spaced list of values.
  * 
@@ -92,16 +72,25 @@ void normalize(std::vector<double>& vec, const double norm) {
  * Assume that the...
  */
 
-Vec calcRandVec(double mach_A) {
+Vec calcRandVec(double mach_A, bool super) {
   
+  Vec Bhat;
   double cos_th = 2.0 * xi() - 1.0;
   double sin_th = sqrt(1.0 - cos_th*cos_th);
   double phi = 2.0 * M_PI * xi();
-  return Vec(
-    mach_A * sin_th * cos(phi),
-    mach_A * sin_th * sin(phi),
-    1.0 + mach_A * cos_th
-  ).unit();
+  if ( super ) {
+    Bhat = Vec(
+      mach_A * sin_th * cos(phi),
+      mach_A * sin_th * sin(phi),
+      1.0 + mach_A * cos_th
+    ).unit();
+  } else {
+    Bhat = Vec(
+      mach_A*mach_A * sin_th * cos(phi),
+      mach_A*mach_A * sin_th * sin(phi),
+      1.0 + mach_A * cos_th
+    ).unit();
+  }
 }
 
 /**

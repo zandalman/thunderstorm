@@ -75,7 +75,7 @@ void makeList(Dict &dict, std::vector<double> &list, size_t &num, double unit) {
     std::stringstream ss(dict["val"]);
     std::string token;
     while (std::getline(ss, token, ',')) {
-      list.push_back(std::stod(token));
+      list.push_back(std::stod(token) * unit);
       num++;
     }
   } else {

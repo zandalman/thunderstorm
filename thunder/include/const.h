@@ -4,51 +4,34 @@
 // includes
 #include <string>
 
-constexpr size_t num_inter = 6;
-constexpr size_t num_mech = 6;
+constexpr size_t num_inter = 5;
 constexpr size_t num_elem = 118;
-
-namespace spawn_tag {
-constexpr int full = 0;
-constexpr int center = 1;
-constexpr int edge = 2;
-}
 
 namespace stat_tag {
 constexpr int eps_thm = 0;
-constexpr int num_ev_inter = 1;
-constexpr int ener_loss_mech = 2;
-constexpr int num_ion_elem = 3;
-constexpr int num_escape_inner = 4;
-constexpr int num_escape_outer = 5;
-constexpr int num_sec_ener = 6;
-constexpr int ener_loss_time = 7;
-constexpr int time_ener = 8;
+constexpr int ener_esc_par = 1;
+constexpr int ener_esc_perp = 2;
+constexpr int ener_loc = 3;
+constexpr int ener_sec = 4;
+constexpr int time_ener = 5;
+constexpr int num_ev_inter = 6;
+constexpr int ener_loss_mech = 7;
+constexpr int num_ion_elem = 8;
 }
 
 namespace bin_tag {
 constexpr int mach = 0;
-constexpr int scale = 1;
+constexpr int col = 1;
 constexpr int ener = 2;
 constexpr int ener_sec = 3;
-constexpr int time = 4;
 }
 
 namespace inter_tag {
-constexpr int brem = 0;
-constexpr int exc = 1;
-constexpr int ion = 2;
+constexpr int brem   = 0;
+constexpr int exc    = 1;
+constexpr int ion    = 2;
 constexpr int moller = 3;
-constexpr int scat = 4;
-}
-
-namespace mech_tag {
-constexpr int brem = 0;
-constexpr int exc = 1;
-constexpr int ion = 2;
-constexpr int moller = 3;
-constexpr int sync = 4;
-constexpr int cher = 5;
+constexpr int scat   = 4;
 }
 
 namespace flags {
@@ -121,12 +104,10 @@ constexpr double N_A = 6.0221367e23;    // Avagadro's number
 constexpr double hbar = 1.0545726e-27; // reduced plank c onstant [erg s]
 constexpr double h = 6.6260702e-27;    // plank constant [erg s]
 constexpr double k_B = 1.3806490e-16;  // boltzmann constant [erg/K]
-constexpr double a_rad =
-    7.5657233e-15;                  // radiation density constant [erg/cm^3/K^4]
+constexpr double a_rad = 7.5657233e-15;                  // radiation density constant [erg/cm^3/K^4]
 constexpr double e = 4.8032068e-10; // electron charge [esu]
 constexpr double G = 6.67408e-08;   // gravitational constant [cm^3/g/s^2]
-constexpr double sig_SB =
-    5.67051e-5; // stefan-boltzmann constant [erg/cm^2/K^4/s]
+constexpr double sig_SB = 5.67051e-5; // stefan-boltzmann constant [erg/cm^2/K^4/s]
 constexpr double L_sol = 3.828e+33; // solar luminosity [erg/s]
 } // namespace constants
 
