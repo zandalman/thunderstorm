@@ -17,6 +17,10 @@ typedef std::vector<Vector1d1dVector1d> Vector1d1dVector2d;
 typedef std::unordered_map<std::string, std::string> Dict;
 typedef std::unordered_map<std::string, Dict> Config;
 
+struct Vector1d1d1d {
+  Vector1d first, second, third;
+};
+
 /// @brief A structure to hold one 1D vector and two 2D vectors
 struct Vector1d2d2d {
   Vector1d first;
@@ -32,7 +36,7 @@ struct SpecData {
   std::vector<int> ss_list;           // The subshell name data.
   Vector2d ener_bind_list;            // The ionization binding energy data.
   Vector1d2d sig_tot_data;            // The total cross section data.
-  Vector1d1d sig_scat_data;           // The scattering cross section data.
+  Vector1d1d1d sig_scat_data;         // The scattering cross section data.
   Vector1d1d sig_brem_data;           // The Bremsstrahlung cross section data.
   Vector1d1d sig_exc_data;            // The excitation cross section data.
   Vector1d2d sig_ion_tot_data;        // The total ionization cross section data.
