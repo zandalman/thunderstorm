@@ -73,7 +73,6 @@ void normalize(std::vector<double>& vec, const double norm) {
  */
 
 Vec calcRandVec(double mach_A, bool super) {
-  
   Vec Bhat;
   double cos_th = 2.0 * xi() - 1.0;
   double sin_th = sqrt(1.0 - cos_th*cos_th);
@@ -83,40 +82,43 @@ Vec calcRandVec(double mach_A, bool super) {
       mach_A * sin_th * cos(phi),
       mach_A * sin_th * sin(phi),
       1.0 + mach_A * cos_th
-    ).unit();
+    );
   } else {
     Bhat = Vec(
       mach_A*mach_A * sin_th * cos(phi),
       mach_A*mach_A * sin_th * sin(phi),
       1.0 + mach_A * cos_th
-    ).unit();
+    );
   }
+  return Bhat.unit();
 }
 
 /**
  * @brief Combine statistics between two datasets.
  * 
  * @param size   The size of the statistics vector.
+ * @param nmom.  The number of moments 
  * @param nB_int The number of elements in set B.
- * @param meanB  The mean statistics in set B.
+ * @param M1B    The mean statistics in set B.
  * @param M2B    The M2 statistics in set B.
  * @param M3B    The M3 statistics in set B.
  * @param M4B    The M4 statistics in set B.
  * @param nA_int The number of elements in set A.
- * @param meanA  The mean statistics in set A.
+ * @param M1A    The mean statistics in set A.
  * @param M2A    The M2 statistics in set A.
  * @param M3A    The M3 statistics in set A.
  * @param M4A    The M4 statistics in set A.
  */
 void addStat(
   size_t size, 
+  const int nmom,
   int nB_int, 
-  const std::vector<double> &meanB, 
+  const std::vector<double> &M1B, 
   const std::vector<double> &M2B, 
   const std::vector<double> &M3B,
   const std::vector<double> &M4B,
   int &nA_int, 
-  std::vector<double> &meanA, 
+  std::vector<double> &M1A, 
   std::vector<double> &M2A,
   std::vector<double> &M3A,
   std::vector<double> &M4A
@@ -126,22 +128,28 @@ void addStat(
   double nAB = nA + nB;
   double delta, delta_nAB, delta_nAB_sq;
   for ( size_t i = 0; i < size; i++ ) {
-    delta = meanB[i] - meanA[i];
+    delta = M1B[i] - M2A[i];
     delta_nAB = delta / nAB;
     delta_nAB_sq = delta_nAB*delta_nAB;
-    M4A[i] += M4B[i] + delta * delta_nAB * delta_nAB_sq * nA * nB * (nA*nA - nA*nB + nB*nB) \
+    if ( nmom >= 4 ) {
+      M4A[i] += M4B[i] + delta * delta_nAB * delta_nAB_sq * nA * nB * (nA*nA - nA*nB + nB*nB) \
               + 6.0 * delta_nAB_sq * (nA*nA * M2B[i] + nB*nB * M2A[i]) \
               + 4.0 * delta_nAB * (nA * M3B[i] - nB * M3A[i]);
-    M3A[i] += M3B[i] + delta * delta_nAB_sq * nA * nB * (nA - nB) \
+    }
+    if ( nmom >= 3 ) {
+      M3A[i] += M3B[i] + delta * delta_nAB_sq * nA * nB * (nA - nB) \
               + 3.0 * delta_nAB * (nA * M2B[i] - nB * M2A[i]);
-    M2A[i] += M2B[i] + delta * delta_nAB * nA * nB;
-    meanA[i] = (nA * meanA[i] + nB * meanB[i]) / nAB;
+    }
+    if ( nmom >= 2 ) {
+      M2A[i] += M2B[i] + delta * delta_nAB * nA * nB;
+    }
+    M1A[i] = (nA * M1A[i] + nB * M1B[i]) / nAB;
   }
   nA_int += nB_int;
 }
 
 /**
- * @brief Compute central moments from mean, M2, M3, and M4 statistics.
+ * @brief Compute central moments from M1, M2, M3, and M4 statistics.
  * 
  * @param size  The size of the statistics vector
  * @param n_int The number of elements.
@@ -154,6 +162,7 @@ void addStat(
  */
 void calcMoment(
   size_t size,
+  int nmom,
   int n_int,
   const std::vector<double> &M2,
   const std::vector<double> &M3,
@@ -163,16 +172,65 @@ void calcMoment(
   std::vector<double> &kurt
 ) {
   double n = static_cast<double>(n_int);
-  double nm1 = n - 1.0;
   for ( size_t i = 0; i < size; i++ ) {
-    var[i] = M2[i] / nm1;
-    if ( M2[i] == 0 ) {
-      skew[i] = 0.0;
-      kurt[i] = 0.0;
+    var[i] = M2[i] / n;
+    if ( M2[i] == 0.0 ) {
+      if ( nmom >= 3 ) skew[i] = 0.0;
+      if ( nmom >= 4 ) kurt[i] = 0.0;
     } else {
-      skew[i] = n * sqrt(nm1) / (n - 2.0) * M3[i] / pow(M2[i], 1.5);
-      kurt[i] = n * (n + 1.0) * nm1 * M4[i] / ((n - 2.0) * (n - 3.0) * M2[i]*M2[i]) \
-                - 3.0 * nm1*nm1 / ((n - 2.0) * (n - 3.0));
+      if ( nmom >= 3 ) skew[i] = sqrt(n) * M3[i] / pow(M2[i], 1.5);
+      if ( nmom >= 4 ) kurt[i] = n * M4[i] / (M2[i]*M2[i]) - 3.0;
     }
   }
 }
+
+/**
+ * @brief Get the index of the current cell given the normalized 1D position.
+ * 
+ * @param x The normalized 1D position.
+ * @return The index of the current cell.
+ */
+inline int getCellIdx(double x) noexcept {
+  if ( 0.0 <= x && x <= 1.0  ) return 0;
+  if ( -1.0 <= x && x <= 2.0 ) return 1;
+  return -1;
+}
+
+/**
+ * @brief Get the kernel flag given the 3D position.
+ * 
+ * @param pos  The 3D position.
+ * @param dx   The cell size.
+ * @param ndim The number of dimensions.
+ * @return The kernel flag.
+ */
+int calcKer(Vec pos, double dx, int ndim) {
+
+  const int idx_z = getCellIdx(pos.z / dx);
+  const int idx_x = ndim >= 2 ? getCellIdx(pos.x / dx) : -1;
+  const int idx_y = ndim >= 3 ? getCellIdx(pos.y / dx) : -1;
+
+  switch (ndim) {
+  case 1:
+    if ( idx_z == -1 ) {
+      return ker_tag::none;
+    }
+    return ker_tab[idx_z][0][0];
+    break;
+  case 2:
+    if ( idx_z == -1 || idx_x == -1 ) {
+      return ker_tag::none;
+    }  
+    return ker_tab[idx_z][idx_x][0];
+    break;
+  case 3:
+    if ( idx_z == -1 || idx_x == -1 || idx_y == -1 ) {
+      return ker_tag::none;
+    }
+    return ker_tab[idx_z][idx_x][idx_y];
+    break;
+  default:
+    return ker_tag::none;
+  }
+}
+

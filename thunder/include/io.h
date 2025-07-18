@@ -63,6 +63,8 @@ void clearFile(const std::string& file_name);
 void writeInfo(
   const std::string &infofile_name, 
   Config &config, 
+  const size_t ndim,
+  const size_t nmom,
   const vector2d<double> &bin_list,
   const std::vector<Stat> &stat_list
 );
@@ -70,6 +72,8 @@ void writeData(
   const std::string &outfile_name,
   const vector2d<double> &bin_list, 
   const std::vector<Stat> &stat_list,
+  const size_t nker,
+  const size_t nmom,
   const std::vector<double> &mean_stat_list_flat, 
   const std::vector<double> &var_stat_list_flat,
   const std::vector<double> &skew_stat_list_flat,

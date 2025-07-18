@@ -98,11 +98,14 @@ void writeVector(
 void writeInfo(
   const std::string &infofile_name, 
   Config &config, 
+  const size_t ndim,
+  const size_t nmom,
   const vector2d<double> &bin_list,
   const std::vector<Stat> &stat_list
 ) {
 
   std::ostringstream oss;
+  const size_t nker = 2 * ndim;
 
   oss << "Thunderstorm post-processing" << std::endl;
   oss << std::endl;
@@ -113,13 +116,14 @@ void writeInfo(
   oss << "Number of histories:      " << config["IO"]["num_hist"] << std::endl;
   oss << "Number of Mach numbers:   " << config["Grid.Mach"]["num"] << std::endl;
   oss << "Number of columns:        " << config["Grid.Sigma"]["num"] << std::endl;
-  oss << "Number of energy bins:    " << config["Bin.Ener"]["num"] - 1 << std::endl;
-  oss << "Number of lines:          " << 1 + 4 * stat_list.size() << std::endl;
+  oss << "Number of energy bins:    " << config["Bin.Ener"]["num"] << std::endl;
   oss << "Max time [day]:           " << config["Misc"]["walltime"] << std::endl;
   oss << "Sim density [g/cm^3]:     " << config["Misc"]["rho_sim"] << std::endl;
   oss << "Sim min energy [eV]:      " << config["Misc"]["ener_min"] << std::endl;
   oss << "Maximum velocity [c]:     " << config["Misc"]["vmax"] << std::endl;
   oss << "Number of dimensions:     " << config["Misc"]["ndim"] << std::endl;
+  oss << "Number of moments:        " << config["Misc"]["nmom"] << std::endl;
+  oss << "Number of lines:          " << 1 + nker * nmom * stat_list.size() << std::endl;
   oss << std::endl;
 
   oss << "Grid" << std::endl;
@@ -137,30 +141,35 @@ void writeInfo(
   oss << std::endl;
 
   size_t num_line;
-  std::array<std::string, 4> stattype_short_list = {"mean", "var", "skew", "kurt"};
-  std::array<std::string, 4> stattype_list = {"mean", "variance", "skewness", "kurtosis"};
+  std::array<std::string, 6> ker_short_list = {"loc", "par", "perp", "cor1", "cor2", "cor3"};
+  std::array<std::string, 6> ker_list = {"K000", "K001", "K100", "K101", "K011", "K111"};
+  std::array<std::string, 4> mom_short_list = {"", "_", "_M3", "_M4"};
+  std::array<std::string, 4> mom_list = {"mean", "variance", "skew", "kurtosis"};
 
   oss << "Post-processed data names" << std::endl;
   oss << "1.  grid" << std::endl;
   num_line = 2;
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
-    for ( size_t j = 0; j < 4; j++ ) {
-      std::string space = num_line < 10 ? ".  " : ". ";
-      oss << num_line + 0 << space << stat_list[i].name << "_" << stattype_short_list[j] << std::endl;
-      num_line++;
+    for ( size_t j = 0; j < nker; j++ ) {
+      for ( size_t k = 0; k < nmom; k++ ) {
+        std::string space = num_line < 10 ? ".  " : ". ";
+        oss << num_line << space << stat_list[i].name << "_" << ker_short_list[j] << mom_short_list[k] << std::endl;
+        num_line++;
+      }
     }
   }
   oss << std::endl;
 
   oss << "Post-processed data descriptions" << std::endl;
-  oss << "1.  Alfven Mach number, column density [g/cm^2], energy [eV]" << std::endl;
+  oss << "1.  Alfven Mach number, column density [g/cm^2], min energy [eV], max energy [eV]" << std::endl;
   num_line = 2;
-
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
-    for ( size_t j = 0; j < 4; j++ ) {
-      std::string space = num_line < 10 ? ".  " : ". ";
-      oss << num_line + 0 << space << stattype_list[j] << " " << stat_list[i].description << std::endl;
-      num_line++;
+    for ( size_t j = 0; j < nker; j++ ) {
+      for ( size_t k = 0; k < nmom; k++ ) {
+        std::string space = num_line < 10 ? ".  " : ". ";
+        oss << num_line << space << mom_list[k] << " " << ker_list[j] << " " << stat_list[i].description << std::endl;
+        num_line++;
+      }
     }
   }
 
@@ -192,6 +201,8 @@ void writeData(
   const std::string &outfile_name,
   const vector2d<double> &bin_list, 
   const std::vector<Stat> &stat_list,
+  const size_t nker,
+  const size_t nmom,
   const std::vector<double> &mean_stat_list_flat, 
   const std::vector<double> &var_stat_list_flat,
   const std::vector<double> &skew_stat_list_flat,
@@ -201,18 +212,21 @@ void writeData(
   size_t idx = 0; // index in flat data vectors
 
   for ( size_t i = 0; i < bin_list[bin_tag::mach].size(); i++ ) {
-    for ( size_t j = 0; j < bin_list[bin_tag::scale].size(); j++ ) {
+    for ( size_t j = 0; j < bin_list[bin_tag::col].size(); j++ ) {
       for ( size_t k = 0; k < bin_list[bin_tag::ener].size() - 1; k++ ) {
-        oss << bin_list[bin_tag::mach][i] << std::endl;
-        oss << bin_list[bin_tag::scale][j] << std::endl;
-        oss << bin_list[bin_tag::ener][k] << std::endl;
-        for ( size_t l = 0; l < stat_list.size(); l++ ) {
-          const Stat &stat = stat_list[l];
-          writeVector(oss, mean_stat_list_flat, idx, idx + stat.size);
-          writeVector(oss, var_stat_list_flat, idx, idx + stat.size);
-          writeVector(oss, skew_stat_list_flat, idx, idx + stat.size);
-          writeVector(oss, kurt_stat_list_flat, idx, idx + stat.size);
-          idx += stat.size; // increment the index
+        oss << bin_list[bin_tag::mach][i] << ",";
+        oss << bin_list[bin_tag::col][j] << ",";
+        oss << bin_list[bin_tag::ener][k] << ",";
+        oss << bin_list[bin_tag::ener][k+1] << std::endl;
+        for ( size_t ii = 0; ii < stat_list.size(); ii++ ) {
+          const Stat &stat = stat_list[ii];
+          for ( size_t jj = 0; jj < nker; jj++ ) {
+            writeVector(oss, mean_stat_list_flat, idx, idx + stat.size);
+            if (nmom >= 2) writeVector(oss, var_stat_list_flat, idx, idx + stat.size);
+            if (nmom >= 3) writeVector(oss, skew_stat_list_flat, idx, idx + stat.size);
+            if (nmom >= 4) writeVector(oss, kurt_stat_list_flat, idx, idx + stat.size);
+            idx += stat.size; // increment the index
+          }
         }
       }
     }
@@ -237,7 +251,7 @@ void writeHist(
   std::ostringstream oss; // data stream
   oss << "format" << std::endl;
   oss << "start:idx_mach,idx_scale,idx_ener" << std::endl;
-  oss << "mach,rhoscale[g/cm^2],ener[eV]" << std::endl;
+  oss << "mach,column[g/cm^2],ener_min[eV],ener_max[eV]" << std::endl;
   oss << "time[s],x[cm],y[cm],z[cm],cos_alpha,ener[eV],flag" << std::endl;
   oss << "end" << std::endl << std::endl;
 
@@ -247,8 +261,9 @@ void writeHist(
         
         oss << "start:" << i << "," << j << "," << k << std::endl;
         oss << bin_list[bin_tag::mach][i] << ",";
-        oss << bin_list[bin_tag::scale][j] << ",";
-        oss << bin_list[bin_tag::ener][k] << std::endl;
+        oss << bin_list[bin_tag::col][j] << ",";
+        oss << bin_list[bin_tag::ener][k] << ",";
+        oss << bin_list[bin_tag::ener][k+1] << std::endl;
         oss << data_grid[i][j][k].oss.str();
         oss << "end" << std::endl;
 

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
+#include <memory>
 
 // headers
 #include "io.h"
@@ -29,16 +30,21 @@ struct Data {
   double ener_min;                 // The minimum energy [eV].
   double dt;                       // The zone timestep [s].
   bool super;                      // Whether the turbulence is super-Alfvenic
-  int ndim;                        // The number of dimensions.
+  size_t ndim;                     // The number of dimensions.
+  size_t nker;                     // The number of kernels.
+  size_t nmom;                     // The number of moments.
+  size_t nstat;                    // The number of statistics.
 
-  double ener;                     // The current energy [eV].
-  double ener_prev;                // The previous energy [eV].
-  double ener_start;               // The start energy [eV].
+  double ener;                     // The initial energy [eV].
+  double ener_prev;                // The previous energy in Lightning [eV].
+  double ener_start;               // The initial energy in Lightning [eV].
   
-  double time;                     // The curret time [s].
-  double time_prev;                // The previous time [s].
-  double time_start;               // The start time [s].
-  bool escaped;                    // Whether the particle has escaped.
+  double time;                     // The initial time [s].
+  double time_prev;                // The previous time in Lightning [s].
+  double time_start;               // The initial time in Lightning [s].
+  
+  bool outoftime;                  // Whether the particle is out of time.
+  bool thermalized;                // Whether the particle thermalized.
   
   Vec pos;                         // The position [cm].
   double splus_prev;               // The previous positive distance along the field line [cm].
@@ -49,13 +55,22 @@ struct Data {
   double s_scat;                   // The distance along a field line to scattering [cm].
   
   std::ostringstream oss;          // The string stream.
-  vector2d<double> part_stat_list; // The statistics for a single particle.
-  vector2d<double> mean_stat_list; // The mean (M1) statistics.
-  vector2d<double> M2_stat_list;   // The M2 statistics.
-  vector2d<double> M3_stat_list;   // The M3 statistics.
-  vector2d<double> M4_stat_list;   // The M4 statistics.
+  vector3d<double> part_stat_list; // The statistics for a single particle.
+  vector3d<double> M1_stat_list;   // The mean (M1) statistics.
+  vector3d<double> M2_stat_list;   // The M2 statistics.
+  vector3d<double> M3_stat_list;   // The M3 statistics.
+  vector3d<double> M4_stat_list;   // The M4 statistics.
 
   Data() = default;
+  
+  // Move constructor and move assignment
+  Data(Data&&) = default;
+  Data& operator=(Data&&) = default;
+
+  // Delete copy constructor and copy assignment
+  Data(const Data&) = delete;
+  Data& operator=(const Data&) = delete;
+
   Data(
     double mach_A_, 
     double dx_, 
@@ -64,6 +79,7 @@ struct Data {
     double ener_min_,
     double dt_,
     int ndim_,
+    int nmom_,
     const std::vector<Stat> &stat_list
   );
   void reset();
@@ -72,6 +88,7 @@ struct Data {
 
 void postProcPart(
   int count,
+  const vector2d<double> &bin_list,
   const std::vector<Stat> &stat_list, 
   vector3d<Data> &data_grid
 );
@@ -98,7 +115,9 @@ void processFile(
 void getFlatData(
   const vector3d<Data>& data_grid, 
   const std::vector<Stat> &stat_list, 
-  std::vector<double> &mean_stat_list_flat,
+  const size_t nker,
+  const size_t nmom,
+  std::vector<double> &M1_stat_list_flat,
   std::vector<double> &M2_stat_list_flat, 
   std::vector<double> &M3_stat_list_flat, 
   std::vector<double> &M4_stat_list_flat, 

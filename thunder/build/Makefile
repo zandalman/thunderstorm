@@ -1,6 +1,14 @@
 # compiler and flags
 CXX := mpic++
-CXXFLAGS := -std=c++17 -Wall -Wextra -O2 -march=native -finline-functions
+CXXFLAGS_RELEASE := -std=c++17 -Wall -Wextra -O2 -march=native -finline-functions
+CXXFLAGS_DEBUG1 := -std=c++17 -Wall -Wextra -O0 -fno-tree-vectorize -g
+
+# Use DEBUG=1 to enable debug flags
+ifeq ($(DEBUG),1)
+  CXXFLAGS := $(CXXFLAGS_DEBUG1)
+else
+  CXXFLAGS := $(CXXFLAGS_RELEASE)
+endif
 
 # directories
 SRC_DIR := ../src

@@ -52,7 +52,8 @@ int main(int argc, char** argv) {
   double rho_sim = std::stod(config["Misc"]["rho_sim"]);
   double ener_min = std::stod(config["Misc"]["ener_min"]);
   double vmax = std::stod(config["Misc"]["vmax"]) * constants::c;
-  int ndim = std::stoi(config["Misc"]["ndim"]);
+  size_t ndim = std::stoul(config["Misc"]["ndim"]);
+  size_t nmom = std::stoul(config["Misc"]["nmom"]);
 
   // make bin list
   size_t num_mach, num_col, num_ener, num_ener_sec;
@@ -65,39 +66,42 @@ int main(int argc, char** argv) {
 
   // define statistics
   std::vector<Stat> stat_list;
-  stat_list.push_back(Stat(2, "ener_thm", "energy [eV] that is locally thermalized and total energy"));
-  stat_list.push_back(Stat(num_ener - 1, "ener_esc_par", "energy [eV] that escapes parallel to the mean field per energy bin"));
-  stat_list.push_back(Stat(num_ener - 1, "ener_esc_perp", "energy [eV] that escapes perpendicular to the mean field per energy bin"));
-  stat_list.push_back(Stat(num_ener - 1, "ener_loc", "energy [eV] that neither escapes nor thermalizes per energy bin"));
-  stat_list.push_back(Stat(num_ener_sec - 1, "ener_sec", "energy [eV] in secondary electrons per energy bin"));
-  stat_list.push_back(Stat(num_ener - 1, "time_ener", "time [s] spent per energy bin"));
-  stat_list.push_back(Stat(num_inter, "num_ev_inter", "number of events for each interaction"));
-  stat_list.push_back(Stat(num_inter, "ener_loss_inter", "energy loss [eV] for each interaction"));
-  stat_list.push_back(Stat(num_elem, "num_ion_elem", "number of ionizations per element"));
+  stat_list.resize(6);
+  stat_list[0] = Stat(1, "ener_thm", "thermalized energy [eV]");
+  stat_list[1] = Stat(num_ener - 1, "ener", "energy spectrum of supra-thermal electrons [eV]");
+  stat_list[2] = Stat(num_ener_sec - 1, "ener_sec", "energy spectrum of secondary electrons [eV]");
+  stat_list[3] = Stat(num_ener - 1, "time_ener", "time [s] spent per energy bin");
+  stat_list[4] = Stat(num_inter, "ener_loss_inter", "energy loss by interaction mechanism [eV]");
+  stat_list[5] = Stat(num_elem, "num_ion_elem", "number of ionizations per element per ion stage");
 
   // write info file
   if ( rank == 0 ) {
     const std::string infofile = config["IO"]["outpath"] + "/info.txt";
-    writeInfo(infofile, config, bin_list, stat_list);
+    writeInfo(infofile, config, ndim, nmom, bin_list, stat_list);
   }
 
+  // just allocate 3d obj with vol * sizeof(Data)
+
   // create a grid of data structs
+  // vector3d<Data> data_grid(num_mach, vector2d<Data>(num_col, std::vector<Data>(num_ener - 1)));
   vector3d<Data> data_grid;
   data_grid.resize(num_mach);
   for (size_t i = 0; i < num_mach; i++) {
     data_grid[i].resize(num_col);
     for (size_t j = 0; j < num_col; j++) {
-      data_grid[i][j].resize(num_ener - 1);
+      data_grid[i][j].reserve(num_ener - 1);
       for ( size_t k = 0; k < num_ener - 1; k++ ) {
-        data_grid[i][j][k] = Data(
+        data_grid[i][j].emplace_back(std::move(Data(
           mach_list[i], 
           col_list[j] / rho_sim, 
           ener_list[k], 
           ener_list[k+1], 
+          ener_min,
           col_list[j] / rho_sim / vmax, 
           ndim, 
+          nmom,
           stat_list
-        );
+        )));
       }
     }
   }
@@ -139,8 +143,18 @@ int main(int argc, char** argv) {
 
   // flatten the data
   size_t size_flat;
-  std::vector<double> mean_stat_list_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat;
-  getFlatData(data_grid, stat_list, mean_stat_list_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat, size_flat);
+  std::vector<double> M1_stat_list_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat;
+  getFlatData(
+    data_grid, 
+    stat_list, 
+    2 * ndim,
+    nmom,
+    M1_stat_list_flat, 
+    M2_stat_list_flat, 
+    M3_stat_list_flat, 
+    M4_stat_list_flat, 
+    size_flat
+  );
   
   // collect the data on rank 0
   MPI_Barrier(MPI_COMM_WORLD);
@@ -150,18 +164,31 @@ int main(int argc, char** argv) {
     std::cout << "Collected ranks: |";
     
     int count_other;
-    std::vector<double> mean_stat_list_flat_other(size_flat, 0.);
+    std::vector<double> M1_stat_list_flat_other(size_flat, 0.);
     std::vector<double> M2_stat_list_flat_other(size_flat, 0.);
     std::vector<double> M3_stat_list_flat_other(size_flat, 0.);
     std::vector<double> M4_stat_list_flat_other(size_flat, 0.);
     
     for (int i = 1; i < size; i++) {
       MPI_Recv(&count_other, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(mean_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(M2_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(M3_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(M4_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      addStat(size_flat, count_other, mean_stat_list_flat_other, M2_stat_list_flat_other, M3_stat_list_flat_other, M4_stat_list_flat_other, count, mean_stat_list_flat, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat);
+      MPI_Recv(M1_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      if ( nmom >= 2 ) MPI_Recv(M2_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      if ( nmom >= 3 ) MPI_Recv(M3_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      if ( nmom >= 4 ) MPI_Recv(M4_stat_list_flat_other.data(), size_flat, MPI_DOUBLE, i, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      addStat(
+        size_flat, 
+        nmom,
+        count_other, 
+        M1_stat_list_flat_other, 
+        M2_stat_list_flat_other, 
+        M3_stat_list_flat_other, 
+        M4_stat_list_flat_other, 
+        count, 
+        M1_stat_list_flat, 
+        M2_stat_list_flat, 
+        M3_stat_list_flat, 
+        M4_stat_list_flat
+      );
       std::cout << "|";
     } 
     std::cout << std::endl << std::endl;
@@ -169,10 +196,10 @@ int main(int argc, char** argv) {
   } else {
     
     MPI_Send(&count, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-    MPI_Send(mean_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
-    MPI_Send(M2_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
-    MPI_Send(M3_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD);
-    MPI_Send(M4_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 4, MPI_COMM_WORLD);
+    MPI_Send(M1_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
+    if ( nmom >= 2 ) MPI_Send(M2_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+    if ( nmom >= 3 ) MPI_Send(M3_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD);
+    if ( nmom >= 4 ) MPI_Send(M4_stat_list_flat.data(), size_flat, MPI_DOUBLE, 0, 4, MPI_COMM_WORLD);
   }
 
   if ( rank == 0 ) {
@@ -181,12 +208,34 @@ int main(int argc, char** argv) {
     std::vector<double> var_stat_list_flat(size_flat, 0.0);
     std::vector<double> skew_stat_list_flat(size_flat, 0.0);
     std::vector<double> kurt_stat_list_flat(size_flat, 0.0);
-    calcMoment(size_flat, count, M2_stat_list_flat, M3_stat_list_flat, M4_stat_list_flat, var_stat_list_flat, skew_stat_list_flat, kurt_stat_list_flat);
+    if ( nmom >= 2 ) {
+      calcMoment(
+        size_flat, 
+        nmom, 
+        count, 
+        M2_stat_list_flat, 
+        M3_stat_list_flat, 
+        M4_stat_list_flat, 
+        var_stat_list_flat, 
+        skew_stat_list_flat, 
+        kurt_stat_list_flat
+      );
+    }
     
     // write data
     std::cout << "Writing data to output file." << std::endl << std::endl;
     clearFile(outfile_name);
-    writeData(outfile_name, bin_list, stat_list, mean_stat_list_flat, var_stat_list_flat, skew_stat_list_flat, kurt_stat_list_flat);
+    writeData(
+      outfile_name, 
+      bin_list, 
+      stat_list, 
+      2 * ndim,
+      nmom,
+      M1_stat_list_flat, 
+      var_stat_list_flat, 
+      skew_stat_list_flat, 
+      kurt_stat_list_flat
+    );
     
     // compute runtime
     auto now = std::chrono::steady_clock::now();

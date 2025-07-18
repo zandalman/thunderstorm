@@ -12,8 +12,6 @@ constexpr int brem = 2;
 constexpr int exc = 3;
 constexpr int ion = 4;
 constexpr int moller = 5;
-constexpr int turb = 6;
-constexpr int intermittancy = 7;
 }
 
 namespace constants {

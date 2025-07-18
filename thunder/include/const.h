@@ -6,17 +6,15 @@
 
 constexpr size_t num_inter = 5;
 constexpr size_t num_elem = 118;
+constexpr size_t num_stage = 4;
 
 namespace stat_tag {
-constexpr int eps_thm = 0;
-constexpr int ener_esc_par = 1;
-constexpr int ener_esc_perp = 2;
-constexpr int ener_loc = 3;
-constexpr int ener_sec = 4;
-constexpr int time_ener = 5;
-constexpr int num_ev_inter = 6;
-constexpr int ener_loss_mech = 7;
-constexpr int num_ion_elem = 8;
+constexpr int ener_thm = 0;
+constexpr int ener = 1;
+constexpr int ener_sec = 2;
+constexpr int time_ener = 3;
+constexpr int ener_loss_mech = 4;
+constexpr int num_ion_elem = 5;
 }
 
 namespace bin_tag {
@@ -26,12 +24,14 @@ constexpr int ener = 2;
 constexpr int ener_sec = 3;
 }
 
-namespace inter_tag {
-constexpr int brem   = 0;
-constexpr int exc    = 1;
-constexpr int ion    = 2;
-constexpr int moller = 3;
-constexpr int scat   = 4;
+namespace ker_tag {
+constexpr int loc = 0;
+constexpr int par = 1;
+constexpr int perp = 2;
+constexpr int cor1 = 3;
+constexpr int cor2 = 4;
+constexpr int cor3 = 5;
+constexpr int none = 6;
 }
 
 namespace flags {
@@ -41,6 +41,8 @@ constexpr int brem = 2;
 constexpr int exc = 3;
 constexpr int ion = 4;
 constexpr int moller = 5;
+constexpr int outoftime = 6;
+constexpr int thermalized = 7;
 }
 
 namespace constants {

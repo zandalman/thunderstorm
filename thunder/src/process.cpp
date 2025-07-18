@@ -35,6 +35,7 @@ Data::Data(
   double ener_min_,
   double dt_,
   int ndim_,
+  int nmom_,
   const std::vector<Stat> &stat_list
   )
   
@@ -46,6 +47,9 @@ Data::Data(
   , dt(dt_)
   , super(mach_A_ >= 1.0)
   , ndim(ndim_)
+  , nker(2 * ndim_)
+  , nmom(nmom_)
+  , nstat(stat_list.size())
 
   , ener(0.0)
   , ener_prev(0.0)
@@ -54,7 +58,9 @@ Data::Data(
   , time(0.0)
   , time_prev(0.0)
   , time_start(0.0)
-  , escaped(false)
+
+  , outoftime(false)
+  , thermalized(false)
 
   , splus_prev(0.0)
   , sminus_prev(0.0)
@@ -62,16 +68,51 @@ Data::Data(
   , s_scat(0.0)
   , oss()
  {
-  Stat stat;
-  for ( size_t i = 0; i < stat_list.size(); i++ ) {
-    stat = stat_list[i];
-    part_stat_list.push_back(std::vector<double>(stat.size, 0.0));
-    mean_stat_list.push_back(std::vector<double>(stat.size, 0.0));
-    M2_stat_list.push_back(std::vector<double>(stat.size, 0.0));
-    M3_stat_list.push_back(std::vector<double>(stat.size, 0.0));
-    M4_stat_list.push_back(std::vector<double>(stat.size, 0.0));
+  size_t size_stat;
+  part_stat_list.resize(nstat);
+  M1_stat_list.resize(nstat);
+  if (nmom >= 2) M2_stat_list.resize(nstat);
+  if (nmom >= 3) M3_stat_list.resize(nstat);
+  if (nmom >= 4) M4_stat_list.resize(nstat);
+  for ( size_t i = 0; i < nstat; i++ ) {
+    size_stat = stat_list[i].size;
+    part_stat_list[i].resize(nker);
+    M1_stat_list[i].resize(nker);
+    if (nmom >= 2) M2_stat_list[i].resize(nker);
+    if (nmom >= 3) M3_stat_list[i].resize(nker);
+    if (nmom >= 4) M4_stat_list[i].resize(nker);
+    for ( size_t j = 0; j < nker; j++ ) {
+      part_stat_list[i][j].resize(size_stat, 0.0);
+      M1_stat_list[i][j].resize(size_stat, 0.0);
+      if (nmom >= 2) M2_stat_list[i][j].resize(size_stat, 0.0);
+      if (nmom >= 3) M3_stat_list[i][j].resize(size_stat, 0.0);
+      if (nmom >= 4) M4_stat_list[i][j].resize(size_stat, 0.0);
+    }
   }
-  reset();
+  lam_scat = super ? dx * mach_A*mach_A*mach_A : dx;
+  
+  // initialize the energy to a random energy within the bin
+  // initial energies are log-spaced within each bin to match the bin spacing
+  ener = ener_low * pow(ener_high / ener_low, xi());
+  ener_start = ener;
+  ener_prev = ener;
+
+  // initialize the time to a random time within the timestep
+  time = xi() * dt;
+  time_start = time;
+  time_prev = time;
+  outoftime = false;
+  thermalized = false;
+
+  splus_prev = 0.0;
+  sminus_prev = 0.0;
+
+  s_scat = -log(1.0 - xi()) * lam_scat;
+  pos = Vec(xi(), xi(), xi()) * dx;
+  Bhat = calcRandVec(mach_A, super);
+
+  oss.str(""); oss.clear();
+
  }
 
 /// @brief Reset the particle data.
@@ -87,50 +128,57 @@ void Data::reset() {
   time = xi() * dt;
   time_start = time;
   time_prev = time;
-  escaped = false;
+  outoftime = false;
+  thermalized = false;
 
   splus_prev = 0.0;
   sminus_prev = 0.0;
 
   s_scat = -log(1.0 - xi()) * lam_scat;
-  pos = Vec(0.0, 0.0, 0.0);
-
-  // initialize the position to a random position within the cell
-  pos.x = xi() * dx;
-  pos.y = xi() * dx;
-  pos.z = xi() * dx;
+  pos = Vec(xi(), xi(), xi()) * dx;
   Bhat = calcRandVec(mach_A, super);
+
   oss.str(""); oss.clear();
   
-  for ( size_t i = 0; i < part_stat_list.size(); i++ ) {
-    std::fill(part_stat_list[i].begin(), part_stat_list[i].end(), 0.0);
+  for ( size_t i = 0; i < nstat; i++ ) {
+    for ( size_t j = 0; j < nker; j++ ) {
+      std::fill(part_stat_list[i][j].begin(), part_stat_list[i][j].end(), 0.0);
+    }
   }
 }
 
 /**
  * @brief Update the statistics with a new particle.
+ * See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
  * 
  * @param n_int     The current particle count.
  * @param stat_list The list of statistics.
  */
 void Data::calcStat(int n_int, const std::vector<Stat> &stat_list) {
   double delta, delta_np1, delta_np1_sq, term1;
+  double part_stat, M1, M2, M3;
   double n = static_cast<double>(n_int);
   double np1 = n + 1.0;
   for ( size_t i = 0; i < stat_list.size(); i++ ) {
     const Stat &stat = stat_list[i];
-    for ( size_t j = 0; j < stat.size; j++ ) {
-      if ( n_int == 0 ) {
-        mean_stat_list[i][j] = part_stat_list[i][j];
-      } else {
-        delta = part_stat_list[i][j] - mean_stat_list[i][j];
-        delta_np1 = delta / np1;
-        delta_np1_sq = delta_np1*delta_np1;
-        term1 = delta * delta_np1 * n;
-        M4_stat_list[i][j] += term1 * delta_np1_sq * (np1*np1 - 3.0 * np1 + 3.0) + 6.0 * delta_np1_sq * M2_stat_list[i][j] - 4.0 * delta_np1 * M3_stat_list[i][j];
-        M3_stat_list[i][j] += term1 * delta_np1 * (np1 - 2.0) - 3.0 * delta_np1 * M2_stat_list[i][j];
-        M2_stat_list[i][j] += term1;
-        mean_stat_list[i][j] += delta_np1;
+    for ( size_t j = 0; j < nker; j++ ) {
+      for ( size_t k = 0; k < stat.size; k++ ) {
+        part_stat = part_stat_list[i][j][k];
+        M1 = M1_stat_list[i][j][k];
+        if ( nmom >= 2 ) M2 = M2_stat_list[i][j][k];
+        if ( nmom >= 3 ) M3 = M3_stat_list[i][j][k];
+        if ( n_int == 0 ) {
+          M1_stat_list[i][j][k] = part_stat;
+        } else {
+          delta = part_stat - M1;
+          delta_np1 = delta / np1;
+          delta_np1_sq = delta_np1*delta_np1;
+          term1 = delta * delta_np1 * n;
+          if ( nmom >= 4 ) M4_stat_list[i][j][k] += term1 * delta_np1_sq * (np1*np1 - 3.0 * np1 + 3.0) + 6.0 * delta_np1_sq * M2 - 4.0 * delta_np1 * M3;
+          if ( nmom >= 3 ) M3_stat_list[i][j][k] += term1 * delta_np1 * (np1 - 2.0) - 3.0 * delta_np1 * M2;
+          if ( nmom >= 2 ) M2_stat_list[i][j][k] += term1;
+          M1_stat_list[i][j][k] += delta_np1;
+        }
       }
     }
   }
@@ -201,7 +249,7 @@ void processFile(
           oss.str(""); oss.clear();
           idx_hist++;
         }
-        postProcPart(count, stat_list, data_grid);
+        postProcPart(count, bin_list, stat_list, data_grid);
         current_id = event->id;
         count++;
       }
@@ -254,21 +302,30 @@ void processFile(
  */
 void postProcPart(
   int count,
+  const vector2d<double> &bin_list,
   const std::vector<Stat> &stat_list, 
   vector3d<Data> &data_grid
 ) {
+  
+  size_t iker;
+  int idx_ener;
+  
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
+        
         Data &data = data_grid[i][j][k];
+        iker = calcKer(data.pos, data.dx, data.ndim);
         
-        // compute thermalization efficiency
-        if ( data.escaped ) {
-          data.part_stat_list[stat_tag::eps_thm][0] = fmax(0.0, 1.0 - data.ener_prev / data.ener);
-        } else {
-          data.part_stat_list[stat_tag::eps_thm][0] = 1.0;
+        if ( data.outoftime ) {
+          idx_ener = findIdx(data.ener_prev, bin_list[bin_tag::ener]);
+          if ( idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size() ) {
+            data.part_stat_list[stat_tag::ener][iker][idx_ener - 1] = data.ener_prev / data.ener_start;
+          }
+        } else if ( data.thermalized ) {
+          data.part_stat_list[stat_tag::ener_thm][iker][0] += data.ener_prev / data.ener_start;
         }
-        
+
         // aggregate statistics and reset
         data.calcStat(count, stat_list);
         data.reset();
@@ -296,24 +353,22 @@ void processEvent(
     MPI_Abort(MPI_COMM_WORLD, 1);
   }
 
-  int flag;
-  double ener_loss, time_rel;
+  int flag, iker;
+  double ener_loss, time;
   double dt, dsplus, dsminus, ds, sign;
-  size_t idx_ener_sec, idx_time, idx_ener;
+  size_t idx_ener_sec, idx_ener;
   
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
         
         Data &data = data_grid[i][j][k];
-        if ( data.escaped ) continue;
+        if ( data.outoftime || data.thermalized ) continue;
         
-        // if energy is above starting energy, update start time and coordinates
+        // if energy is above starting energy, update initial time and coordinates
         if ( event->ener > data.ener ) {
-          
           data.ener_start = event->ener;
           data.time_start = event->time;
-
           data.ener_prev = event->ener;
           data.time_prev = event->time;
           data.splus_prev = event->splus;
@@ -321,11 +376,16 @@ void processEvent(
           continue;
         }
 
-        // compute useful quantities
+        // compute relative time and energy loss
+        time = data.time + event->time - data.time_start;
         ener_loss = data.ener_prev - event->ener;
-        time_rel = event->time - data.time_start;
+
+        // compute kernel flag
+        iker = calcKer(data.pos, data.dx, data.ndim);
+        data.part_stat_list[stat_tag::ener_thm][iker][0] += ener_loss / data.ener_start;
+
+        // compute bin indices
         idx_ener = findIdx(event->ener, bin_list[bin_tag::ener]);
-        idx_time = findIdx(time_rel, bin_list[bin_tag::time]);
 
         // compute transport
         dt = event->time - data.time_prev;
@@ -333,12 +393,8 @@ void processEvent(
         dsminus = event->sminus - data.sminus_prev;
         ds = dsplus + dsminus;
         sign = dsplus > dsminus ? 1.0 : -1.0;
-        
-        // in edge spawn mode, ensure particles are initially directed into the region
-        if ( data.spawn == spawn_tag::edge ) {
-          sign = sign * data.sign_start;
-        }
 
+        // update B-field scattering
         while ( true ) {
           if ( ds < data.s_scat ) {
             data.pos = data.pos + sign * ds * data.Bhat;
@@ -348,7 +404,7 @@ void processEvent(
             data.pos = data.pos + sign * data.s_scat * data.Bhat;
             ds = ds - data.s_scat;
             data.s_scat = -log(1.0 - xi()) * data.lam_scat;
-            data.Bhat = calcRandVec(data.mach_A); // Resample B-field direction
+            data.Bhat = calcRandVec(data.mach_A, data.super); // resample B-field direction
           }
         }
 
@@ -360,67 +416,52 @@ void processEvent(
 
         // compute energy histograms
         if ( idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size() ) {
-          data.part_stat_list[stat_tag::time_ener][idx_ener - 1] += dt;
-        }
-        
-        // compute time histograms
-        if ( idx_time > 0 && idx_time < bin_list[bin_tag::time].size() ) {
-          data.part_stat_list[stat_tag::ener_loss_time][idx_time - 1] += ener_loss;
+          data.part_stat_list[stat_tag::time_ener][iker][idx_ener - 1] += dt;
         }
         
         // compute interaction histograms
         flag = event->interaction;
         switch ( flag ) {
           case flags::scat: // scattering
-          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::scat] += 1.0;
           break;
           case flags::brem: // Bremsstrahlung
-          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::brem] += 1.0;
-          data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::brem] += event->ener_loss;
+          data.part_stat_list[stat_tag::ener_loss_mech][iker][flags::brem-1] += event->ener_loss / data.ener_start;
           break;
           case flags::exc: // excitation
-          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::exc] += 1.0;
-          data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::exc] += event->ener_loss;
+          data.part_stat_list[stat_tag::ener_loss_mech][iker][flags::exc-1] += event->ener_loss / data.ener_start;
           break;
           case flags::ion: // ionization
-          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::ion] += 1.0;
-          data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::ion] += event->ener_loss;
-          data.part_stat_list[stat_tag::num_ion_elem][event->Zelem - 1] += 1.0;
+          data.part_stat_list[stat_tag::ener_loss_mech][iker][flags::ion-1] += event->ener_loss / data.ener_start;
+          data.part_stat_list[stat_tag::num_ion_elem][iker][event->Zelem - 1] += 1.0;
           // compute secondary energy histograms
           idx_ener_sec = findIdx(event->ener_sec, bin_list[bin_tag::ener_sec]);
           if (idx_ener_sec > 0 && idx_ener_sec < bin_list[bin_tag::ener_sec].size()) {
-            data.part_stat_list[stat_tag::num_sec_ener][idx_ener_sec - 1] += 1.0;
+            data.part_stat_list[stat_tag::ener_thm][iker][0] -= event->ener_sec / data.ener_start; // don't include secondary electron energy in thermalization efficiency
+            data.part_stat_list[stat_tag::ener_sec][iker][idx_ener_sec - 1] += event->ener_sec / data.ener_start;
           }
           break;
           case flags::moller: // Moller
-          data.part_stat_list[stat_tag::num_ev_inter][inter_tag::moller] += 1.0;
           if ( !std::isnan(event->ener_loss) ) { // for some reason, this is sometimes NaN
-            data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += event->ener_loss;
+            data.part_stat_list[stat_tag::ener_loss_mech][iker][flags::moller-1] += event->ener_loss / data.ener_start;
           }
           break;
         }
-        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::moller] += event->ener_loss_moller;
-        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::sync] += event->ener_loss_sync;
-        data.part_stat_list[stat_tag::ener_loss_mech][mech_tag::cher] += event->ener_loss_cher;
 
-        // check if particle has crossed thermalization or escape barrier
-        if ( data.pos.z > 0.5 * data.scale ) {
-          data.escaped = true;
-          flag = -1;
-          if ( idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size() ) {
-            data.part_stat_list[stat_tag::num_escape_outer][idx_ener - 1] += 1.0;
-          }
-        } else if ( data.pos.z < -0.5 * data.scale ) {
-          data.escaped = true;
-          flag = -1;
-          if ( idx_ener > 0 && idx_ener < bin_list[bin_tag::ener].size() ) {
-            data.part_stat_list[stat_tag::num_escape_inner][idx_ener - 1] += 1.0;
-          }
+        // add continuous energy losses
+        data.part_stat_list[stat_tag::ener_loss_mech][iker][flags::moller-1] += event->ener_loss_moller / data.ener_start;
+
+        // end conditions
+        if ( time > data.dt ) {
+          data.outoftime = true;
+          flag = flags::outoftime;
+        } else if ( event->ener < data.ener_min ) {
+          data.thermalized = true;
+          flag = flags::thermalized;
         }
 
         // write data
         if ( do_hist ) {
-          data.oss << std::setprecision(15) << time_rel << ",";
+          data.oss << std::setprecision(15) << time << ",";
           data.oss << std::setprecision(15) << data.pos.x << "," << std::setprecision(15) << data.pos.y << "," << std::setprecision(15) << data.pos.z << ",";
           data.oss << std::setprecision(15) << event->cos_alpha << ", ";
           data.oss << std::setprecision(15) << event->ener << ", ";
@@ -437,7 +478,7 @@ void processEvent(
  * 
  * @param data_grid           The grid of data.
  * @param stat_list           The list of statistics.
- * @param mean_stat_list_flat The flattened list of mean statistics.
+ * @param M1_stat_list_flat   The flattened list of M1 statistics.
  * @param M2_stat_list_flat   The flattened list of M2 statistics.
  * @param M3_stat_list_flat   The flattened list of M3 statistics.
  * @param M4_stat_list_flat   The flattened list of M4 statistics.
@@ -446,25 +487,37 @@ void processEvent(
 void getFlatData(
   const vector3d<Data>& data_grid,
   const std::vector<Stat> &stat_list, 
-  std::vector<double> &mean_stat_list_flat, 
+  const size_t nker,
+  const size_t nmom,
+  std::vector<double> &M1_stat_list_flat, 
   std::vector<double> &M2_stat_list_flat, 
   std::vector<double> &M3_stat_list_flat, 
   std::vector<double> &M4_stat_list_flat, 
   size_t &size_flat
 ) {
   size_flat = 0;
+  size_t size_grid = data_grid.size() * data_grid[0].size() * data_grid[0][0].size();
+  for ( size_t ii = 0; ii < stat_list.size(); ii++ ) {
+    size_flat += size_grid * nker * stat_list[ii].size;
+  }
+  M1_stat_list_flat.reserve(size_flat);
+  if ( nmom >= 2 ) M2_stat_list_flat.reserve(size_flat);
+  if ( nmom >= 3 ) M2_stat_list_flat.reserve(size_flat);
+  if ( nmom >= 4 ) M2_stat_list_flat.reserve(size_flat);
+
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
       for ( size_t k = 0; k < data_grid[i][j].size(); k++ ) {
         const Data &data = data_grid[i][j][k];
-        for ( size_t l = 0; l < stat_list.size(); l++ ) {
-          const Stat &stat = stat_list[l];
-          for ( size_t m = 0; m < stat.size; m++ ) {
-            mean_stat_list_flat.push_back(data.mean_stat_list[l][m]);
-            M2_stat_list_flat.push_back(data.M2_stat_list[l][m]);
-            M3_stat_list_flat.push_back(data.M2_stat_list[l][m]);
-            M4_stat_list_flat.push_back(data.M2_stat_list[l][m]);
-            size_flat += 1;
+        for ( size_t ii = 0; ii < stat_list.size(); ii++ ) {
+          const Stat &stat = stat_list[ii];
+          for ( size_t jj = 0; jj < nker; jj++ ) {
+            for ( size_t kk = 0; kk < stat.size; kk++ ) {
+              M1_stat_list_flat.push_back(data.M1_stat_list[ii][jj][kk]);
+              if ( nmom >= 2 ) M2_stat_list_flat.push_back(data.M2_stat_list[ii][jj][kk]);
+              if ( nmom >= 3 ) M3_stat_list_flat.push_back(data.M3_stat_list[ii][jj][kk]);
+              if ( nmom >= 4 ) M4_stat_list_flat.push_back(data.M4_stat_list[ii][jj][kk]);
+            }
           }
         }
       }
