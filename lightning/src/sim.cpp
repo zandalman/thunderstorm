@@ -286,8 +286,9 @@ void Sim::interact(Event &event) {
       idx_ion = choseIon(event.Zelem, event.stage);
       event.ion = spec_data.ss_list[idx_ion];
       Vector1d2d2d spec_ion_data_1ion = spec_data.spec_ion_data[event.stage][idx_ion];
-      event.ener_sec = calcEnerLoss(xi(), part.ener, spec_ion_data_1ion.first, spec_ion_data_1ion.second, spec_ion_data_1ion.third);
-      event.ener_loss = event.ener_sec + spec_data.ener_bind_list[event.stage][idx_ion];
+      double ener_bind = spec_data.ener_bind_list[event.stage][idx_ion];
+      event.ener_sec = calcEnerLoss(xi(), part.ener, part.ener - ener_bind, spec_ion_data_1ion.first, spec_ion_data_1ion.second, spec_ion_data_1ion.third);
+      event.ener_loss = event.ener_sec + ener_bind;
       part.loseEner(event.ener_loss);
       break;
     }

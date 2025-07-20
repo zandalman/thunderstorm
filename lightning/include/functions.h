@@ -20,7 +20,7 @@ double interp(double x0, const Vector1d &x, const Vector1d &y, bool do_llim = fa
 void calcLamDeb(Vector1d ab, double rho, double temp, double q_avg, double qsq_avg, double &n_i, double &n_e_free, double &lam_deb);
 double calcB0(double n, double temp, double beta);
 double calcCosThScat(double xi, double ener, const Vector1d &ener_list, const Vector2d &cos_th_arr_list, const Vector2d &cos_th_dist_list);
-double calcEnerLoss(double xi, double ener, const Vector1d &ener_list, const Vector2d &ener_loss_arr_list, const Vector2d &ener_loss_dist_list);
+double calcEnerLoss(double xi, double ener, double ener_loss_max, const Vector1d &ener_list, const Vector2d &ener_loss_arr_list, const Vector2d &ener_loss_dist_list);
 double calcSigBturb(double m_i, double q_i, double gam, double beta, double rho, double Bmag, double Bmag_turb, double q, double Lmax);
 double calcPowerSync(double m_i, double q_i, double gam, double beta, double B0, double cos_alpha);
 double calcPowerCerenkov(double beta, double temp, double n_e_free);

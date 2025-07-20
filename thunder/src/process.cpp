@@ -436,7 +436,15 @@ void processEvent(
           // compute secondary energy histograms
           idx_ener_sec = findIdx(event->ener_sec, bin_list[bin_tag::ener_sec]);
           if (idx_ener_sec > 0 && idx_ener_sec < bin_list[bin_tag::ener_sec].size()) {
-            data.part_stat_list[stat_tag::ener_thm][iker][0] -= event->ener_sec / data.ener_start; // don't include secondary electron energy in thermalization efficiency
+            
+            if ( event->ener_sec > data.ener_start ) {
+              std::cout << event->ener_sec / data.ener_start << std::endl;
+            }
+            
+            if ( event->ener_sec > bin_list[bin_tag::ener][0] ) {
+              // don't include secondary electron energy in thermalization efficiency
+              data.part_stat_list[stat_tag::ener_thm][iker][0] -= event->ener_sec / data.ener_start;
+            }
             data.part_stat_list[stat_tag::ener_sec][iker][idx_ener_sec - 1] += event->ener_sec / data.ener_start;
           }
           break;

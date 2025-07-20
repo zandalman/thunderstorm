@@ -109,7 +109,6 @@ double interp(double x0, const Vector1d &x, const Vector1d &y, bool do_llim, boo
  * @param lam_deb       The Debye length [cm].
  */
 void calcLamDeb(Vector1d ab, double rho, double temp, double q_avg, double qsq_avg, double &n_i, double &n_e_free, double &lam_deb) {
-  double fac = 0.0;
   n_i = 0.;
   for ( size_t i = 0; i < ab.size(); i++ ) { 
     n_i += rho * constants::N_A * ab[i]; 
@@ -145,8 +144,7 @@ double calcCosThScat(double xi, double ener, const Vector1d &ener_list, const Ve
   Vector1d cos_th_arr;
   for (size_t i = 0; i < ener_list.size(); i++) {
     Vector1d cos_th_cdf = calcCDF(cos_th_arr_list[i], cos_th_dist_list[i]);
-    cos_th_arr.push_back(
-        interp(xi, cos_th_cdf, cos_th_arr_list[i], true, true, -1.0, 1.0));
+    cos_th_arr.push_back(interp(xi, cos_th_cdf, cos_th_arr_list[i], true, true, -1.0, 1.0));
   }
   return interp(ener, ener_list, cos_th_arr, true, true, -1.0, 1.0);
 }
@@ -156,19 +154,19 @@ double calcCosThScat(double xi, double ener, const Vector1d &ener_list, const Ve
  *
  * @param xi                  A random number.
  * @param ener                The energy at which to sample.
+ * @param ener_loss_max       The maximum energy loss.
  * @param ener_list           A vector of energies [eV].
  * @param ener_loss_arr_list  A vector of vectors of energy loss values at each energy [eV].
  * @param ener_loss_dist_list A vector of vectors of energy loss distribution function values at each energy [eV].
  * @return The sampled energy loss value.
  */
-double calcEnerLoss(double xi, double ener, const Vector1d &ener_list, const Vector2d &ener_loss_arr_list, const Vector2d &ener_loss_dist_list) {
+double calcEnerLoss(double xi, double ener, double ener_loss_max, const Vector1d &ener_list, const Vector2d &ener_loss_arr_list, const Vector2d &ener_loss_dist_list) {
   Vector1d ener_loss_arr;
   for (size_t i = 0; i < ener_list.size(); i++) {
-    Vector1d ener_loss_cdf =
-        calcCDF(ener_loss_arr_list[i], ener_loss_dist_list[i]);
+    Vector1d ener_loss_cdf = calcCDF(ener_loss_arr_list[i], ener_loss_dist_list[i]);
     ener_loss_arr.push_back(interp(xi, ener_loss_cdf, ener_loss_arr_list[i]));
   }
-  return interp(ener, ener_list, ener_loss_arr);
+  return interp(ener, ener_list, ener_loss_arr, true, true, 0.0, ener_loss_max);
 }
 
 /**
