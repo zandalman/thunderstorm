@@ -33,6 +33,7 @@ Data::Data(
   double ener_low_, 
   double ener_high_,
   double ener_min_,
+  double lam_turb_,
   double dt_,
   int ndim_,
   int nmom_,
@@ -44,12 +45,19 @@ Data::Data(
   , ener_low(ener_low_)
   , ener_high(ener_high_)
   , ener_min(ener_min_)
+  , lam_turb(lam_turb_ * dx_)
   , dt(dt_)
   , super(mach_A_ >= 1.0)
   , ndim(ndim_)
   , nker(2 * ndim_)
   , nmom(nmom_)
   , nstat(stat_list.size())
+
+  , ell_A(0.0)
+  , gam_par(0.0)
+  , cut_par(0.0)
+  , gam_perp(0.0)
+  , cut_perp(0.0)
 
   , ener(0.0)
   , ener_prev(0.0)
@@ -62,9 +70,11 @@ Data::Data(
   , outoftime(false)
   , thermalized(false)
 
+  , s_start(0.0)
+  , rpar(0.0)
+
   , splus_prev(0.0)
   , sminus_prev(0.0)
-  , lam_scat(0.0)
   , s_scat(0.0)
   , oss()
  {
@@ -89,8 +99,19 @@ Data::Data(
       if (nmom >= 4) M4_stat_list[i][j].resize(size_stat, 0.0);
     }
   }
-  lam_scat = super ? dx * mach_A*mach_A*mach_A : dx;
-  
+
+  // compute tranport parameters
+  calcTransportParam(
+    mach_A,
+    dx,
+    lam_turb,
+    ell_A,
+    gam_par,
+    cut_par,
+    gam_perp,
+    cut_perp
+  );
+
   // initialize the energy to a random energy within the bin
   // initial energies are log-spaced within each bin to match the bin spacing
   ener = ener_low * pow(ener_high / ener_low, xi());
@@ -98,21 +119,23 @@ Data::Data(
   ener_prev = ener;
 
   // initialize the time to a random time within the timestep
-  time = xi() * dt;
+  time = 0.0;
+  // time = xi() * dt;
   time_start = time;
   time_prev = time;
   outoftime = false;
   thermalized = false;
 
+  s_start = 0.0;
+  rpar = 0.0;
+
   splus_prev = 0.0;
   sminus_prev = 0.0;
-
-  s_scat = -log(1.0 - xi()) * lam_scat;
-  pos = Vec(xi(), xi(), xi()) * dx;
-  Bhat = calcRandVec(mach_A, super);
+  s_scat = lam_turb * rvs_exp(xi());
+  pos = Vec(0.5, 0.5, 0.5) * dx;
+  // pos = Vec(xi(), xi(), xi()) * dx;
 
   oss.str(""); oss.clear();
-
  }
 
 /// @brief Reset the particle data.
@@ -125,18 +148,21 @@ void Data::reset() {
   ener_prev = ener;
 
   // initialize the time to a random time within the timestep
-  time = xi() * dt;
+  time = 0.0;
+  // time = xi() * dt;
   time_start = time;
   time_prev = time;
   outoftime = false;
   thermalized = false;
 
+  s_start = 0.0;
+  rpar = 0.0;
+  
   splus_prev = 0.0;
   sminus_prev = 0.0;
-
-  s_scat = -log(1.0 - xi()) * lam_scat;
-  pos = Vec(xi(), xi(), xi()) * dx;
-  Bhat = calcRandVec(mach_A, super);
+  s_scat = lam_turb * rvs_exp(xi());
+  pos = Vec(0.5, 0.5, 0.5) * dx;
+  // pos = Vec(xi(), xi(), xi()) * dx;
 
   oss.str(""); oss.clear();
   
@@ -354,9 +380,11 @@ void processEvent(
   }
 
   int flag, iker;
-  double ener_loss, time;
+  double ener_sec, ener_loss, time;
+  double s, rpar;
   double dt, dsplus, dsminus, ds, sign;
   size_t idx_ener_sec, idx_ener;
+  Vec step;
   
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
@@ -371,6 +399,7 @@ void processEvent(
           data.time_start = event->time;
           data.ener_prev = event->ener;
           data.time_prev = event->time;
+          data.s_start = event->splus + event->sminus;
           data.splus_prev = event->splus;
           data.sminus_prev = event->sminus;
           continue;
@@ -394,23 +423,33 @@ void processEvent(
         ds = dsplus + dsminus;
         sign = dsplus > dsminus ? 1.0 : -1.0;
 
-        // update B-field scattering
+        // mean transport
+        s = event->splus + event->sminus - data.s_start;
+        rpar = calcRpar(s, data.ell_A);
+        data.pos = data.pos + sign * Vec(0.0, 0.0, rpar - data.rpar);
+
+        // variance transport
         while ( true ) {
           if ( ds < data.s_scat ) {
-            data.pos = data.pos + sign * ds * data.Bhat;
             data.s_scat = data.s_scat - ds;
             break;
           } else {
-            data.pos = data.pos + sign * data.s_scat * data.Bhat;
+            step = calcTransportStep(
+              data.gam_par,
+              data.cut_par,
+              data.gam_perp,
+              data.cut_perp
+            );
+            data.pos = data.pos + step;
             ds = ds - data.s_scat;
-            data.s_scat = -log(1.0 - xi()) * data.lam_scat;
-            data.Bhat = calcRandVec(data.mach_A, data.super); // resample B-field direction
+            data.s_scat = data.lam_turb * rvs_exp(xi());
           }
         }
 
         // update time and distance
         data.ener_prev = event->ener;
         data.time_prev = event->time;
+        data.rpar = rpar;
         data.splus_prev = event->splus;
         data.sminus_prev = event->sminus;
 
@@ -434,18 +473,17 @@ void processEvent(
           data.part_stat_list[stat_tag::ener_loss_mech][iker][flags::ion-1] += event->ener_loss / data.ener_start;
           data.part_stat_list[stat_tag::num_ion_elem][iker][event->Zelem - 1] += 1.0;
           // compute secondary energy histograms
-          idx_ener_sec = findIdx(event->ener_sec, bin_list[bin_tag::ener_sec]);
+
+          // temporary measure until I rerun lightning sims
+          // ener_sec = fmin(event->ener, event->ener_sec);
+
+          idx_ener_sec = findIdx(ener_sec, bin_list[bin_tag::ener_sec]);
           if (idx_ener_sec > 0 && idx_ener_sec < bin_list[bin_tag::ener_sec].size()) {
-            
-            if ( event->ener_sec > data.ener_start ) {
-              std::cout << event->ener_sec / data.ener_start << std::endl;
-            }
-            
-            if ( event->ener_sec > bin_list[bin_tag::ener][0] ) {
+            if ( ener_sec > bin_list[bin_tag::ener][0] ) {
               // don't include secondary electron energy in thermalization efficiency
-              data.part_stat_list[stat_tag::ener_thm][iker][0] -= event->ener_sec / data.ener_start;
+              data.part_stat_list[stat_tag::ener_thm][iker][0] -= ener_sec / data.ener_start;
             }
-            data.part_stat_list[stat_tag::ener_sec][iker][idx_ener_sec - 1] += event->ener_sec / data.ener_start;
+            data.part_stat_list[stat_tag::ener_sec][iker][idx_ener_sec - 1] += ener_sec / data.ener_start;
           }
           break;
           case flags::moller: // Moller

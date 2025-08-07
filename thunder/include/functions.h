@@ -30,7 +30,6 @@ constexpr int ker_tab[2][2][2] = {
 void linspace(double vmin, double vmax, size_t num, bool log, std::vector<double> &list);
 size_t findIdx(double x0, std::vector<double> x_list);
 void normalize(std::vector<double>& vec, const double norm);
-Vec calcRandVec(double mach_A, bool super);
 void addStat(
   size_t size, 
   const int nmom,
@@ -56,7 +55,24 @@ void calcMoment(
   std::vector<double> &skew,
   std::vector<double> &kurt
 );
+void calcTransportParam(
+  double mach_A,
+  double dx,
+  double lam_turb,
+  double &ell_A,
+  double &gam_par,
+  double &cut_par,
+  double &gam_perp,
+  double &cut_perp
+);
 inline int getCellIdx(double x) noexcept;
 int calcKer(Vec pos, double dx, int ndim);
+double calcRpar(const double s, const double ell_A);
+Vec calcTransportStep(
+  const double gam_par,
+  const double cut_par,
+  const double gam_perp,
+  const double cut_perp
+);
 
 #endif

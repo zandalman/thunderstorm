@@ -28,12 +28,19 @@ struct Data {
   double ener_low;                 // The lower bound of the energy bin [eV].
   double ener_high;                // The upper bound of the energy bin [eV].
   double ener_min;                 // The minimum energy [eV].
+  double lam_turb;
   double dt;                       // The zone timestep [s].
   bool super;                      // Whether the turbulence is super-Alfvenic
   size_t ndim;                     // The number of dimensions.
   size_t nker;                     // The number of kernels.
   size_t nmom;                     // The number of moments.
   size_t nstat;                    // The number of statistics.
+
+  double ell_A;
+  double gam_par;
+  double cut_par;
+  double gam_perp;
+  double cut_perp;
 
   double ener;                     // The initial energy [eV].
   double ener_prev;                // The previous energy in Lightning [eV].
@@ -46,12 +53,12 @@ struct Data {
   bool outoftime;                  // Whether the particle is out of time.
   bool thermalized;                // Whether the particle thermalized.
   
+  double s_start;
+  double rpar;
+  
   Vec pos;                         // The position [cm].
   double splus_prev;               // The previous positive distance along the field line [cm].
   double sminus_prev;              // The previous negative distance along the field line [cm].
-  
-  Vec Bhat;                        // The B-field direction.
-  double lam_scat;                 // The mean free path along a field line to scatter [cm].
   double s_scat;                   // The distance along a field line to scattering [cm].
   
   std::ostringstream oss;          // The string stream.
@@ -77,6 +84,7 @@ struct Data {
     double ener_low_,
     double ener_high_,
     double ener_min_,
+    double lam_turb_,
     double dt_,
     int ndim_,
     int nmom_,

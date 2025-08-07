@@ -51,6 +51,7 @@ int main(int argc, char** argv) {
   int walltime = std::stoi(config["Misc"]["walltime"]);
   double rho_sim = std::stod(config["Misc"]["rho_sim"]);
   double ener_min = std::stod(config["Misc"]["ener_min"]);
+  double lam_turb = std::stod(config["Misc"]["lam_turb"]);
   double vmax = std::stod(config["Misc"]["vmax"]) * constants::c;
   size_t ndim = std::stoul(config["Misc"]["ndim"]);
   size_t nmom = std::stoul(config["Misc"]["nmom"]);
@@ -97,6 +98,7 @@ int main(int argc, char** argv) {
           ener_list[k], 
           ener_list[k+1], 
           ener_min,
+          lam_turb,
           col_list[j] / rho_sim / vmax, 
           ndim, 
           nmom,

@@ -68,32 +68,6 @@ void normalize(std::vector<double>& vec, const double norm) {
 }
 
 /**
- * @brief Resample the B-field direction.
- * Assume that the...
- */
-
-Vec calcRandVec(double mach_A, bool super) {
-  Vec Bhat;
-  double cos_th = 2.0 * xi() - 1.0;
-  double sin_th = sqrt(1.0 - cos_th*cos_th);
-  double phi = 2.0 * M_PI * xi();
-  if ( super ) {
-    Bhat = Vec(
-      mach_A * sin_th * cos(phi),
-      mach_A * sin_th * sin(phi),
-      1.0 + mach_A * cos_th
-    );
-  } else {
-    Bhat = Vec(
-      mach_A*mach_A * sin_th * cos(phi),
-      mach_A*mach_A * sin_th * sin(phi),
-      1.0 + mach_A * cos_th
-    );
-  }
-  return Bhat.unit();
-}
-
-/**
  * @brief Combine statistics between two datasets.
  * 
  * @param size   The size of the statistics vector.
@@ -184,6 +158,26 @@ void calcMoment(
   }
 }
 
+void calcTransportParam(
+  double mach_A,
+  double dx,
+  double lam_turb,
+  double &ell_A,
+  double &gam_par,
+  double &cut_par,
+  double &gam_perp,
+  double &cut_perp
+) {
+  double fac = sqrt(2.0); // fudge factor
+  double sig0_par = 2.567665550378655; // inter-quartile range for alpha=1/2 Levy stable distribution
+  double sig0_perp = 2.2205158963881875; // inter-quartile range for alpha=2/3 Levy stable distribution
+  ell_A = mach_A >= 1.0 ? dx / (mach_A*mach_A*mach_A) : dx / (mach_A*mach_A);
+  gam_par = sqrt(1.0/180.0) * lam_turb*lam_turb / (sig0_par * ell_A);
+  cut_par = 1.0/6.0 * lam_turb*lam_turb / (fac*fac * sig0_par * gam_par);
+  gam_perp = sqrt(1.0/9.0 * lam_turb*lam_turb*lam_turb / ell_A) / sig0_perp;
+  cut_perp = sqrt(1.0/(6.0*6.0*6.0)) * lam_turb*lam_turb*lam_turb / (fac*fac*fac * sig0_perp*sig0_perp * gam_perp*gam_perp);
+}
+
 /**
  * @brief Get the index of the current cell given the normalized 1D position.
  * 
@@ -193,7 +187,7 @@ void calcMoment(
 inline int getCellIdx(double x) noexcept {
   if ( 0.0 <= x && x <= 1.0  ) return 0;
   if ( -1.0 <= x && x <= 2.0 ) return 1;
-  return -1;
+  return 1;
 }
 
 /**
@@ -232,5 +226,35 @@ int calcKer(Vec pos, double dx, int ndim) {
   default:
     return ker_tag::none;
   }
+}
+
+double calcRpar(const double s, const double ell_A) {
+  return s <= ell_A 
+    ? (1.0 - 1.0/6.0 * s / ell_A) * s 
+    : (pow(s / ell_A, 2.0/3.0) - 1.0/6.0) * ell_A;
+}
+
+Vec calcTransportStep(
+  const double gam_par,
+  const double cut_par,
+  const double gam_perp,
+  const double cut_perp
+) {
+  Vec step(0.0, 0.0, 0.0);
+  double r_perp, cos_th, sgn;
+  step.z = gam_par * rvs_stable_1o2(xi(), xi());
+  if ( fabs(step.z) > cut_par ) {
+    sgn = step.z > 0.0 ? 1.0 : -1.0;
+    step.z = sgn * cut_par * rvs_pareto(xi());
+  }
+  r_perp = gam_perp * rvs_stable_2o3(xi(), xi());
+  if ( fabs(r_perp) > cut_perp ) {
+    sgn = r_perp > 0.0 ? 1.0 : -1.0;
+    r_perp = sgn * cut_perp * rvs_pareto(xi());
+  }
+  cos_th = 2.0 * (xi() - 0.5);
+  step.x = r_perp * cos_th;
+  step.y = r_perp * sqrt(1.0 - cos_th*cos_th);
+  return step;
 }
 
