@@ -29,27 +29,12 @@ double rvs_exp(double xi) {
 }
 
 /**
- * @brief Sample a Pareto distribution with alpha=1.
- */
-double rvs_pareto(double xi) {
-  return 1.0 / (1.0 - xi);
-}
-
-/**
- * @brief Sample a Levy stable distribution with alpha=1/2.
- */
-double rvs_stable_1o2(double xi1, double xi2) {
-  double U = M_PI * (xi1 - 0.5);
-  double W = rvs_exp(xi2);
-  return 0.5 / W * tan(U) / cos(U);
-}
-
-/**
- * @brief Sample a Levy stable distribution with alpha=1/2.
- */
-double rvs_stable_2o3(double xi1, double xi2) {
-  double U = M_PI * (xi1 - 0.5);
-  double W = rvs_exp(xi2);
-  double temp = sqrt(2.0 * cos(2.0/3.0 * U) - 1.0);
-  return 2.0 / sqrt(W) * sin(U/3.0) / (temp*temp*temp);
+ * @brief Sample a standard normal distribution.
+ * Using the Box-Mueller transform.
+*/
+void rvs_norm(double &Z1, double &Z2, double xi1, double xi2) {
+  double r = sqrt(-2.0 * log(xi1));
+  double th = 2.0 * M_PI * xi2;
+  Z1 = r * cos(th);
+  Z2 = r * sin(th);
 }

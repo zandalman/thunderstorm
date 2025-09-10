@@ -55,24 +55,7 @@ void calcMoment(
   std::vector<double> &skew,
   std::vector<double> &kurt
 );
-void calcTransportParam(
-  double mach_A,
-  double dx,
-  double lam_turb,
-  double &ell_A,
-  double &gam_par,
-  double &cut_par,
-  double &gam_perp,
-  double &cut_perp
-);
 inline int getCellIdx(double x) noexcept;
 int calcKer(Vec pos, double dx, int ndim);
-double calcRpar(const double s, const double ell_A);
-Vec calcTransportStep(
-  const double gam_par,
-  const double cut_par,
-  const double gam_perp,
-  const double cut_perp
-);
 
 #endif

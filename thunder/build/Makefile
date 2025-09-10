@@ -1,6 +1,6 @@
 # compiler and flags
 CXX := mpic++
-CXXFLAGS_RELEASE := -std=c++17 -Wall -Wextra -O2 -march=native -finline-functions
+CXXFLAGS_RELEASE := -std=c++17 -Wall -Wextra -O3 -march=native -finline-functions
 CXXFLAGS_DEBUG1 := -std=c++17 -Wall -Wextra -O0 -fno-tree-vectorize -g
 
 # Use DEBUG=1 to enable debug flags

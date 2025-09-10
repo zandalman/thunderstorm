@@ -33,10 +33,12 @@ Data::Data(
   double ener_low_, 
   double ener_high_,
   double ener_min_,
-  double lam_turb_,
   double dt_,
-  int ndim_,
-  int nmom_,
+  double ds_,
+  double ell_min_,
+  size_t ndim_,
+  size_t nmom_,
+  size_t nscale_,
   const std::vector<Stat> &stat_list
   )
   
@@ -45,19 +47,17 @@ Data::Data(
   , ener_low(ener_low_)
   , ener_high(ener_high_)
   , ener_min(ener_min_)
-  , lam_turb(lam_turb_ * dx_)
   , dt(dt_)
+  , ds(ds_ * dx_)
+  , ell_min(ell_min_ * dx_)
   , super(mach_A_ >= 1.0)
   , ndim(ndim_)
   , nker(2 * ndim_)
   , nmom(nmom_)
   , nstat(stat_list.size())
+  , nscale(nscale_)
 
   , ell_A(0.0)
-  , gam_par(0.0)
-  , cut_par(0.0)
-  , gam_perp(0.0)
-  , cut_perp(0.0)
 
   , ener(0.0)
   , ener_prev(0.0)
@@ -71,11 +71,10 @@ Data::Data(
   , thermalized(false)
 
   , s_start(0.0)
-  , rpar(0.0)
 
   , splus_prev(0.0)
   , sminus_prev(0.0)
-  , s_scat(0.0)
+  , ds_rem(ds_ * dx_)
   , oss()
  {
   size_t size_stat;
@@ -100,18 +99,6 @@ Data::Data(
     }
   }
 
-  // compute tranport parameters
-  calcTransportParam(
-    mach_A,
-    dx,
-    lam_turb,
-    ell_A,
-    gam_par,
-    cut_par,
-    gam_perp,
-    cut_perp
-  );
-
   // initialize the energy to a random energy within the bin
   // initial energies are log-spaced within each bin to match the bin spacing
   ener = ener_low * pow(ener_high / ener_low, xi());
@@ -127,13 +114,26 @@ Data::Data(
   thermalized = false;
 
   s_start = 0.0;
-  rpar = 0.0;
 
   splus_prev = 0.0;
   sminus_prev = 0.0;
-  s_scat = lam_turb * rvs_exp(xi());
-  pos = Vec(0.5, 0.5, 0.5) * dx;
-  // pos = Vec(xi(), xi(), xi()) * dx;
+  // pos = Vec(0.5, 0.5, 0.5) * dx;
+  pos = Vec(xi(), xi(), xi()) * dx;
+
+  Bhat_turb = Vec(0.0, 0.0, 1.0);
+  omega_ell.resize(nscale, Vec(0.0, 0.0, 0.0));
+
+  ell_A = super ? dx / (mach_A*mach_A*mach_A) : dx / (mach_A*mach_A);
+  linspace(ell_min, dx, nscale, true, ell);
+  mach_A_ell.resize(nscale);
+  double mach_A_ell_norm_sq = 0.0;
+  for ( size_t i = 0; i < nscale; i++ ) {
+    mach_A_ell[i] = ell[i] >= ell_A ? pow(ell[i] / ell_A, 1.0/3.0) : pow(ell[i] / ell_A, 0.5);
+    mach_A_ell_norm_sq += mach_A_ell[i]*mach_A_ell[i];
+  }
+  for ( size_t i = 0; i < nscale; i++ ) {
+    mach_A_ell[i] *= mach_A / sqrt(mach_A_ell_norm_sq);
+  }
 
   oss.str(""); oss.clear();
  }
@@ -156,13 +156,15 @@ void Data::reset() {
   thermalized = false;
 
   s_start = 0.0;
-  rpar = 0.0;
   
   splus_prev = 0.0;
   sminus_prev = 0.0;
-  s_scat = lam_turb * rvs_exp(xi());
-  pos = Vec(0.5, 0.5, 0.5) * dx;
-  // pos = Vec(xi(), xi(), xi()) * dx;
+  // pos = Vec(0.5, 0.5, 0.5) * dx;
+  pos = Vec(xi(), xi(), xi()) * dx;
+
+  Bhat_turb = Vec(0.0, 0.0, 1.0);
+  std::fill(omega_ell.begin(), omega_ell.end(), Vec(0.0, 0.0, 0.0));
+  ds_rem = ds;
 
   oss.str(""); oss.clear();
   
@@ -208,6 +210,44 @@ void Data::calcStat(int n_int, const std::vector<Stat> &stat_list) {
       }
     }
   }
+}
+
+/**
+ * @brief One step in an Ornstein–Uhlenbeck process.
+ * dx = -x/tau dt + sqrt(2/tau) dW
+ * 
+ * @param x   The random variable.
+ * @param dt  The time step.
+ * @param tau The correlation time.
+ */
+inline void ouStep(double &x, double mu, double sig, double eta) {
+  x = x * mu + sig * eta;
+}
+
+void Data::transportStep(double ds_step, double sign) {
+  
+  double mu, sig;
+  Vec eta;
+  Vec omega = Vec(0.0, 0.0, 0.0);
+
+  for ( size_t i = 0; i < nscale; i++ ) {
+    
+    mu = exp(-ds_step / ell[i]);
+    sig = sqrt(1.0 - mu*mu);
+
+    rvs_norm(eta.x, eta.y, xi(), xi());
+    rvs_norm(eta.x, eta.z, xi(), xi());
+    
+    ouStep(omega_ell[i].x, mu, sig, eta.x);
+    ouStep(omega_ell[i].y, mu, sig, eta.y);
+    ouStep(omega_ell[i].z, mu, sig, eta.z);
+
+    omega += mach_A_ell[i] * omega_ell[i];
+  }
+
+  Bhat_turb = rotate(Bhat_turb, omega, cos(omega.mag()));
+  Vec Bhat = (mach_A * Bhat_turb + Vec(0.0, 0.0, 1.0)).unit();
+  pos = pos + sign * Bhat * ds_step;
 }
 
 /**
@@ -380,11 +420,9 @@ void processEvent(
   }
 
   int flag, iker;
-  double ener_sec, ener_loss, time;
-  double s, rpar;
+  double ener_loss, time;
   double dt, dsplus, dsminus, ds, sign;
   size_t idx_ener_sec, idx_ener;
-  Vec step;
   
   for ( size_t i = 0; i < data_grid.size(); i++ ) {
     for ( size_t j = 0; j < data_grid[i].size(); j++ ) {
@@ -422,34 +460,22 @@ void processEvent(
         dsminus = event->sminus - data.sminus_prev;
         ds = dsplus + dsminus;
         sign = dsplus > dsminus ? 1.0 : -1.0;
-
-        // mean transport
-        s = event->splus + event->sminus - data.s_start;
-        rpar = calcRpar(s, data.ell_A);
-        data.pos = data.pos + sign * Vec(0.0, 0.0, rpar - data.rpar);
-
-        // variance transport
+        
         while ( true ) {
-          if ( ds < data.s_scat ) {
-            data.s_scat = data.s_scat - ds;
+          if ( ds < data.ds_rem ) {
+            data.transportStep(ds, sign);
+            data.ds_rem += -ds;
             break;
           } else {
-            step = calcTransportStep(
-              data.gam_par,
-              data.cut_par,
-              data.gam_perp,
-              data.cut_perp
-            );
-            data.pos = data.pos + step;
-            ds = ds - data.s_scat;
-            data.s_scat = data.lam_turb * rvs_exp(xi());
+            data.transportStep(data.ds_rem, sign);
+            ds += -data.ds_rem;
+            data.ds_rem = data.ds;
           }
         }
 
         // update time and distance
         data.ener_prev = event->ener;
         data.time_prev = event->time;
-        data.rpar = rpar;
         data.splus_prev = event->splus;
         data.sminus_prev = event->sminus;
 
@@ -477,13 +503,13 @@ void processEvent(
           // temporary measure until I rerun lightning sims
           // ener_sec = fmin(event->ener, event->ener_sec);
 
-          idx_ener_sec = findIdx(ener_sec, bin_list[bin_tag::ener_sec]);
+          idx_ener_sec = findIdx(event->ener_sec, bin_list[bin_tag::ener_sec]);
           if (idx_ener_sec > 0 && idx_ener_sec < bin_list[bin_tag::ener_sec].size()) {
-            if ( ener_sec > bin_list[bin_tag::ener][0] ) {
+            if ( event->ener_sec > bin_list[bin_tag::ener][0] ) {
               // don't include secondary electron energy in thermalization efficiency
-              data.part_stat_list[stat_tag::ener_thm][iker][0] -= ener_sec / data.ener_start;
+              data.part_stat_list[stat_tag::ener_thm][iker][0] -= event->ener_sec / data.ener_start;
             }
-            data.part_stat_list[stat_tag::ener_sec][iker][idx_ener_sec - 1] += ener_sec / data.ener_start;
+            data.part_stat_list[stat_tag::ener_sec][iker][idx_ener_sec - 1] += event->ener_sec / data.ener_start;
           }
           break;
           case flags::moller: // Moller
@@ -528,7 +554,7 @@ void processEvent(
  * @param M2_stat_list_flat   The flattened list of M2 statistics.
  * @param M3_stat_list_flat   The flattened list of M3 statistics.
  * @param M4_stat_list_flat   The flattened list of M4 statistics.
- * @param size_t              The size of the flattened list of statistics.
+ * @param size_flat              The size of the flattened list of statistics.
  */
 void getFlatData(
   const vector3d<Data>& data_grid,

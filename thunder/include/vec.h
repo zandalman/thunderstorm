@@ -12,6 +12,7 @@ struct Vec {
   Vec operator +(const Vec& other) const;
   Vec operator *(double k) const;
   friend Vec operator *(double k, const Vec& self);
+  Vec& operator +=(const Vec& other);
 };
 
 Vec cross(Vec A, Vec B);

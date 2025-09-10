@@ -35,6 +35,14 @@ Vec operator *(double k, const Vec& self) {
   return self * k;
 }
 
+/// @brief Overload the += operator for vector self-addition.
+Vec& Vec::operator +=(const Vec& other) {
+  x += other.x;
+  y += other.y;
+  z += other.z;
+  return *this;
+}
+
 /**
  * @brief Take the dot product of two vectors.
  * 
@@ -67,13 +75,13 @@ Vec cross(Vec A, Vec B) {
  * Rotate one vector about another vector by a given angle
  * using the Rodrigues rotation formula.
  * 
- * @param A The vector to rotate.
- * @param B The vector about which to rotate.
- * @param th The cosine of the rotation angle.
+ * @param A      The vector to rotate.
+ * @param B      The vector about which to rotate.
+ * @param cos_th The cosine of the rotation angle.
  * @return The rotated vector.
 */
 Vec rotate(Vec A, Vec B, double cos_th) {
-  double sin_th = pow(1 - cos_th*cos_th, 0.5);
+  double sin_th = sqrt(1.0 - cos_th*cos_th);
   Vec Bhat = B.unit();
   return A * cos_th + cross(Bhat, A) * sin_th + Bhat * dot(Bhat, A) * (1 - cos_th);
 }

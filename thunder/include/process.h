@@ -28,19 +28,19 @@ struct Data {
   double ener_low;                 // The lower bound of the energy bin [eV].
   double ener_high;                // The upper bound of the energy bin [eV].
   double ener_min;                 // The minimum energy [eV].
-  double lam_turb;
   double dt;                       // The zone timestep [s].
+  double ds;                       // The arclength step for transport [cm].
+  double ell_min;                  // The minimum eddy scale to model [cm].
   bool super;                      // Whether the turbulence is super-Alfvenic
   size_t ndim;                     // The number of dimensions.
   size_t nker;                     // The number of kernels.
   size_t nmom;                     // The number of moments.
   size_t nstat;                    // The number of statistics.
+  size_t nscale;                   // The number of scales
 
   double ell_A;
-  double gam_par;
-  double cut_par;
-  double gam_perp;
-  double cut_perp;
+  std::vector<double> mach_A_ell;
+  std::vector<double> ell;
 
   double ener;                     // The initial energy [eV].
   double ener_prev;                // The previous energy in Lightning [eV].
@@ -54,12 +54,14 @@ struct Data {
   bool thermalized;                // Whether the particle thermalized.
   
   double s_start;
-  double rpar;
   
   Vec pos;                         // The position [cm].
   double splus_prev;               // The previous positive distance along the field line [cm].
   double sminus_prev;              // The previous negative distance along the field line [cm].
-  double s_scat;                   // The distance along a field line to scattering [cm].
+  double ds_rem;                   // The distance along a field line to scattering [cm].
+
+  Vec Bhat_turb;
+  std::vector<Vec> omega_ell;
   
   std::ostringstream oss;          // The string stream.
   vector3d<double> part_stat_list; // The statistics for a single particle.
@@ -84,15 +86,20 @@ struct Data {
     double ener_low_,
     double ener_high_,
     double ener_min_,
-    double lam_turb_,
     double dt_,
-    int ndim_,
-    int nmom_,
+    double ds_,
+    double ell_min_,
+    size_t ndim_,
+    size_t nmom_,
+    size_t nscale_,
     const std::vector<Stat> &stat_list
   );
   void reset();
   void calcStat(int n_int, const std::vector<Stat> &stat_list);
+  void transportStep(double ds_step, double sign);
 };
+
+inline void ouStep(double &x, double mu, double sig, double eta);
 
 void postProcPart(
   int count,
